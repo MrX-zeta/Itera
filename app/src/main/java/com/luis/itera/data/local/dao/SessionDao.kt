@@ -37,4 +37,8 @@ interface SessionDao {
 
     @Query("SELECT DISTINCT dateEpochDay FROM sessions WHERE isFinished = 1")
     fun getTrainedDays(): Flow<List<Long>>
+
+    @Transaction
+    @Query("SELECT * FROM sessions WHERE isFinished = 0 ORDER BY id DESC LIMIT 1")
+    fun getActiveSessionWithSets(): Flow<SessionWithSets?>
 }

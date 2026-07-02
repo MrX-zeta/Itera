@@ -18,7 +18,7 @@ class SessionRepositoryImpl @Inject constructor(
 ) : SessionRepository {
 
     override fun getActiveSession(): Flow<Session?> =
-        sessionDao.getActiveSession().map { it?.toDomain() }
+        sessionDao.getActiveSessionWithSets().map { it?.toDomain() }
 
     override fun getSessionsByDate(dateEpochDay: Long): Flow<List<Session>> =
         sessionDao.getSessionsWithSetsByDate(dateEpochDay).map { list -> list.map { it.toDomain() } }

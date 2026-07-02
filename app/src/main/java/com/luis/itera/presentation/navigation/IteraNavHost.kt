@@ -23,6 +23,7 @@ import androidx.navigation.compose.rememberNavController
 import com.luis.itera.R
 import androidx.compose.ui.unit.dp
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.active_workout.ActiveWorkoutScreen
 
 private data class NavItem(
     val destination: IteraDestination,
@@ -88,6 +89,7 @@ fun IteraNavHost() {
             composable(IteraDestination.ActiveWorkout.route) { }
             composable(IteraDestination.History.route) { }
             composable(IteraDestination.Hydration.route) { }
+            composable(IteraDestination.ActiveWorkout.route) { ActiveWorkoutScreen() }
         }
     }
 }
