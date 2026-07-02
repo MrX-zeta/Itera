@@ -120,7 +120,8 @@ private fun HomeContent(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
+            .padding(top = 32.dp, bottom = 16.dp)
     ) {
         Row(
             Modifier.fillMaxWidth(),
@@ -160,9 +161,11 @@ private fun HomeContent(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .border(1.dp, IteraColors.Border, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(IteraColors.SurfaceElevated)
+                    .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(12.dp))
                     .clickable { onLastSessionClick(last.id) }
-                    .padding(14.dp),
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -227,7 +230,7 @@ private fun HomeContent(
                         .background(if (selected) IteraColors.Accent else IteraColors.Surface)
                         .border(
                             1.dp,
-                            if (selected) IteraColors.Accent else IteraColors.Border,
+                            if (selected) IteraColors.Accent else IteraColors.BorderStrong,
                             RoundedCornerShape(8.dp)
                         )
                         .clickable(enabled = !blocked) { onFocusToggle(focus) }
@@ -278,7 +281,9 @@ private fun WeekActivityRow(trainedDays: Set<Long>) {
                         .clip(CircleShape)
                         .then(
                             if (trained) Modifier.background(IteraColors.Accent)
-                            else Modifier.border(1.dp, IteraColors.Border, CircleShape)
+                            else Modifier
+                                .background(IteraColors.SurfaceElevated)
+                                .border(1.dp, IteraColors.BorderStrong, CircleShape)
                         )
                 )
                 Spacer(Modifier.height(6.dp))
@@ -306,7 +311,7 @@ private fun MiniHydrationRing(progress: Float, onClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(4.dp),
-            color = IteraColors.Border,
+            color = IteraColors.BorderStrong,
             strokeWidth = 3.dp
         )
         CircularProgressIndicator(
