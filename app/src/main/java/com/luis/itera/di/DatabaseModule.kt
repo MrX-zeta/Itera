@@ -21,6 +21,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Provider
 import javax.inject.Singleton
+import androidx.room.migration.Migration
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -33,6 +34,7 @@ object DatabaseModule {
         exerciseDaoProvider: Provider<ExerciseDao>
     ): IteraDatabase =
         Room.databaseBuilder(context, IteraDatabase::class.java, "itera.db")
+            .addMigrations(MIGRATION_1_2)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
@@ -53,4 +55,10 @@ object DatabaseModule {
 
     @Provides
     fun provideHydrationDao(db: IteraDatabase): HydrationDao = db.hydrationDao()
+}
+
+private val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE sessions ADD COLUMN focus TEXT")
+    }
 }

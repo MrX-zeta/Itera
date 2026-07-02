@@ -13,5 +13,6 @@ data class SessionEntity(
     val dateEpochDay: Long,
     val durationMinutes: Int = 0,
     val notes: String? = null,
-    val isFinished: Boolean = false
+    val isFinished: Boolean = false,
+    val focus: String? = null
 )

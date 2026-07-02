@@ -1,11 +1,13 @@
 package com.luis.itera.presentation.active_workout
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.domain.model.Exercise
+import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.components.SessionTimer
 import com.luis.itera.presentation.theme.IteraColors
@@ -41,7 +44,11 @@ fun ActiveWorkoutScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     if (state.session == null) {
-        EmptySessionContent(onStart = viewModel::onStartSession)
+        EmptySessionContent(
+            selectedFocuses = state.selectedFocuses,
+            onFocusToggle = viewModel::onFocusToggle,
+            onStart = viewModel::onStartSession
+        )
     } else {
         ActiveSessionContent(
             state = state,
@@ -56,11 +63,54 @@ fun ActiveWorkoutScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EmptySessionContent(onStart: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+private fun EmptySessionContent(
+    selectedFocuses: Set<WorkoutFocus>,
+    onFocusToggle: (WorkoutFocus) -> Unit,
+    onStart: () -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "¿QUÉ ENTRENAS HOY?",
+            style = MaterialTheme.typography.labelSmall,
+            color = IteraColors.TextSecondary
+        )
+        Spacer(Modifier.height(12.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            WorkoutFocus.entries.forEach { focus ->
+                val selected = focus in selectedFocuses
+                Text(
+                    text = focus.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (selected) IteraColors.OnAccent else IteraColors.TextPrimary,
+                    modifier = Modifier
+                        .background(
+                            color = if (selected) IteraColors.Accent else IteraColors.Surface,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .border(
+                            1.dp,
+                            if (selected) IteraColors.Accent else IteraColors.Border,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .clickable { onFocusToggle(focus) }
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(24.dp))
         Button(
             onClick = onStart,
+            modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = IteraColors.Accent,
                 contentColor = IteraColors.OnAccent
@@ -82,7 +132,7 @@ private fun ActiveSessionContent(
     onRegisterSet: () -> Unit,
     onStartTimer: () -> Unit,
     onFinishSession: () -> Unit
-){
+) {
     Column(
         Modifier
             .fillMaxSize()
@@ -93,11 +143,20 @@ private fun ActiveSessionContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "ENTRENAMIENTO ACTIVO",
-                style = MaterialTheme.typography.labelSmall,
-                color = IteraColors.TextSecondary
-            )
+            Column {
+                Text(
+                    text = "ENTRENAMIENTO ACTIVO",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = IteraColors.TextSecondary
+                )
+                if (state.sessionFocuses.isNotEmpty()) {
+                    Text(
+                        text = state.sessionFocuses.joinToString(" · ") { it.label },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = IteraColors.Accent
+                    )
+                }
+            }
             if (state.sessionStartMillis != null) {
                 SessionTimer(state.sessionStartMillis)
             } else {

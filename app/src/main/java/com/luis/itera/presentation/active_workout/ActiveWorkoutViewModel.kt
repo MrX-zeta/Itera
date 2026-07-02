@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.itera.domain.model.Exercise
 import com.luis.itera.domain.model.Session
+import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.SessionRepository
 import com.luis.itera.domain.usecase.CalculateHydrationGoalUseCase
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
+import kotlinx.coroutines.flow.map
 
 data class ActiveWorkoutUiState(
     val session: Session? = null,
@@ -26,8 +28,12 @@ data class ActiveWorkoutUiState(
     val selectedExercise: Exercise? = null,
     val reps: Int = 10,
     val weightKg: Float = 0f,
-    val sessionStartMillis: Long? = null
-)
+    val sessionStartMillis: Long? = null,
+    val selectedFocuses: Set<WorkoutFocus> = emptySet()
+) {
+    val sessionFocuses: Set<WorkoutFocus>
+        get() = WorkoutFocus.fromStored(session?.focus)
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -42,29 +48,53 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val reps = MutableStateFlow(10)
     private val weightKg = MutableStateFlow(0f)
     private val sessionStartMillis = MutableStateFlow<Long?>(null)
+    private val selectedFocuses = MutableStateFlow<Set<WorkoutFocus>>(emptySet())
 
-    private val exercises = searchQuery.flatMapLatest { query ->
-        if (query.isBlank()) exerciseRepository.getAll()
-        else exerciseRepository.search(query)
+    private val exercises = combine(
+        searchQuery,
+        sessionRepository.getActiveSession()
+    ) { query, session -> query to WorkoutFocus.fromStored(session?.focus) }
+        .flatMapLatest { (query, focuses) ->
+            val source = if (query.isBlank()) exerciseRepository.getAll()
+            else exerciseRepository.search(query)
+            source.map { list -> filterByFocus(list, focuses, query) }
+        }
+
+    private fun filterByFocus(
+        list: List<Exercise>,
+        focuses: Set<WorkoutFocus>,
+        query: String
+    ): List<Exercise> {
+        if (query.isNotBlank()) return list
+        val groups = focuses.flatMap { it.muscleGroups }.toSet()
+        if (groups.isEmpty()) return list
+        return list.filter { it.mainMuscleGroup in groups }
     }
 
     val uiState: StateFlow<ActiveWorkoutUiState> = combine(
         sessionRepository.getActiveSession(),
         exercises,
         searchQuery,
-        selectedExercise,
+        combine(selectedExercise, selectedFocuses) { e, f -> e to f },
         combine(reps, weightKg, sessionStartMillis) { r, w, s -> Triple(r, w, s) }
-    ) { session, exerciseList, query, selected, inputs ->
+    ) { session, exerciseList, query, selection, inputs ->
         ActiveWorkoutUiState(
             session = session,
             exercises = exerciseList,
             searchQuery = query,
-            selectedExercise = selected,
+            selectedExercise = selection.first,
             reps = inputs.first,
             weightKg = inputs.second,
-            sessionStartMillis = inputs.third
+            sessionStartMillis = inputs.third,
+            selectedFocuses = selection.second
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
+
+    fun onFocusToggle(focus: WorkoutFocus) {
+        selectedFocuses.value =
+            if (focus in selectedFocuses.value) selectedFocuses.value - focus
+            else selectedFocuses.value + focus
+    }
 
     fun onSearchQueryChange(query: String) {
         searchQuery.value = query
@@ -85,7 +115,11 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun onStartSession() {
         viewModelScope.launch {
-            sessionRepository.startSession(LocalDate.now().toEpochDay())
+            sessionRepository.startSession(
+                dateEpochDay = LocalDate.now().toEpochDay(),
+                focus = WorkoutFocus.toStored(selectedFocuses.value)
+            )
+            selectedFocuses.value = emptySet()
         }
     }
 

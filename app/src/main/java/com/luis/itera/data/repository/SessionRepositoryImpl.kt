@@ -25,8 +25,8 @@ class SessionRepositoryImpl @Inject constructor(
 
     override fun getTrainedDays(): Flow<List<Long>> = sessionDao.getTrainedDays()
 
-    override suspend fun startSession(dateEpochDay: Long): Long =
-        sessionDao.insert(SessionEntity(dateEpochDay = dateEpochDay))
+    override suspend fun startSession(dateEpochDay: Long, focus: String?): Long =
+        sessionDao.insert(SessionEntity(dateEpochDay = dateEpochDay, focus = focus))
 
     override fun getSessionById(sessionId: Long): Flow<Session?> =
         sessionDao.getSessionWithSetsById(sessionId).map { it?.toDomain() }
@@ -38,7 +38,8 @@ class SessionRepositoryImpl @Inject constructor(
                 dateEpochDay = session.dateEpochDay,
                 durationMinutes = session.durationMinutes,
                 notes = session.notes,
-                isFinished = true
+                isFinished = true,
+                focus = session.focus
             )
         )
     }
@@ -72,7 +73,7 @@ class SessionRepositoryImpl @Inject constructor(
 }
 
 private fun SessionEntity.toDomain(sets: List<WorkoutSet> = emptyList()) =
-    Session(id, dateEpochDay, durationMinutes, notes, isFinished, sets)
+    Session(id, dateEpochDay, durationMinutes, notes, isFinished, focus, sets)
 
 private fun SetEntity.toDomain() =
     WorkoutSet(id, sessionId, exerciseId, reps, weightAddedKg, order)
