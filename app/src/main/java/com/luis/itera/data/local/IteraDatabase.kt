@@ -2,15 +2,15 @@ package com.luis.itera.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import com.paquete.itera.data.local.dao.ExerciseDao
-import com.paquete.itera.data.local.dao.HydrationDao
-import com.paquete.itera.data.local.dao.SessionDao
-import com.paquete.itera.data.local.dao.SetDao
-import com.paquete.itera.data.local.entity.DailyHydrationGoalEntity
-import com.paquete.itera.data.local.entity.ExerciseEntity
-import com.paquete.itera.data.local.entity.HydrationIntakeEntity
-import com.paquete.itera.data.local.entity.SessionEntity
-import com.paquete.itera.data.local.entity.SetEntity
+import com.luis.itera.data.local.dao.ExerciseDao
+import com.luis.itera.data.local.dao.HydrationDao
+import com.luis.itera.data.local.dao.SessionDao
+import com.luis.itera.data.local.dao.SetDao
+import com.luis.itera.data.local.entity.DailyHydrationGoalEntity
+import com.luis.itera.data.local.entity.ExerciseEntity
+import com.luis.itera.data.local.entity.HydrationIntakeEntity
+import com.luis.itera.data.local.entity.SessionEntity
+import com.luis.itera.data.local.entity.SetEntity
 
 @Database(
     entities = [

@@ -4,8 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
-import com.paquete.itera.data.local.entity.DailyHydrationGoalEntity
-import com.paquete.itera.data.local.entity.HydrationIntakeEntity
+import com.luis.itera.data.local.entity.DailyHydrationGoalEntity
+import com.luis.itera.data.local.entity.HydrationIntakeEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

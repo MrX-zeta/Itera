@@ -1,10 +1,15 @@
 package com.luis.itera.data.local
 
-import com.paquete.itera.data.local.entity.ExerciseEntity
+import com.luis.itera.data.local.entity.ExerciseEntity
 
 object ExerciseSeed {
     val exercises = listOf(
-        ExerciseEntity(name = "Dominadas pronas", category = "Calistenia", equipment = "Barra", mainMuscleGroup = "Espalda"),
+        ExerciseEntity(
+            name = "Dominadas pronas",
+            category = "Calistenia",
+            equipment = "Barra",
+            mainMuscleGroup = "Espalda"
+        ),
         ExerciseEntity(name = "Dominadas supinas", category = "Calistenia", equipment = "Barra", mainMuscleGroup = "Espalda"),
         ExerciseEntity(name = "Fondos en paralelas", category = "Calistenia", equipment = "Peso Corporal", mainMuscleGroup = "Pecho"),
         ExerciseEntity(name = "Flexiones", category = "Calistenia", equipment = "Peso Corporal", mainMuscleGroup = "Pecho"),
