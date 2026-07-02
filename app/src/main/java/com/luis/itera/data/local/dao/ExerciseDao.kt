@@ -16,4 +16,7 @@ interface ExerciseDao {
 
     @Insert
     suspend fun insertAll(exercises: List<ExerciseEntity>)
+
+    @Insert
+    suspend fun insert(exercise: ExerciseEntity): Long
 }

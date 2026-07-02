@@ -77,6 +77,8 @@ fun ActiveWorkoutScreen(
     } else {
         ActiveSessionContent(
             state = state,
+            muscleGroups = viewModel.muscleGroups,
+            onCreateExercise = viewModel::onCreateExercise,
             onSearchChange = viewModel::onSearchQueryChange,
             onExerciseSelected = viewModel::onExerciseSelected,
             onRepsDelta = viewModel::onRepsDelta,
@@ -158,6 +160,8 @@ private fun EmptySessionContent(
 @Composable
 private fun ActiveSessionContent(
     state: ActiveWorkoutUiState,
+    muscleGroups: List<String>,
+    onCreateExercise: (String, String) -> Unit,
     onSearchChange: (String) -> Unit,
     onExerciseSelected: (Exercise) -> Unit,
     onRepsDelta: (Int) -> Unit,
@@ -328,6 +332,15 @@ private fun ActiveSessionContent(
                 }
                 Spacer(Modifier.height(6.dp))
             }
+            if (state.searchQuery.isNotBlank() && state.exercises.isEmpty()) {
+                item {
+                    CreateExercisePrompt(
+                        query = state.searchQuery,
+                        muscleGroups = muscleGroups,
+                        onCreate = onCreateExercise
+                    )
+                }
+            }
             val sets = state.session?.sets.orEmpty()
             if (sets.isNotEmpty()) {
                 item {
@@ -384,6 +397,49 @@ private fun ActiveSessionContent(
             )
         ) {
             Text("FINALIZAR SESIÓN", style = MaterialTheme.typography.titleMedium)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CreateExercisePrompt(
+    query: String,
+    muscleGroups: List<String>,
+    onCreate: (String, String) -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
+            .padding(12.dp)
+    ) {
+        Text(
+            text = "Sin resultados. Crear \"$query\":",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = "GRUPO MUSCULAR",
+            style = MaterialTheme.typography.labelSmall,
+            color = IteraColors.TextSecondary
+        )
+        Spacer(Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            muscleGroups.forEach { group ->
+                Text(
+                    text = group,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = IteraColors.Accent,
+                    modifier = Modifier
+                        .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
+                        .clickable { onCreate(query, group) }
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
         }
     }
 }

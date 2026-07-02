@@ -65,6 +65,10 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     private val _finishedSessionId = MutableStateFlow<Long?>(null)
     val finishedSessionId: StateFlow<Long?> = _finishedSessionId
+    val muscleGroups = listOf(
+        "Pecho", "Espalda", "Hombros", "Bíceps", "Tríceps",
+        "Antebrazo", "Trapecios", "Piernas", "Femoral", "Gastrocnemio"
+    )
 
     private val allExercises = exerciseRepository.getAll()
 
@@ -138,6 +142,15 @@ class ActiveWorkoutViewModel @Inject constructor(
                 reps.value = last.reps
                 weightKg.value = last.weightAddedKg
             }
+        }
+    }
+
+    fun onCreateExercise(name: String, muscleGroup: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val id = exerciseRepository.create(name, muscleGroup)
+            searchQuery.value = ""
+            onExerciseSelected(Exercise(id, name.trim(), "Personalizado", "Personalizado", muscleGroup))
         }
     }
 

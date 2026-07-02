@@ -17,6 +17,16 @@ class ExerciseRepositoryImpl @Inject constructor(
 
     override fun search(query: String): Flow<List<Exercise>> =
         exerciseDao.search(query).map { list -> list.map { it.toDomain() } }
+
+    override suspend fun create(name: String, mainMuscleGroup: String): Long =
+        exerciseDao.insert(
+            ExerciseEntity(
+                name = name.trim(),
+                category = "Personalizado",
+                equipment = "Personalizado",
+                mainMuscleGroup = mainMuscleGroup
+            )
+        )
 }
 
 private fun ExerciseEntity.toDomain() =
