@@ -102,6 +102,16 @@ fun IteraNavHost() {
                 ActiveWorkoutScreen(
                     onSessionFinished = { sessionId ->
                         navController.navigate(IteraDestination.SessionDetail.buildRoute(sessionId))
+                    },
+                    onLastSessionClick = { sessionId ->
+                        navController.navigate(IteraDestination.SessionDetail.buildRoute(sessionId))
+                    },
+                    onHydrationClick = {
+                        navController.navigate(IteraDestination.Hydration.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }

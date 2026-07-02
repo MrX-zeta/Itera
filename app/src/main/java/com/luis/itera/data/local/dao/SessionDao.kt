@@ -48,4 +48,8 @@ interface SessionDao {
 
     @Query("DELETE FROM sessions WHERE id = :sessionId")
     suspend fun deleteById(sessionId: Long)
+
+    @Transaction
+    @Query("SELECT * FROM sessions WHERE isFinished = 1 ORDER BY dateEpochDay DESC, id DESC LIMIT 1")
+    fun getLastFinishedSession(): Flow<SessionWithSets?>
 }

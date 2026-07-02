@@ -86,6 +86,8 @@ class SessionRepositoryImpl @Inject constructor(
     override suspend fun getLastSetsForExercise(exerciseId: Long, limit: Int): List<WorkoutSet> =
         setDao.getLastSetsForExercise(exerciseId, limit).map { it.toDomain() }
 
+    override fun getLastFinishedSession(): Flow<Session?> =
+        sessionDao.getLastFinishedSession().map { it?.toDomain() }
 }
 
 private fun SessionEntity.toDomain(sets: List<WorkoutSet> = emptyList()) =

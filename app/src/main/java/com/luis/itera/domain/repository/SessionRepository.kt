@@ -16,4 +16,6 @@ interface SessionRepository {
     suspend fun deleteSet(set: WorkoutSet)
     suspend fun hasFinishedSession(dateEpochDay: Long): Boolean
     suspend fun getLastSetsForExercise(exerciseId: Long, limit: Int = 3): List<WorkoutSet>
+
+    fun getLastFinishedSession(): Flow<Session?>
 }

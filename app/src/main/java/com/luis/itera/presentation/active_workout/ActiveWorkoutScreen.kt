@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -15,11 +16,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -34,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -51,10 +56,17 @@ import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.components.SessionTimer
 import com.luis.itera.presentation.theme.IteraColors
 import kotlinx.coroutines.delay
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private val homeDateFormatter = DateTimeFormatter.ofPattern("EEEE dd MMMM", Locale("es"))
 
 @Composable
 fun ActiveWorkoutScreen(
     onSessionFinished: (Long) -> Unit,
+    onLastSessionClick: (Long) -> Unit,
+    onHydrationClick: () -> Unit,
     viewModel: ActiveWorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -68,11 +80,12 @@ fun ActiveWorkoutScreen(
     }
 
     if (state.session == null) {
-        EmptySessionContent(
-            selectedFocuses = state.selectedFocuses,
-            blockedFocuses = state.blockedFocuses,
+        HomeContent(
+            state = state,
             onFocusToggle = viewModel::onFocusToggle,
-            onStart = viewModel::onStartSession
+            onStart = viewModel::onStartSession,
+            onLastSessionClick = onLastSessionClick,
+            onHydrationClick = onHydrationClick
         )
     } else {
         ActiveSessionContent(
@@ -94,20 +107,90 @@ fun ActiveWorkoutScreen(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun EmptySessionContent(
-    selectedFocuses: Set<WorkoutFocus>,
-    blockedFocuses: Set<WorkoutFocus>,
+private fun HomeContent(
+    state: ActiveWorkoutUiState,
     onFocusToggle: (WorkoutFocus) -> Unit,
-    onStart: () -> Unit
+    onStart: () -> Unit,
+    onLastSessionClick: (Long) -> Unit,
+    onHydrationClick: () -> Unit
 ) {
     Column(
         Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center
+            .padding(16.dp)
     ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = LocalDate.now().format(homeDateFormatter).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = IteraColors.TextSecondary
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "META SEMANAL ${state.streak.sessionsThisWeek}/${state.streak.weeklyGoal}" +
+                            if (state.streak.weeks > 0) " · RACHA ${state.streak.weeks} SEM" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal)
+                        IteraColors.Accent else IteraColors.TextPrimary
+                )
+            }
+            MiniHydrationRing(
+                progress = state.hydrationProgress,
+                onClick = onHydrationClick
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        state.lastFinishedSession?.let { last ->
+            Text(
+                text = "ÚLTIMA SESIÓN",
+                style = MaterialTheme.typography.labelSmall,
+                color = IteraColors.TextSecondary
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, IteraColors.Border, RoundedCornerShape(12.dp))
+                    .clickable { onLastSessionClick(last.id) }
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = WorkoutFocus.fromStored(last.focus)
+                            .takeIf { it.isNotEmpty() }
+                            ?.joinToString(" · ") { it.label }
+                            ?: "SESIÓN ${last.id}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = IteraColors.Accent
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "${relativeDay(last.dateEpochDay)} · ${last.durationMinutes} min · ${last.sets.size} sets",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = IteraColors.TextSecondary
+                    )
+                }
+                Text(
+                    text = "›",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = IteraColors.TextSecondary
+                )
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+
         Text(
-            text = "¿QUÉ ENTRENAS HOY?",
+            text = "¿QUÉ TOCA HOY?",
             style = MaterialTheme.typography.labelSmall,
             color = IteraColors.TextSecondary
         )
@@ -117,8 +200,8 @@ private fun EmptySessionContent(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             WorkoutFocus.entries.forEach { focus ->
-                val selected = focus in selectedFocuses
-                val blocked = focus in blockedFocuses
+                val selected = focus in state.selectedFocuses
+                val blocked = focus in state.blockedFocuses
                 Text(
                     text = focus.label,
                     style = MaterialTheme.typography.labelSmall,
@@ -128,10 +211,8 @@ private fun EmptySessionContent(
                         else -> IteraColors.TextPrimary
                     },
                     modifier = Modifier
-                        .background(
-                            color = if (selected) IteraColors.Accent else IteraColors.Surface,
-                            shape = RoundedCornerShape(8.dp)
-                        )
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selected) IteraColors.Accent else IteraColors.Surface)
                         .border(
                             1.dp,
                             if (selected) IteraColors.Accent else IteraColors.Border,
@@ -154,6 +235,49 @@ private fun EmptySessionContent(
         ) {
             Text("INICIAR ENTRENAMIENTO", style = MaterialTheme.typography.titleMedium)
         }
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun MiniHydrationRing(progress: Float, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(52.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            progress = { 1f },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp),
+            color = IteraColors.Border,
+            strokeWidth = 3.dp
+        )
+        CircularProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp),
+            color = IteraColors.Accent,
+            strokeWidth = 3.dp
+        )
+        Text(
+            text = "${(progress * 100).toInt()}%",
+            style = MaterialTheme.typography.labelSmall,
+            color = IteraColors.TextPrimary
+        )
+    }
+}
+
+private fun relativeDay(epochDay: Long): String {
+    val diff = LocalDate.now().toEpochDay() - epochDay
+    return when (diff) {
+        0L -> "hoy"
+        1L -> "ayer"
+        else -> "hace $diff días"
     }
 }
 
