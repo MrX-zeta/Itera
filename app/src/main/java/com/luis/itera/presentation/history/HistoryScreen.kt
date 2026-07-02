@@ -57,6 +57,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.scale
 
 private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
 
@@ -189,41 +194,36 @@ private fun DismissableSessionCard(
         backgroundContent = {
             val offsetPx = runCatching { dismissState.requireOffset() }.getOrDefault(0f)
             val revealedDp = with(density) { kotlin.math.abs(offsetPx).toDp() }
+            val crossed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+            val iconScale by animateFloatAsState(
+                targetValue = if (crossed) 1.25f else 0.9f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                label = "trash_scale"
+            )
 
             Box(
                 Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(12.dp))
             ) {
-                when (dismissState.dismissDirection) {
-                    SwipeToDismissBoxValue.StartToEnd -> Box(
-                        Modifier
-                            .align(Alignment.CenterStart)
-                            .width(revealedDp)
-                            .fillMaxHeight()
-                            .background(IteraColors.Error),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
+                val panelAlignment =
+                    if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd)
+                        Alignment.CenterStart else Alignment.CenterEnd
+
+                Box(
+                    Modifier
+                        .align(panelAlignment)
+                        .width(revealedDp)
+                        .fillMaxHeight()
+                        .background(IteraColors.Error),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (revealedDp > 40.dp) {
                         Icon(
                             imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
                             contentDescription = null,
                             tint = IteraColors.Background,
-                            modifier = Modifier.padding(end = 16.dp)
-                        )
-                    }
-                    else -> Box(
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .width(revealedDp)
-                            .fillMaxHeight()
-                            .background(IteraColors.Error),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Icon(
-                            imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
-                            contentDescription = null,
-                            tint = IteraColors.Background,
-                            modifier = Modifier.padding(start = 16.dp)
+                            modifier = Modifier.scale(iconScale)
                         )
                     }
                 }
