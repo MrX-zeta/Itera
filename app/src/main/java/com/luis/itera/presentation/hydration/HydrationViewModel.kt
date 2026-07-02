@@ -68,8 +68,9 @@ class HydrationViewModel @Inject constructor(
 
     fun onDrag(deltaMl: Int) {
         val current = uiState.value
+        val goalMl = current.goal?.totalGoalMl ?: return
         val proposed = dragDeltaMl.value + deltaMl
-        dragDeltaMl.value = proposed.coerceAtLeast(-current.totalMl)
+        dragDeltaMl.value = proposed.coerceIn(-current.totalMl, goalMl - current.totalMl)
     }
 
     fun onDragEnd() {

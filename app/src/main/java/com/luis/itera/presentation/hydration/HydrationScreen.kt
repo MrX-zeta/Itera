@@ -216,7 +216,8 @@ private fun DraggableProgressRing(
                 color = IteraColors.TextSecondary
             )
             Text(
-                text = if (isDragging) "AJUSTANDO" else "${(animatedProgress * 100).toInt()}%",
+                text = if (isDragging) "${(progress * 100).toInt()}% · AJUSTANDO"
+                else "${(animatedProgress * 100).toInt()}%",
                 style = MaterialTheme.typography.bodySmall,
                 color = IteraColors.Accent
             )
