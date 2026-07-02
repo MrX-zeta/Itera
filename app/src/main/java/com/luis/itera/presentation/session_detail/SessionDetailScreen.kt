@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
+import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.presentation.theme.IteraColors
 import java.time.LocalDate
@@ -85,6 +86,13 @@ fun SessionDetailScreen(
                 .replaceFirstChar { it.uppercase() },
             style = MaterialTheme.typography.headlineSmall
         )
+        WorkoutFocus.fromStored(session.focus).takeIf { it.isNotEmpty() }?.let { focuses ->
+            Text(
+                text = focuses.joinToString(" · ") { it.label },
+                style = MaterialTheme.typography.bodySmall,
+                color = IteraColors.Accent
+            )
+        }
         Text(
             text = "${session.sets.size} sets totales",
             style = MaterialTheme.typography.bodySmall,

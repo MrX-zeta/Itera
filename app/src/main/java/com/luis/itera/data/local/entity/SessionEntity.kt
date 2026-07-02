@@ -14,5 +14,6 @@ data class SessionEntity(
     val durationMinutes: Int = 0,
     val notes: String? = null,
     val isFinished: Boolean = false,
-    val focus: String? = null
+    val focus: String? = null,
+    val startEpochMillis: Long = 0L
 )

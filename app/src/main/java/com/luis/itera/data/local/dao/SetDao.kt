@@ -20,4 +20,13 @@ interface SetDao {
 
     @Query("SELECT COALESCE(MAX(`order`), 0) FROM sets WHERE sessionId = :sessionId")
     suspend fun getMaxOrder(sessionId: Long): Int
+
+    @Query("""
+    SELECT s.* FROM sets s
+    INNER JOIN sessions ses ON ses.id = s.sessionId
+    WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1
+    ORDER BY s.sessionId DESC, s.`order` DESC
+    LIMIT :limit
+""")
+    suspend fun getLastSetsForExercise(exerciseId: Long, limit: Int): List<SetEntity>
 }

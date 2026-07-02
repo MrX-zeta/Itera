@@ -20,7 +20,7 @@ import com.luis.itera.data.local.entity.SetEntity
         HydrationIntakeEntity::class,
         DailyHydrationGoalEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class IteraDatabase : RoomDatabase() {

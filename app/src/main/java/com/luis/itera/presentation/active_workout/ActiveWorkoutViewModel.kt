@@ -31,7 +31,8 @@ data class ActiveWorkoutUiState(
     val weightKg: Float = 0f,
     val sessionStartMillis: Long? = null,
     val selectedFocuses: Set<WorkoutFocus> = emptySet(),
-    val allExerciseNames: Map<Long, String> = emptyMap()
+    val allExerciseNames: Map<Long, String> = emptyMap(),
+    val lastSets: List<WorkoutSet> = emptyList()
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -67,6 +68,8 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     private val allExercises = exerciseRepository.getAll()
 
+    private val lastSets = MutableStateFlow<List<WorkoutSet>>(emptyList())
+
     private val exercises = combine(
         searchQuery,
         sessionRepository.getActiveSession()
@@ -90,12 +93,12 @@ class ActiveWorkoutViewModel @Inject constructor(
         sessionRepository.getActiveSession(),
         exercises,
         searchQuery,
-        combine(selectedExercise, selectedFocuses) { e, f -> e to f },
+        combine(selectedExercise, selectedFocuses, lastSets) { e, f, l -> Triple(e, f, l) },
         combine(reps, weightKg, sessionStartMillis) { r, w, s -> Triple(r, w, s) },
         allExercises
     ) { args ->
         @Suppress("UNCHECKED_CAST")
-        val selection = args[3] as Pair<Exercise?, Set<WorkoutFocus>>
+        val selection = args[3] as Triple<Exercise?, Set<WorkoutFocus>, List<WorkoutSet>>
         val inputs = args[4] as Triple<Int, Float, Long?>
         @Suppress("UNCHECKED_CAST")
         ActiveWorkoutUiState(
@@ -104,6 +107,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             searchQuery = args[2] as String,
             selectedExercise = selection.first,
             selectedFocuses = selection.second,
+            lastSets = selection.third,
             reps = inputs.first,
             weightKg = inputs.second,
             sessionStartMillis = inputs.third,
@@ -127,6 +131,14 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun onExerciseSelected(exercise: Exercise) {
         selectedExercise.value = exercise
         searchQuery.value = ""
+        viewModelScope.launch {
+            val previous = sessionRepository.getLastSetsForExercise(exercise.id)
+            lastSets.value = previous
+            previous.firstOrNull()?.let { last ->
+                reps.value = last.reps
+                weightKg.value = last.weightAddedKg
+            }
+        }
     }
 
     fun onRepsDelta(delta: Int) {
@@ -177,10 +189,8 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun onFinishSession() {
         val session = uiState.value.session ?: return
-        val start = sessionStartMillis.value ?: System.currentTimeMillis()
-        val durationMinutes = ((System.currentTimeMillis() - start) / 60_000L).toInt()
         viewModelScope.launch {
-            sessionRepository.finishSession(session.copy(durationMinutes = durationMinutes))
+            sessionRepository.finishSession(session)
             calculateHydrationGoal(session.dateEpochDay)
             sessionStartMillis.value = null
             selectedExercise.value = null

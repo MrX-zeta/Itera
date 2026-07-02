@@ -15,4 +15,5 @@ interface SessionRepository {
     suspend fun addSet(sessionId: Long, exerciseId: Long, reps: Int, weightAddedKg: Float): Long
     suspend fun deleteSet(set: WorkoutSet)
     suspend fun hasFinishedSession(dateEpochDay: Long): Boolean
+    suspend fun getLastSetsForExercise(exerciseId: Long, limit: Int = 3): List<WorkoutSet>
 }

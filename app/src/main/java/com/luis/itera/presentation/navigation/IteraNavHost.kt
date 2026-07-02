@@ -76,7 +76,7 @@ fun IteraNavHost() {
                             Icon(
                                 imageVector = ImageVector.vectorResource(item.iconRes),
                                 contentDescription = item.destination.route,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(30.dp)
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(

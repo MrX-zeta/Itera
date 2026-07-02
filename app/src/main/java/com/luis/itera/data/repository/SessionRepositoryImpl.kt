@@ -29,17 +29,27 @@ class SessionRepositoryImpl @Inject constructor(
     override fun getTrainedDays(): Flow<List<Long>> = sessionDao.getTrainedDays()
 
     override suspend fun startSession(dateEpochDay: Long, focus: String?): Long =
-        sessionDao.insert(SessionEntity(dateEpochDay = dateEpochDay, focus = focus))
+        sessionDao.insert(
+            SessionEntity(
+                dateEpochDay = dateEpochDay,
+                focus = focus,
+                startEpochMillis = System.currentTimeMillis()
+            )
+        )
 
     override suspend fun finishSession(session: Session) {
+        val durationMinutes = if (session.startEpochMillis > 0L)
+            ((System.currentTimeMillis() - session.startEpochMillis) / 60_000L).toInt()
+        else session.durationMinutes
         sessionDao.update(
             SessionEntity(
                 id = session.id,
                 dateEpochDay = session.dateEpochDay,
-                durationMinutes = session.durationMinutes,
+                durationMinutes = durationMinutes,
                 notes = session.notes,
                 isFinished = true,
-                focus = session.focus
+                focus = session.focus,
+                startEpochMillis = session.startEpochMillis
             )
         )
     }
@@ -72,10 +82,14 @@ class SessionRepositoryImpl @Inject constructor(
 
     override suspend fun hasFinishedSession(dateEpochDay: Long): Boolean =
         sessionDao.hasFinishedSession(dateEpochDay)
+
+    override suspend fun getLastSetsForExercise(exerciseId: Long, limit: Int): List<WorkoutSet> =
+        setDao.getLastSetsForExercise(exerciseId, limit).map { it.toDomain() }
+
 }
 
 private fun SessionEntity.toDomain(sets: List<WorkoutSet> = emptyList()) =
-    Session(id, dateEpochDay, durationMinutes, notes, isFinished, focus, sets)
+    Session(id, dateEpochDay, durationMinutes, notes, isFinished, focus, startEpochMillis, sets)
 
 private fun SetEntity.toDomain() =
     WorkoutSet(id, sessionId, exerciseId, reps, weightAddedKg, order)

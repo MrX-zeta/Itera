@@ -262,6 +262,15 @@ private fun ActiveSessionContent(
         state.selectedExercise?.let { exercise ->
             Spacer(Modifier.height(12.dp))
             Text(exercise.name, style = MaterialTheme.typography.titleMedium)
+            if (state.lastSets.isNotEmpty()) {
+                Text(
+                    text = "Última vez: " + state.lastSets.reversed().joinToString(" · ") { set ->
+                        "${set.reps}" + if (set.weightAddedKg > 0f) "+${set.weightAddedKg}kg" else ""
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.TextSecondary
+                )
+            }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FastStepper(

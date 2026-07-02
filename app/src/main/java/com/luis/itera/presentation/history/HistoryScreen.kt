@@ -72,6 +72,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
+import com.luis.itera.domain.model.WorkoutFocus
 
 private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
 private const val MIN_REVEAL_MS = 125L
@@ -355,7 +356,10 @@ private fun SessionCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "SESIÓN ${session.id}",
+                text = WorkoutFocus.fromStored(session.focus)
+                    .takeIf { it.isNotEmpty() }
+                    ?.joinToString(" · ") { it.label }
+                    ?: "SESIÓN ${session.id}",
                 style = MaterialTheme.typography.labelSmall,
                 color = IteraColors.TextSecondary
             )
