@@ -70,8 +70,11 @@ import com.luis.itera.presentation.theme.IteraColors
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.setValue
 
 private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
+private const val MIN_REVEAL_MS = 280L
 
 @Composable
 fun HistoryScreen(
@@ -185,9 +188,13 @@ private fun DismissableSessionCard(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var trashSeenAt by remember { mutableLongStateOf(0L) }
+
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value != SwipeToDismissBoxValue.Settled) {
+            if (value != SwipeToDismissBoxValue.Settled &&
+                System.currentTimeMillis() - trashSeenAt >= MIN_REVEAL_MS
+            ) {
                 onDismiss()
                 true
             } else false
@@ -200,6 +207,11 @@ private fun DismissableSessionCard(
     val offsetPx = runCatching { dismissState.requireOffset() }.getOrDefault(0f)
     val crossed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
     val isDragged = offsetPx != 0f
+
+    LaunchedEffect(isDragged) {
+        if (isDragged && trashSeenAt == 0L) trashSeenAt = System.currentTimeMillis()
+        if (!isDragged) trashSeenAt = 0L
+    }
 
     val cardScale by animateFloatAsState(
         targetValue = if (isDragged) 0.98f else 1f,
@@ -252,15 +264,18 @@ private fun DismissableSessionCard(
                                 imageVector = ImageVector.vectorResource(R.drawable.ic_trash_lid),
                                 contentDescription = null,
                                 tint = IteraColors.Background,
-                                modifier = Modifier.graphicsLayer {
-                                    rotationZ = lidRotation
-                                    transformOrigin = TransformOrigin(0.15f, 0.3f)
-                                }
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .graphicsLayer {
+                                        rotationZ = lidRotation
+                                        transformOrigin = TransformOrigin(0.15f, 0.3f)
+                                    }
                             )
                             Icon(
                                 imageVector = ImageVector.vectorResource(R.drawable.ic_trash_body),
                                 contentDescription = null,
-                                tint = IteraColors.Background
+                                tint = IteraColors.Background,
+                                modifier = Modifier.size(30.dp)
                             )
                         }
                     }
