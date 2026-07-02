@@ -19,6 +19,7 @@ data class VolumePoint(
 data class PersonalRecord(
     val exerciseId: Long,
     val maxWeightKg: Float,
+    val estimated1RmKg: Float,
     val dateEpochDay: Long
 )
 
@@ -50,13 +51,15 @@ interface StatisticsDao {
     fun getVolumeSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<VolumePoint>>
 
     @Query("""
-        SELECT s.exerciseId AS exerciseId, MAX(s.weightAddedKg) AS maxWeightKg,
-               ses.dateEpochDay AS dateEpochDay
-        FROM sets s
-        INNER JOIN sessions ses ON ses.id = s.sessionId
-        WHERE s.exerciseId IN (:exerciseIds) AND ses.isFinished = 1
-        GROUP BY s.exerciseId
-    """)
+    SELECT s.exerciseId AS exerciseId,
+           MAX(s.weightAddedKg) AS maxWeightKg,
+           MAX(s.weightAddedKg * (1.0 + s.reps / 30.0)) AS estimated1RmKg,
+           ses.dateEpochDay AS dateEpochDay
+    FROM sets s
+    INNER JOIN sessions ses ON ses.id = s.sessionId
+    WHERE s.exerciseId IN (:exerciseIds) AND ses.isFinished = 1 AND s.weightAddedKg > 0
+    GROUP BY s.exerciseId
+""")
     fun getPersonalRecords(exerciseIds: List<Long>): Flow<List<PersonalRecord>>
 
     @Query("""

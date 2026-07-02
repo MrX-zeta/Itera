@@ -232,7 +232,7 @@ fun StatisticsScreen(
                         )
                         state.personalRecord?.let {
                             Text(
-                                text = "PR ${formatKg(it)} kg",
+                                text = "MÁX ${formatKg(it)} kg",
                                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
                                 color = IteraColors.Accent
                             )
@@ -336,9 +336,9 @@ private fun WeeklyGoalRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
+                    .size(44.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { onDelta(-1) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .clickable { onDelta(-1) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -356,9 +356,9 @@ private fun WeeklyGoalRow(
             )
             Box(
                 modifier = Modifier
+                    .size(44.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { onDelta(1) }
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .clickable { onDelta(1) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -380,21 +380,26 @@ private fun BigThreeCard(record: BigThreeRecord, modifier: Modifier = Modifier) 
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = record.maxWeightKg?.let { "${formatKg(it)} kg" } ?: "—",
+            text = record.estimated1RmKg?.let { "${formatKg(it)} kg" } ?: "—",
             style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
-            color = if (record.maxWeightKg != null) IteraColors.Accent
+            color = if (record.estimated1RmKg != null) IteraColors.Accent
             else IteraColors.TextSecondary
         )
-        Spacer(Modifier.height(2.dp))
+        Text(
+            text = "1RM EST",
+            style = MaterialTheme.typography.labelSmall,
+            color = IteraColors.TextSecondary
+        )
+        Spacer(Modifier.height(4.dp))
         Text(
             text = shortName(record.exerciseName),
             style = MaterialTheme.typography.labelSmall,
             color = IteraColors.TextSecondary,
             textAlign = TextAlign.Center
         )
-        record.dateEpochDay?.let {
+        record.maxWeightKg?.let {
             Text(
-                text = LocalDate.ofEpochDay(it).format(prDateFormatter),
+                text = "máx ${formatKg(it)} kg",
                 style = MaterialTheme.typography.bodySmall,
                 color = IteraColors.TextSecondary
             )

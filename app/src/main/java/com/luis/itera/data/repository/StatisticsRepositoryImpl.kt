@@ -27,9 +27,13 @@ class StatisticsRepositoryImpl @Inject constructor(
 
     override fun getPersonalRecords(
         exerciseIds: List<Long>
-    ): Flow<Map<Long, Pair<Float, Long>>> =
+    ): Flow<Map<Long, Triple<Float, Float, Long>>> =
         statisticsDao.getPersonalRecords(exerciseIds)
-            .map { list -> list.associate { it.exerciseId to (it.maxWeightKg to it.dateEpochDay) } }
+            .map { list ->
+                list.associate {
+                    it.exerciseId to Triple(it.maxWeightKg, it.estimated1RmKg, it.dateEpochDay)
+                }
+            }
 
     override fun getFinishedSessionCount(fromEpochDay: Long): Flow<Int> =
         statisticsDao.getFinishedSessionCount(fromEpochDay)

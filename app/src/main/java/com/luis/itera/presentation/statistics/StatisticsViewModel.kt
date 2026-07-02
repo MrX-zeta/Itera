@@ -78,11 +78,7 @@ class StatisticsViewModel @Inject constructor(
         statisticsRepository.getAllTrainedDays(),
         userPrefsRepository.getWeeklyGoal()
     ) { count, focusList, trainedDays, weeklyGoal ->
-        Triple(
-            count,
-            topFocusOf(focusList),
-            calculateWeeklyStreak(trainedDays, weeklyGoal)
-        )
+        Triple(count, topFocusOf(focusList), calculateWeeklyStreak(trainedDays, weeklyGoal))
     }
 
     private val bigThree = exerciseRepository.getAll().flatMapLatest { exercises ->
@@ -97,7 +93,8 @@ class StatisticsViewModel @Inject constructor(
                     exerciseId = exercise.id,
                     exerciseName = exercise.name,
                     maxWeightKg = record?.first,
-                    dateEpochDay = record?.second
+                    estimated1RmKg = record?.second,
+                    dateEpochDay = record?.third
                 )
             }
         }
@@ -113,8 +110,9 @@ class StatisticsViewModel @Inject constructor(
 
     private val series = combine(selectedExercise, range) { exercise, r -> exercise to r }
         .flatMapLatest { (exercise, r) ->
-            if (exercise == null) flowOf(emptyList<ExerciseSeriesPoint>() to emptyList<ExerciseSeriesPoint>())
-            else {
+            if (exercise == null) {
+                flowOf(emptyList<ExerciseSeriesPoint>() to emptyList<ExerciseSeriesPoint>())
+            } else {
                 val from = LocalDate.now().minusDays(r.days).toEpochDay()
                 combine(
                     statisticsRepository.getMaxWeightSeries(exercise.id, from),

@@ -9,6 +9,7 @@ data class BigThreeRecord(
     val exerciseId: Long,
     val exerciseName: String,
     val maxWeightKg: Float?,
+    val estimated1RmKg: Float?,
     val dateEpochDay: Long?
 )
 
