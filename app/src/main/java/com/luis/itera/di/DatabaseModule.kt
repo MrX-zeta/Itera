@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Provider
 import javax.inject.Singleton
 import androidx.room.migration.Migration
+import com.luis.itera.data.local.dao.StatisticsDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -55,6 +56,9 @@ object DatabaseModule {
 
     @Provides
     fun provideHydrationDao(db: IteraDatabase): HydrationDao = db.hydrationDao()
+
+    @Provides
+    fun provideStatisticsDao(db: IteraDatabase): StatisticsDao = db.statisticsDao()
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {

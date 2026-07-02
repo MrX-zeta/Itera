@@ -8,4 +8,5 @@ sealed class IteraDestination(val route: String) {
         const val ARG_SESSION_ID = "sessionId"
         fun buildRoute(sessionId: Long) = "session_detail/$sessionId"
     }
+    data object Statistics : IteraDestination("statistics")
 }

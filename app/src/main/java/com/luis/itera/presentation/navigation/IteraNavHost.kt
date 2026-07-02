@@ -28,6 +28,7 @@ import com.luis.itera.presentation.active_workout.ActiveWorkoutScreen
 import com.luis.itera.presentation.history.HistoryScreen
 import com.luis.itera.presentation.hydration.HydrationScreen
 import com.luis.itera.presentation.session_detail.SessionDetailScreen
+import com.luis.itera.presentation.statistics.StatisticsScreen
 import com.luis.itera.presentation.theme.IteraColors
 
 private data class NavItem(
@@ -38,6 +39,7 @@ private data class NavItem(
 private val navItems = listOf(
     NavItem(IteraDestination.ActiveWorkout, R.drawable.ic_barbell),
     NavItem(IteraDestination.History, R.drawable.ic_calendar),
+    NavItem(IteraDestination.Statistics, R.drawable.ic_stats),
     NavItem(IteraDestination.Hydration, R.drawable.ic_droplet)
 )
 
@@ -119,6 +121,7 @@ fun IteraNavHost() {
             ) {
                 SessionDetailScreen(onBack = { navController.popBackStack() })
             }
+            composable(IteraDestination.Statistics.route) { StatisticsScreen() }
         }
     }
 }
