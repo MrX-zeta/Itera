@@ -91,7 +91,13 @@ fun IteraNavHost() {
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() }
         ) {
-            composable(IteraDestination.ActiveWorkout.route) { ActiveWorkoutScreen() }
+            composable(IteraDestination.ActiveWorkout.route) {
+                ActiveWorkoutScreen(
+                    onSessionFinished = { sessionId ->
+                        navController.navigate(IteraDestination.SessionDetail.buildRoute(sessionId))
+                    }
+                )
+            }
             composable(IteraDestination.History.route) {
                 HistoryScreen(
                     onSessionClick = { sessionId ->
