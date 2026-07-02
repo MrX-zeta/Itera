@@ -42,7 +42,7 @@ import kotlin.math.atan2
 
 private val quickAmounts = listOf(250 to "VASO", 500 to "BOTELLA", 1000 to "LITRO")
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-private const val ML_PER_TURN = 1000f
+private const val ML_PER_TURN = 3500f
 private const val DRAG_STEP_ML = 50
 
 @Composable
