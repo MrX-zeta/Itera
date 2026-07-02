@@ -31,6 +31,12 @@ enum class StatsRange(val label: String, val days: Long) {
     D90("90D", 90)
 }
 
+private data class SeriesBundle(
+    val maxSeries: List<ExerciseSeriesPoint> = emptyList(),
+    val volumeSeries: List<ExerciseSeriesPoint> = emptyList(),
+    val isBodyweight: Boolean = false
+)
+
 data class StatisticsUiState(
     val sessionsThisMonth: Int = 0,
     val topFocus: String? = null,
@@ -41,7 +47,8 @@ data class StatisticsUiState(
     val selectedGroup: String? = null,
     val range: StatsRange = StatsRange.D30,
     val maxWeightSeries: List<ExerciseSeriesPoint> = emptyList(),
-    val volumeSeries: List<ExerciseSeriesPoint> = emptyList()
+    val volumeSeries: List<ExerciseSeriesPoint> = emptyList(),
+    val isBodyweightMode: Boolean = false
 ) {
     val personalRecord: Float?
         get() = maxWeightSeries.maxOfOrNull { it.value }
@@ -111,13 +118,23 @@ class StatisticsViewModel @Inject constructor(
     private val series = combine(selectedExercise, range) { exercise, r -> exercise to r }
         .flatMapLatest { (exercise, r) ->
             if (exercise == null) {
-                flowOf(emptyList<ExerciseSeriesPoint>() to emptyList<ExerciseSeriesPoint>())
+                flowOf(SeriesBundle())
             } else {
                 val from = LocalDate.now().minusDays(r.days).toEpochDay()
-                combine(
-                    statisticsRepository.getMaxWeightSeries(exercise.id, from),
-                    statisticsRepository.getVolumeSeries(exercise.id, from)
-                ) { max, vol -> max to vol }
+                statisticsRepository.hasWeightedSets(exercise.id, from)
+                    .flatMapLatest { weighted ->
+                        if (weighted) {
+                            combine(
+                                statisticsRepository.getMaxWeightSeries(exercise.id, from),
+                                statisticsRepository.getVolumeSeries(exercise.id, from)
+                            ) { max, vol -> SeriesBundle(max, vol, isBodyweight = false) }
+                        } else {
+                            combine(
+                                statisticsRepository.getMaxRepsSeries(exercise.id, from),
+                                statisticsRepository.getTotalRepsSeries(exercise.id, from)
+                            ) { max, vol -> SeriesBundle(max, vol, isBodyweight = true) }
+                        }
+                    }
             }
         }
 
@@ -137,8 +154,9 @@ class StatisticsViewModel @Inject constructor(
             selectedExercise = selection.first,
             selectedGroup = selection.second,
             range = selection.third,
-            maxWeightSeries = seriesData.first,
-            volumeSeries = seriesData.second
+            maxWeightSeries = seriesData.maxSeries,
+            volumeSeries = seriesData.volumeSeries,
+            isBodyweightMode = seriesData.isBodyweight
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsUiState())
 

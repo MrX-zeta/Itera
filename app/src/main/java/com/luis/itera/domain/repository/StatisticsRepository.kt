@@ -11,4 +11,7 @@ interface StatisticsRepository {
     fun getFocusList(fromEpochDay: Long): Flow<List<String>>
     fun getAllTrainedDays(): Flow<List<Long>>
     suspend fun getMostTrainedExerciseId(): Long?
+    fun getMaxRepsSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<ExerciseSeriesPoint>>
+    fun getTotalRepsSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<ExerciseSeriesPoint>>
+    fun hasWeightedSets(exerciseId: Long, fromEpochDay: Long): Flow<Boolean>
 }

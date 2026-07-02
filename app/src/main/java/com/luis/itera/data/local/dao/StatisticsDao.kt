@@ -90,4 +90,38 @@ interface StatisticsDao {
         LIMIT 1
     """)
     suspend fun getMostTrainedExerciseId(): Long?
+
+    @Query("""
+    SELECT s.sessionId AS sessionId, ses.dateEpochDay AS dateEpochDay,
+           MAX(s.reps) AS maxWeightKg
+    FROM sets s
+    INNER JOIN sessions ses ON ses.id = s.sessionId
+    WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1
+          AND ses.dateEpochDay >= :fromEpochDay
+    GROUP BY s.sessionId
+    ORDER BY ses.dateEpochDay ASC
+""")
+    fun getMaxRepsSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<MaxWeightPoint>>
+
+    @Query("""
+    SELECT s.sessionId AS sessionId, ses.dateEpochDay AS dateEpochDay,
+           SUM(s.reps) AS volumeKg
+    FROM sets s
+    INNER JOIN sessions ses ON ses.id = s.sessionId
+    WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1
+          AND ses.dateEpochDay >= :fromEpochDay
+    GROUP BY s.sessionId
+    ORDER BY ses.dateEpochDay ASC
+""")
+    fun getTotalRepsSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<VolumePoint>>
+
+    @Query("""
+    SELECT EXISTS(
+        SELECT 1 FROM sets s
+        INNER JOIN sessions ses ON ses.id = s.sessionId
+        WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1
+              AND ses.dateEpochDay >= :fromEpochDay AND s.weightAddedKg > 0
+    )
+""")
+    fun hasWeightedSets(exerciseId: Long, fromEpochDay: Long): Flow<Boolean>
 }

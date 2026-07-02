@@ -226,13 +226,14 @@ fun StatisticsScreen(
                         verticalAlignment = Alignment.Bottom
                     ) {
                         Text(
-                            text = "PESO MÁXIMO",
+                            text = if (state.isBodyweightMode) "REPS MÁXIMAS" else "PESO MÁXIMO",
                             style = MaterialTheme.typography.labelSmall,
                             color = IteraColors.TextSecondary
                         )
                         state.personalRecord?.let {
                             Text(
-                                text = "MÁX ${formatKg(it)} kg",
+                                text = if (state.isBodyweightMode) "MÁX ${it.toInt()} reps"
+                                else "MÁX ${formatKg(it)} kg",
                                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
                                 color = IteraColors.Accent
                             )
@@ -257,13 +258,14 @@ fun StatisticsScreen(
                         verticalAlignment = Alignment.Bottom
                     ) {
                         Text(
-                            text = "VOLUMEN POR SESIÓN",
+                            text = if (state.isBodyweightMode) "REPS POR SESIÓN" else "VOLUMEN POR SESIÓN",
                             style = MaterialTheme.typography.labelSmall,
                             color = IteraColors.TextSecondary
                         )
                         if (state.totalVolume > 0f) {
                             Text(
-                                text = "Σ ${formatKg(state.totalVolume)} kg",
+                                text = if (state.isBodyweightMode) "Σ ${state.totalVolume.toInt()} reps"
+                                else "Σ ${formatKg(state.totalVolume)} kg",
                                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
                                 color = IteraColors.TextPrimary
                             )

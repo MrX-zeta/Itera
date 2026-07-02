@@ -35,6 +35,23 @@ class StatisticsRepositoryImpl @Inject constructor(
                 }
             }
 
+    override fun getMaxRepsSeries(
+        exerciseId: Long,
+        fromEpochDay: Long
+    ): Flow<List<ExerciseSeriesPoint>> =
+        statisticsDao.getMaxRepsSeries(exerciseId, fromEpochDay)
+            .map { list -> list.map { ExerciseSeriesPoint(it.dateEpochDay, it.maxWeightKg) } }
+
+    override fun getTotalRepsSeries(
+        exerciseId: Long,
+        fromEpochDay: Long
+    ): Flow<List<ExerciseSeriesPoint>> =
+        statisticsDao.getTotalRepsSeries(exerciseId, fromEpochDay)
+            .map { list -> list.map { ExerciseSeriesPoint(it.dateEpochDay, it.volumeKg) } }
+
+    override fun hasWeightedSets(exerciseId: Long, fromEpochDay: Long): Flow<Boolean> =
+        statisticsDao.hasWeightedSets(exerciseId, fromEpochDay)
+
     override fun getFinishedSessionCount(fromEpochDay: Long): Flow<Int> =
         statisticsDao.getFinishedSessionCount(fromEpochDay)
 
