@@ -24,8 +24,17 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
+
+private data class HomeData(
+    val lastSession: Session? = null,
+    val streak: WeeklyStreak = WeeklyStreak(0, 0, 3),
+    val hydrationProgress: Float = 0f,
+    val trainedDaysThisWeek: Set<Long> = emptySet()
+)
 
 data class ActiveWorkoutUiState(
     val session: Session? = null,
@@ -40,7 +49,8 @@ data class ActiveWorkoutUiState(
     val lastSets: List<WorkoutSet> = emptyList(),
     val lastFinishedSession: Session? = null,
     val streak: WeeklyStreak = WeeklyStreak(0, 0, 3),
-    val hydrationProgress: Float = 0f
+    val hydrationProgress: Float = 0f,
+    val trainedDaysThisWeek: Set<Long> = emptySet()
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -55,12 +65,6 @@ data class ActiveWorkoutUiState(
         allExerciseNames[exerciseId] ?: "—"
 }
 
-private data class HomeData(
-    val lastSession: Session? = null,
-    val streak: WeeklyStreak = WeeklyStreak(0, 0, 3),
-    val hydrationProgress: Float = 0f
-)
-
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ActiveWorkoutViewModel @Inject constructor(
@@ -68,9 +72,9 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val exerciseRepository: ExerciseRepository,
     private val hydrationRepository: HydrationRepository,
     private val userPrefsRepository: UserPrefsRepository,
+    private val statisticsRepository: StatisticsRepository,
     private val calculateHydrationGoal: CalculateHydrationGoalUseCase,
-    private val calculateWeeklyStreak: CalculateWeeklyStreakUseCase,
-    private val statisticsRepository: StatisticsRepository
+    private val calculateWeeklyStreak: CalculateWeeklyStreakUseCase
 ) : ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
@@ -80,19 +84,19 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val sessionStartMillis = MutableStateFlow<Long?>(null)
     private val selectedFocuses = MutableStateFlow<Set<WorkoutFocus>>(emptySet())
     private val lastRegisteredSetAt = MutableStateFlow(0L)
+    private val lastSets = MutableStateFlow<List<WorkoutSet>>(emptyList())
 
     private val _finishedSessionId = MutableStateFlow<Long?>(null)
     val finishedSessionId: StateFlow<Long?> = _finishedSessionId
+
     val muscleGroups = listOf(
         "Pecho", "Espalda", "Hombros", "Bíceps", "Tríceps",
         "Antebrazo", "Trapecios", "Piernas", "Femoral", "Gastrocnemio"
     )
 
-    private val allExercises = exerciseRepository.getAll()
-
-    private val lastSets = MutableStateFlow<List<WorkoutSet>>(emptyList())
-
     private val today = LocalDate.now().toEpochDay()
+
+    private val allExercises = exerciseRepository.getAll()
 
     private val exercises = combine(
         searchQuery,
@@ -120,11 +124,15 @@ class ActiveWorkoutViewModel @Inject constructor(
         hydrationRepository.getTotalMlForDay(today),
         hydrationRepository.getDailyGoal(today)
     ) { last, trainedDays, weeklyGoal, totalMl, goal ->
+        val weekStart = LocalDate.now()
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .toEpochDay()
         HomeData(
             lastSession = last,
             streak = calculateWeeklyStreak(trainedDays, weeklyGoal),
             hydrationProgress = goal?.totalGoalMl?.takeIf { it > 0 }
-                ?.let { (totalMl.toFloat() / it).coerceIn(0f, 1f) } ?: 0f
+                ?.let { (totalMl.toFloat() / it).coerceIn(0f, 1f) } ?: 0f,
+            trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet()
         )
     }
 
@@ -155,7 +163,8 @@ class ActiveWorkoutViewModel @Inject constructor(
             allExerciseNames = (args[5] as List<Exercise>).associate { it.id to it.name },
             lastFinishedSession = home.lastSession,
             streak = home.streak,
-            hydrationProgress = home.hydrationProgress
+            hydrationProgress = home.hydrationProgress,
+            trainedDaysThisWeek = home.trainedDaysThisWeek
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
@@ -190,7 +199,9 @@ class ActiveWorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             val id = exerciseRepository.create(name, muscleGroup)
             searchQuery.value = ""
-            onExerciseSelected(Exercise(id, name.trim(), "Personalizado", "Personalizado", muscleGroup))
+            onExerciseSelected(
+                Exercise(id, name.trim(), "Personalizado", "Personalizado", muscleGroup)
+            )
         }
     }
 

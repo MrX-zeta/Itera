@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,8 +57,10 @@ import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.components.SessionTimer
 import com.luis.itera.presentation.theme.IteraColors
 import kotlinx.coroutines.delay
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
 private val homeDateFormatter = DateTimeFormatter.ofPattern("EEEE dd MMMM", Locale("es"))
@@ -127,14 +130,14 @@ private fun HomeContent(
             Column {
                 Text(
                     text = LocalDate.now().format(homeDateFormatter).uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                     color = IteraColors.TextSecondary
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "META SEMANAL ${state.streak.sessionsThisWeek}/${state.streak.weeklyGoal}" +
+                    text = "META ${state.streak.sessionsThisWeek}/${state.streak.weeklyGoal}" +
                             if (state.streak.weeks > 0) " · RACHA ${state.streak.weeks} SEM" else "",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal)
                         IteraColors.Accent else IteraColors.TextPrimary
                 )
@@ -150,7 +153,7 @@ private fun HomeContent(
         state.lastFinishedSession?.let { last ->
             Text(
                 text = "ÚLTIMA SESIÓN",
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                 color = IteraColors.TextSecondary
             )
             Spacer(Modifier.height(8.dp))
@@ -187,11 +190,20 @@ private fun HomeContent(
             }
         }
 
+        Spacer(Modifier.height(20.dp))
+        Text(
+            text = "ESTA SEMANA",
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+            color = IteraColors.TextSecondary
+        )
+        Spacer(Modifier.height(10.dp))
+        WeekActivityRow(trainedDays = state.trainedDaysThisWeek)
+
         Spacer(Modifier.weight(1f))
 
         Text(
             text = "¿QUÉ TOCA HOY?",
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
             color = IteraColors.TextSecondary
         )
         Spacer(Modifier.height(12.dp))
@@ -204,7 +216,7 @@ private fun HomeContent(
                 val blocked = focus in state.blockedFocuses
                 Text(
                     text = focus.label,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                     color = when {
                         selected -> IteraColors.OnAccent
                         blocked -> IteraColors.Border
@@ -240,6 +252,47 @@ private fun HomeContent(
 }
 
 @Composable
+private fun WeekActivityRow(trainedDays: Set<Long>) {
+    val monday = LocalDate.now()
+        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val today = LocalDate.now()
+    val labels = listOf("L", "M", "M", "J", "V", "S", "D")
+
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        (0..6).forEach { offset ->
+            val day = monday.plusDays(offset.toLong())
+            val trained = day.toEpochDay() in trainedDays
+            val isToday = day == today
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .then(
+                            if (isToday) Modifier.border(1.5.dp, IteraColors.Accent, CircleShape)
+                            else Modifier
+                        )
+                        .padding(if (isToday) 3.dp else 0.dp)
+                        .clip(CircleShape)
+                        .then(
+                            if (trained) Modifier.background(IteraColors.Accent)
+                            else Modifier.border(1.dp, IteraColors.Border, CircleShape)
+                        )
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = labels[offset],
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = if (isToday) IteraColors.Accent else IteraColors.TextSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun MiniHydrationRing(progress: Float, onClick: () -> Unit) {
     Box(
         modifier = Modifier
@@ -266,7 +319,7 @@ private fun MiniHydrationRing(progress: Float, onClick: () -> Unit) {
         )
         Text(
             text = "${(progress * 100).toInt()}%",
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
             color = IteraColors.TextPrimary
         )
     }
@@ -324,7 +377,7 @@ private fun ActiveSessionContent(
                 Column {
                     Text(
                         text = "ENTRENAMIENTO ACTIVO",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         color = IteraColors.TextSecondary
                     )
                     if (state.sessionFocuses.isNotEmpty()) {
@@ -424,7 +477,7 @@ private fun ActiveSessionContent(
             item {
                 Text(
                     text = "EJERCICIOS",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                     color = IteraColors.TextSecondary,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -470,7 +523,7 @@ private fun ActiveSessionContent(
                 item {
                     Text(
                         text = "SETS DE HOY",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         color = IteraColors.TextSecondary,
                         modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
                     )
@@ -545,7 +598,7 @@ private fun CreateExercisePrompt(
         Spacer(Modifier.height(10.dp))
         Text(
             text = "GRUPO MUSCULAR",
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
             color = IteraColors.TextSecondary
         )
         Spacer(Modifier.height(8.dp))
@@ -556,7 +609,7 @@ private fun CreateExercisePrompt(
             muscleGroups.forEach { group ->
                 Text(
                     text = group,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                     color = IteraColors.Accent,
                     modifier = Modifier
                         .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
