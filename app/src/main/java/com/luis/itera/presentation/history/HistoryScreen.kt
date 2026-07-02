@@ -183,7 +183,7 @@ private fun SessionCard(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${session.durationMinutes} min",
+                    text = if (session.isFinished) "${session.durationMinutes} min" else "EN CURSO",
                     style = MaterialTheme.typography.bodySmall,
                     color = IteraColors.Accent
                 )

@@ -46,7 +46,7 @@ class HistoryViewModel @Inject constructor(
         HistoryUiState(
             selectedDate = date,
             trainedDays = trainedDays.map(LocalDate::ofEpochDay).toSet(),
-            sessions = sessionList.filter { it.isFinished },
+            sessions = sessionList.sortedByDescending { it.id },
             exerciseNames = exercises.associate { it.id to it.name }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState())
