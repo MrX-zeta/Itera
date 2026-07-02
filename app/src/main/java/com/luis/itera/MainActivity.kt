@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.luis.itera.presentation.navigation.IteraNavHost
 import com.luis.itera.presentation.theme.IteraTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -14,6 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             IteraTheme {
+                IteraNavHost()
             }
         }
     }
