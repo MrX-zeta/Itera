@@ -74,7 +74,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 
 private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
-private const val MIN_REVEAL_MS = 280L
+private const val MIN_REVEAL_MS = 125L
 
 @Composable
 fun HistoryScreen(
