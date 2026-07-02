@@ -1,6 +1,14 @@
 package com.luis.itera.presentation.history
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,11 +18,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -36,7 +46,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,15 +70,6 @@ import com.luis.itera.presentation.theme.IteraColors
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.width
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.draw.scale
 
 private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
 
@@ -143,8 +151,8 @@ fun HistoryScreen(
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(visibleSessions, key = { it.id }) { session ->
                         val itemModifier = Modifier.animateItem(
-                            placementSpec = tween(650),
-                            fadeOutSpec = tween(650)
+                            placementSpec = tween(450, easing = FastOutSlowInEasing),
+                            fadeOutSpec = tween(450)
                         )
                         if (session.isFinished) {
                             DismissableSessionCard(
@@ -187,19 +195,32 @@ private fun DismissableSessionCard(
         positionalThreshold = { totalDistance -> totalDistance * 0.5f }
     )
     val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+
+    val offsetPx = runCatching { dismissState.requireOffset() }.getOrDefault(0f)
+    val crossed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+    val isDragged = offsetPx != 0f
+
+    val cardScale by animateFloatAsState(
+        targetValue = if (isDragged) 0.98f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "card_scale"
+    )
+    val lidRotation by animateFloatAsState(
+        targetValue = if (crossed) -35f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "lid_rotation"
+    )
+
+    LaunchedEffect(crossed) {
+        if (crossed) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
 
     SwipeToDismissBox(
         state = dismissState,
         modifier = modifier,
         backgroundContent = {
-            val offsetPx = runCatching { dismissState.requireOffset() }.getOrDefault(0f)
             val revealedDp = with(density) { kotlin.math.abs(offsetPx).toDp() }
-            val crossed = dismissState.targetValue != SwipeToDismissBoxValue.Settled
-            val iconScale by animateFloatAsState(
-                targetValue = if (crossed) 1.25f else 0.9f,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                label = "trash_scale"
-            )
 
             Box(
                 Modifier
@@ -218,13 +239,30 @@ private fun DismissableSessionCard(
                         .background(IteraColors.Error),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (revealedDp > 40.dp) {
-                        Icon(
-                            imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
-                            contentDescription = null,
-                            tint = IteraColors.Background,
-                            modifier = Modifier.scale(iconScale)
-                        )
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = revealedDp > 40.dp,
+                        enter = scaleIn(
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                            initialScale = 0.3f
+                        ) + fadeIn(),
+                        exit = scaleOut() + fadeOut()
+                    ) {
+                        Box {
+                            Icon(
+                                imageVector = ImageVector.vectorResource(R.drawable.ic_trash_lid),
+                                contentDescription = null,
+                                tint = IteraColors.Background,
+                                modifier = Modifier.graphicsLayer {
+                                    rotationZ = lidRotation
+                                    transformOrigin = TransformOrigin(0.15f, 0.3f)
+                                }
+                            )
+                            Icon(
+                                imageVector = ImageVector.vectorResource(R.drawable.ic_trash_body),
+                                contentDescription = null,
+                                tint = IteraColors.Background
+                            )
+                        }
                     }
                 }
             }
@@ -233,7 +271,8 @@ private fun DismissableSessionCard(
         SessionCard(
             session = session,
             exerciseNames = exerciseNames,
-            onClick = onClick
+            onClick = onClick,
+            modifier = Modifier.scale(cardScale)
         )
     }
 }
