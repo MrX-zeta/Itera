@@ -20,8 +20,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -52,6 +61,19 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.pendingDeleteId) {
+        val pendingId = state.pendingDeleteId ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = "Sesión eliminada",
+            actionLabel = "DESHACER",
+            duration = SnackbarDuration.Short
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.onUndoDelete()
+        }
+    }
 
     val currentMonth = remember { YearMonth.now() }
     val calendarState = rememberCalendarState(
@@ -61,57 +83,119 @@ fun HistoryScreen(
         firstDayOfWeek = firstDayOfWeekFromLocale()
     )
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "HISTORIAL",
-            style = MaterialTheme.typography.labelSmall,
-            color = IteraColors.TextSecondary
-        )
-        Spacer(Modifier.height(12.dp))
-
-        Text(
-            text = calendarState.firstVisibleMonth.yearMonth.format(monthFormatter)
-                .replaceFirstChar { it.uppercase() },
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(Modifier.height(8.dp))
-
-        HorizontalCalendar(
-            state = calendarState,
-            dayContent = { day ->
-                DayCell(
-                    day = day,
-                    isSelected = day.date == state.selectedDate,
-                    isTrained = day.date in state.trainedDays,
-                    onClick = { viewModel.onDateSelected(day.date) }
-                )
-            }
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        if (state.sessions.isEmpty()) {
+    Scaffold(
+        containerColor = IteraColors.Background,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
             Text(
-                text = "Sin sesiones registradas",
-                style = MaterialTheme.typography.bodySmall,
+                text = "HISTORIAL",
+                style = MaterialTheme.typography.labelSmall,
                 color = IteraColors.TextSecondary
             )
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(state.sessions, key = { it.id }) { session ->
-                    SessionCard(
-                        session = session,
-                        exerciseNames = state.exerciseNames,
-                        onClick = { onSessionClick(session.id) },
-                        onDelete = { viewModel.onDeleteSession(session.id) }
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                text = calendarState.firstVisibleMonth.yearMonth.format(monthFormatter)
+                    .replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.height(8.dp))
+
+            HorizontalCalendar(
+                state = calendarState,
+                dayContent = { day ->
+                    DayCell(
+                        day = day,
+                        isSelected = day.date == state.selectedDate,
+                        isTrained = day.date in state.trainedDays,
+                        onClick = { viewModel.onDateSelected(day.date) }
                     )
+                }
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            val visibleSessions = state.sessions.filter { it.id != state.pendingDeleteId }
+
+            if (visibleSessions.isEmpty()) {
+                Text(
+                    text = "Sin sesiones registradas",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.TextSecondary
+                )
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(visibleSessions, key = { it.id }) { session ->
+                        if (session.isFinished) {
+                            DismissableSessionCard(
+                                session = session,
+                                exerciseNames = state.exerciseNames,
+                                onClick = { onSessionClick(session.id) },
+                                onDismiss = { viewModel.onSwipeDelete(session.id) }
+                            )
+                        } else {
+                            SessionCard(
+                                session = session,
+                                exerciseNames = state.exerciseNames,
+                                onClick = { onSessionClick(session.id) }
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DismissableSessionCard(
+    session: Session,
+    exerciseNames: Map<Long, String>,
+    onClick: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value != SwipeToDismissBoxValue.Settled) {
+                onDismiss()
+                true
+            } else false
+        },
+        positionalThreshold = { totalDistance -> totalDistance * 0.5f }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(IteraColors.Error, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 20.dp),
+                contentAlignment = when (dismissState.dismissDirection) {
+                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                    else -> Alignment.CenterEnd
+                }
+            ) {
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                    contentDescription = null,
+                    tint = IteraColors.Background
+                )
+            }
+        }
+    ) {
+        SessionCard(
+            session = session,
+            exerciseNames = exerciseNames,
+            onClick = onClick
+        )
     }
 }
 
@@ -161,12 +245,12 @@ private fun DayCell(
 private fun SessionCard(
     session: Session,
     exerciseNames: Map<Long, String>,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
+    onClick: () -> Unit
 ) {
     Column(
         Modifier
             .fillMaxWidth()
+            .background(IteraColors.Background, RoundedCornerShape(12.dp))
             .border(1.dp, IteraColors.Border, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(12.dp)
@@ -181,21 +265,11 @@ private fun SessionCard(
                 style = MaterialTheme.typography.labelSmall,
                 color = IteraColors.TextSecondary
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = if (session.isFinished) "${session.durationMinutes} min" else "EN CURSO",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = IteraColors.Accent
-                )
-                Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
-                    contentDescription = "Eliminar sesión",
-                    tint = IteraColors.TextSecondary,
-                    modifier = Modifier
-                        .padding(start = 10.dp)
-                        .clickable(onClick = onDelete)
-                )
-            }
+            Text(
+                text = if (session.isFinished) "${session.durationMinutes} min" else "EN CURSO",
+                style = MaterialTheme.typography.bodySmall,
+                color = IteraColors.Accent
+            )
         }
         Spacer(Modifier.height(8.dp))
         session.sets
