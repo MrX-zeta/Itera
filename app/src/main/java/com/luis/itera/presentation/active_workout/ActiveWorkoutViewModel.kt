@@ -86,8 +86,11 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun onStartSession() {
         viewModelScope.launch {
             sessionRepository.startSession(LocalDate.now().toEpochDay())
-            sessionStartMillis.value = System.currentTimeMillis()
         }
+    }
+
+    fun onStartTimer() {
+        sessionStartMillis.value = System.currentTimeMillis()
     }
 
     fun onRegisterSet() {

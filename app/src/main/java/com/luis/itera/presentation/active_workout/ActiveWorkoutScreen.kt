@@ -50,6 +50,7 @@ fun ActiveWorkoutScreen(
             onRepsDelta = viewModel::onRepsDelta,
             onWeightDelta = viewModel::onWeightDelta,
             onRegisterSet = viewModel::onRegisterSet,
+            onStartTimer = viewModel::onStartTimer,
             onFinishSession = viewModel::onFinishSession
         )
     }
@@ -66,7 +67,7 @@ private fun EmptySessionContent(onStart: () -> Unit) {
             ),
             shape = RoundedCornerShape(8.dp)
         ) {
-            Text("INICIAR SESIÓN", style = MaterialTheme.typography.titleMedium)
+            Text("INICIAR ENTRENAMIENTO", style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -79,8 +80,9 @@ private fun ActiveSessionContent(
     onRepsDelta: (Int) -> Unit,
     onWeightDelta: (Float) -> Unit,
     onRegisterSet: () -> Unit,
+    onStartTimer: () -> Unit,
     onFinishSession: () -> Unit
-) {
+){
     Column(
         Modifier
             .fillMaxSize()
@@ -92,11 +94,24 @@ private fun ActiveSessionContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "SESIÓN ACTIVA",
+                text = "ENTRENAMIENTO ACTIVO",
                 style = MaterialTheme.typography.labelSmall,
                 color = IteraColors.TextSecondary
             )
-            state.sessionStartMillis?.let { SessionTimer(it) }
+            if (state.sessionStartMillis != null) {
+                SessionTimer(state.sessionStartMillis)
+            } else {
+                OutlinedButton(
+                    onClick = onStartTimer,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, IteraColors.Border),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = IteraColors.Accent
+                    )
+                ) {
+                    Text("CRONÓMETRO", style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
         Spacer(Modifier.height(12.dp))
 
