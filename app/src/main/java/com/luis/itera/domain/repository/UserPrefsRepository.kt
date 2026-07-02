@@ -5,4 +5,6 @@ import kotlinx.coroutines.flow.Flow
 interface UserPrefsRepository {
     fun getUserWeightKg(): Flow<Float>
     suspend fun setUserWeightKg(weightKg: Float)
+    fun getWeeklyGoal(): Flow<Int>
+    suspend fun setWeeklyGoal(goal: Int)
 }

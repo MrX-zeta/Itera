@@ -10,4 +10,6 @@ class UserPrefsRepositoryImpl @Inject constructor(
 ) : UserPrefsRepository {
     override fun getUserWeightKg(): Flow<Float> = dataStore.getUserWeightKg()
     override suspend fun setUserWeightKg(weightKg: Float) = dataStore.setUserWeightKg(weightKg)
+    override fun getWeeklyGoal(): Flow<Int> = dataStore.getWeeklyGoal()
+    override suspend fun setWeeklyGoal(goal: Int) = dataStore.setWeeklyGoal(goal)
 }

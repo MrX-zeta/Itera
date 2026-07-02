@@ -6,6 +6,7 @@ import com.luis.itera.data.local.dao.ExerciseDao
 import com.luis.itera.data.local.dao.HydrationDao
 import com.luis.itera.data.local.dao.SessionDao
 import com.luis.itera.data.local.dao.SetDao
+import com.luis.itera.data.local.dao.StatisticsDao
 import com.luis.itera.data.local.entity.DailyHydrationGoalEntity
 import com.luis.itera.data.local.entity.ExerciseEntity
 import com.luis.itera.data.local.entity.HydrationIntakeEntity
@@ -28,4 +29,6 @@ abstract class IteraDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun setDao(): SetDao
     abstract fun hydrationDao(): HydrationDao
+
+    abstract fun statisticsDao(): StatisticsDao
 }
