@@ -28,6 +28,9 @@ class SessionRepositoryImpl @Inject constructor(
     override suspend fun startSession(dateEpochDay: Long): Long =
         sessionDao.insert(SessionEntity(dateEpochDay = dateEpochDay))
 
+    override fun getSessionById(sessionId: Long): Flow<Session?> =
+        sessionDao.getSessionWithSetsById(sessionId).map { it?.toDomain() }
+
     override suspend fun finishSession(session: Session) {
         sessionDao.update(
             SessionEntity(

@@ -44,6 +44,7 @@ private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es
 
 @Composable
 fun HistoryScreen(
+    onSessionClick: (Long) -> Unit,
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -98,7 +99,11 @@ fun HistoryScreen(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(state.sessions, key = { it.id }) { session ->
-                    SessionCard(session, state.exerciseNames)
+                    SessionCard(
+                        session = session,
+                        exerciseNames = state.exerciseNames,
+                        onClick = { onSessionClick(session.id) }
+                    )
                 }
             }
         }
@@ -150,12 +155,14 @@ private fun DayCell(
 @Composable
 private fun SessionCard(
     session: Session,
-    exerciseNames: Map<Long, String>
+    exerciseNames: Map<Long, String>,
+    onClick: () -> Unit
 ) {
     Column(
         Modifier
             .fillMaxWidth()
             .border(1.dp, IteraColors.Border, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
         Row(

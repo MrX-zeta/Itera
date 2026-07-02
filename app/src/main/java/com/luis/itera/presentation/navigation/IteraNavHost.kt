@@ -26,6 +26,9 @@ import com.luis.itera.presentation.theme.IteraColors
 import com.luis.itera.presentation.active_workout.ActiveWorkoutScreen
 import com.luis.itera.presentation.hydration.HydrationScreen
 import com.luis.itera.presentation.history.HistoryScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.luis.itera.presentation.session_detail.SessionDetailScreen
 
 private data class NavItem(
     val destination: IteraDestination,
@@ -88,12 +91,23 @@ fun IteraNavHost() {
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() }
         ) {
-            composable(IteraDestination.ActiveWorkout.route) { }
-            composable(IteraDestination.History.route) { }
-            composable(IteraDestination.Hydration.route) { }
             composable(IteraDestination.ActiveWorkout.route) { ActiveWorkoutScreen() }
+            composable(IteraDestination.History.route) {
+                HistoryScreen(
+                    onSessionClick = { sessionId ->
+                        navController.navigate(IteraDestination.SessionDetail.buildRoute(sessionId))
+                    }
+                )
+            }
             composable(IteraDestination.Hydration.route) { HydrationScreen() }
-            composable(IteraDestination.History.route) { HistoryScreen() }
+            composable(
+                route = IteraDestination.SessionDetail.route,
+                arguments = listOf(
+                    navArgument(IteraDestination.SessionDetail.ARG_SESSION_ID) { type = NavType.LongType }
+                )
+            ) {
+                SessionDetailScreen(onBack = { navController.popBackStack() })
+            }
         }
     }
 }

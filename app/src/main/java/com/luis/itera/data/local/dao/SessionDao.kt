@@ -41,4 +41,8 @@ interface SessionDao {
     @Transaction
     @Query("SELECT * FROM sessions WHERE isFinished = 0 ORDER BY id DESC LIMIT 1")
     fun getActiveSessionWithSets(): Flow<SessionWithSets?>
+
+    @Transaction
+    @Query("SELECT * FROM sessions WHERE id = :sessionId")
+    fun getSessionWithSetsById(sessionId: Long): Flow<SessionWithSets?>
 }
