@@ -212,104 +212,120 @@ private fun ActiveSessionContent(
             shape = RoundedCornerShape(8.dp)
         )
 
-        if (state.searchQuery.isNotBlank()) {
-            LazyColumn(
-                Modifier
-                    .weight(1f)
-                    .padding(top = 8.dp)
+        state.selectedExercise?.let { exercise ->
+            Spacer(Modifier.height(12.dp))
+            Text(exercise.name, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FastStepper(
+                    label = "REPS",
+                    value = state.reps.toFloat(),
+                    onDelta = { onRepsDelta(it.toInt()) },
+                    modifier = Modifier.weight(1f)
+                )
+                FastStepper(
+                    label = "+KG",
+                    value = state.weightKg,
+                    onDelta = onWeightDelta,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onRegisterSet,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = IteraColors.Accent,
+                    contentColor = IteraColors.OnAccent
+                ),
+                shape = RoundedCornerShape(8.dp)
             ) {
-                items(state.exercises, key = { it.id }) { exercise ->
+                Text("REGISTRAR SET", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        LazyColumn(Modifier.weight(1f)) {
+            item {
+                Text(
+                    text = "EJERCICIOS",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = IteraColors.TextSecondary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+            items(state.exercises, key = { "ex_${it.id}" }) { exercise ->
+                val isSelected = exercise.id == state.selectedExercise?.id
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onExerciseSelected(exercise) }
+                        .border(
+                            1.dp,
+                            if (isSelected) IteraColors.Accent else IteraColors.Border,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        exercise.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isSelected) IteraColors.Accent else IteraColors.TextPrimary
+                    )
+                    Text(
+                        exercise.mainMuscleGroup,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = IteraColors.TextSecondary
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+            }
+            val sets = state.session?.sets.orEmpty()
+            if (sets.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "SETS DE HOY",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = IteraColors.TextSecondary,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+                    )
+                }
+                items(sets, key = { "set_${it.id}" }) { set ->
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clickable { onExerciseSelected(exercise) }
                             .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
                             .padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(exercise.name, style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            exercise.mainMuscleGroup,
+                            "SET ${set.order}",
                             style = MaterialTheme.typography.bodySmall,
                             color = IteraColors.TextSecondary
+                        )
+                        Text(
+                            "${set.reps} reps" + if (set.weightAddedKg > 0f) " +${set.weightAddedKg}kg" else "",
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                     Spacer(Modifier.height(6.dp))
                 }
             }
-        } else {
-            Spacer(Modifier.height(16.dp))
-            state.selectedExercise?.let { exercise ->
-                Text(exercise.name, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FastStepper(
-                        label = "REPS",
-                        value = state.reps.toFloat(),
-                        onDelta = { onRepsDelta(it.toInt()) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    FastStepper(
-                        label = "+KG",
-                        value = state.weightKg,
-                        onDelta = onWeightDelta,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = onRegisterSet,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = IteraColors.Accent,
-                        contentColor = IteraColors.OnAccent
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("REGISTRAR SET", style = MaterialTheme.typography.titleMedium)
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            SessionSetsList(state, Modifier.weight(1f))
-            Spacer(Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = onFinishSession,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, IteraColors.Border),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = IteraColors.TextSecondary
-                )
-            ) {
-                Text("FINALIZAR SESIÓN", style = MaterialTheme.typography.titleMedium)
-            }
         }
-    }
-}
 
-@Composable
-private fun SessionSetsList(state: ActiveWorkoutUiState, modifier: Modifier = Modifier) {
-    val sets = state.session?.sets ?: return
-    LazyColumn(modifier) {
-        items(sets, key = { it.id }) { set ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    "SET ${set.order}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = IteraColors.TextSecondary
-                )
-                Text(
-                    "${set.reps} reps" + if (set.weightAddedKg > 0f) " +${set.weightAddedKg}kg" else "",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = onFinishSession,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            border = BorderStroke(1.dp, IteraColors.Border),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = IteraColors.TextSecondary
+            )
+        ) {
+            Text("FINALIZAR SESIÓN", style = MaterialTheme.typography.titleMedium)
         }
     }
 }
