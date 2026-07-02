@@ -31,6 +31,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.domain.model.Exercise
 import com.luis.itera.presentation.components.FastStepper
+import com.luis.itera.presentation.components.SessionTimer
 import com.luis.itera.presentation.theme.IteraColors
 
 @Composable
@@ -85,11 +86,18 @@ private fun ActiveSessionContent(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text(
-            text = "SESIÓN ACTIVA",
-            style = MaterialTheme.typography.labelSmall,
-            color = IteraColors.TextSecondary
-        )
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "SESIÓN ACTIVA",
+                style = MaterialTheme.typography.labelSmall,
+                color = IteraColors.TextSecondary
+            )
+            state.sessionStartMillis?.let { SessionTimer(it) }
+        }
         Spacer(Modifier.height(12.dp))
 
         OutlinedTextField(

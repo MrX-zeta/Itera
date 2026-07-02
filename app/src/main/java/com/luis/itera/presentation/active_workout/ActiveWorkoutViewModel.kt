@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -27,7 +26,7 @@ data class ActiveWorkoutUiState(
     val selectedExercise: Exercise? = null,
     val reps: Int = 10,
     val weightKg: Float = 0f,
-    val elapsedStartMillis: Long? = null
+    val sessionStartMillis: Long? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -54,7 +53,7 @@ class ActiveWorkoutViewModel @Inject constructor(
         exercises,
         searchQuery,
         selectedExercise,
-        combine(reps, weightKg) { r, w -> r to w }
+        combine(reps, weightKg, sessionStartMillis) { r, w, s -> Triple(r, w, s) }
     ) { session, exerciseList, query, selected, inputs ->
         ActiveWorkoutUiState(
             session = session,
@@ -62,7 +61,8 @@ class ActiveWorkoutViewModel @Inject constructor(
             searchQuery = query,
             selectedExercise = selected,
             reps = inputs.first,
-            weightKg = inputs.second
+            weightKg = inputs.second,
+            sessionStartMillis = inputs.third
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
