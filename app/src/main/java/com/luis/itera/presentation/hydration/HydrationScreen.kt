@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,9 +37,12 @@ import com.luis.itera.presentation.theme.IteraColors
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 
 private val quickAmounts = listOf(250 to "VASO", 500 to "BOTELLA", 1000 to "LITRO")
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+private const val ML_PER_DP = 2.5f
+private const val DRAG_STEP_ML = 50
 
 @Composable
 fun HydrationScreen(
@@ -62,10 +69,13 @@ fun HydrationScreen(
         }
         Spacer(Modifier.height(20.dp))
 
-        ProgressRing(
+        DraggableProgressRing(
             progress = state.progress,
-            totalMl = state.totalMl,
+            totalMl = state.displayTotalMl,
             goalMl = state.goal?.totalGoalMl ?: 0,
+            isDragging = state.dragDeltaMl != 0,
+            onDrag = viewModel::onDrag,
+            onDragEnd = viewModel::onDragEnd,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
 
@@ -106,8 +116,10 @@ fun HydrationScreen(
                         color = IteraColors.TextSecondary
                     )
                     Text(
-                        text = "+${intake.amountMl} ml",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "${if (intake.amountMl >= 0) "+" else ""}${intake.amountMl} ml",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (intake.amountMl >= 0) IteraColors.TextPrimary
+                        else IteraColors.TextSecondary
                     )
                 }
             }
@@ -122,18 +134,50 @@ fun HydrationScreen(
 }
 
 @Composable
-private fun ProgressRing(
+private fun DraggableProgressRing(
     progress: Float,
     totalMl: Int,
     goalMl: Int,
+    isDragging: Boolean,
+    onDrag: (Int) -> Unit,
+    onDragEnd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = tween(durationMillis = 600),
+        animationSpec = tween(durationMillis = if (isDragging) 0 else 600),
         label = "hydration_progress"
     )
-    Box(modifier.size(200.dp), contentAlignment = Alignment.Center) {
+
+    Box(
+        modifier = modifier
+            .size(200.dp)
+            .pointerInput(Unit) {
+                var accumulatedPx = 0f
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        accumulatedPx = 0f
+                        onDragEnd()
+                    },
+                    onDragCancel = {
+                        accumulatedPx = 0f
+                        onDragEnd()
+                    }
+                ) { change, dragAmount ->
+                    change.consume()
+                    accumulatedPx -= dragAmount
+                    val stepsMl = (accumulatedPx / density * ML_PER_DP / DRAG_STEP_ML)
+                        .roundToInt() * DRAG_STEP_ML
+                    if (stepsMl != 0) {
+                        accumulatedPx = 0f
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onDrag(stepsMl)
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
         CircularProgressIndicator(
             progress = { 1f },
             modifier = Modifier.fillMaxSize(),
@@ -150,7 +194,7 @@ private fun ProgressRing(
             Text(
                 text = "$totalMl",
                 style = MaterialTheme.typography.titleLarge,
-                color = IteraColors.TextPrimary
+                color = if (isDragging) IteraColors.Accent else IteraColors.TextPrimary
             )
             Text(
                 text = "/ $goalMl ml",
@@ -158,7 +202,7 @@ private fun ProgressRing(
                 color = IteraColors.TextSecondary
             )
             Text(
-                text = "${(animatedProgress * 100).toInt()}%",
+                text = if (isDragging) "AJUSTANDO" else "${(animatedProgress * 100).toInt()}%",
                 style = MaterialTheme.typography.bodySmall,
                 color = IteraColors.Accent
             )
