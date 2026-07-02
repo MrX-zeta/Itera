@@ -42,6 +42,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val selectedExercise = MutableStateFlow<Exercise?>(null)
     private val reps = MutableStateFlow(10)
     private val weightKg = MutableStateFlow(0f)
+    private val sessionStartMillis = MutableStateFlow<Long?>(null)
 
     private val exercises = searchQuery.flatMapLatest { query ->
         if (query.isBlank()) exerciseRepository.getAll()
@@ -85,6 +86,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun onStartSession() {
         viewModelScope.launch {
             sessionRepository.startSession(LocalDate.now().toEpochDay())
+            sessionStartMillis.value = System.currentTimeMillis()
         }
     }
 
@@ -96,11 +98,15 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
-    fun onFinishSession(durationMinutes: Int) {
+    fun onFinishSession() {
         val session = uiState.value.session ?: return
+        val start = sessionStartMillis.value ?: System.currentTimeMillis()
+        val durationMinutes = ((System.currentTimeMillis() - start) / 60_000L).toInt()
         viewModelScope.launch {
             sessionRepository.finishSession(session.copy(durationMinutes = durationMinutes))
             calculateHydrationGoal(session.dateEpochDay)
+            sessionStartMillis.value = null
+            selectedExercise.value = null
         }
     }
 }

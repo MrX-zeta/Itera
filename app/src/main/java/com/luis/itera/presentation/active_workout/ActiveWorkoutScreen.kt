@@ -1,5 +1,6 @@
 package com.luis.itera.presentation.active_workout
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -27,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.itera.domain.model.Exercise
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.theme.IteraColors
 
@@ -45,7 +48,8 @@ fun ActiveWorkoutScreen(
             onExerciseSelected = viewModel::onExerciseSelected,
             onRepsDelta = viewModel::onRepsDelta,
             onWeightDelta = viewModel::onWeightDelta,
-            onRegisterSet = viewModel::onRegisterSet
+            onRegisterSet = viewModel::onRegisterSet,
+            onFinishSession = viewModel::onFinishSession
         )
     }
 }
@@ -70,10 +74,11 @@ private fun EmptySessionContent(onStart: () -> Unit) {
 private fun ActiveSessionContent(
     state: ActiveWorkoutUiState,
     onSearchChange: (String) -> Unit,
-    onExerciseSelected: (com.luis.itera.domain.model.Exercise) -> Unit,
+    onExerciseSelected: (Exercise) -> Unit,
     onRepsDelta: (Int) -> Unit,
     onWeightDelta: (Float) -> Unit,
-    onRegisterSet: () -> Unit
+    onRegisterSet: () -> Unit,
+    onFinishSession: () -> Unit
 ) {
     Column(
         Modifier
@@ -159,16 +164,28 @@ private fun ActiveSessionContent(
                     Text("REGISTRAR SET", style = MaterialTheme.typography.titleMedium)
                 }
             }
-            Spacer(Modifier.weight(1f))
-            SessionSetsList(state)
+            Spacer(Modifier.height(16.dp))
+            SessionSetsList(state, Modifier.weight(1f))
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = onFinishSession,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, IteraColors.Border),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = IteraColors.TextSecondary
+                )
+            ) {
+                Text("FINALIZAR SESIÓN", style = MaterialTheme.typography.titleMedium)
+            }
         }
     }
 }
 
 @Composable
-private fun SessionSetsList(state: ActiveWorkoutUiState) {
+private fun SessionSetsList(state: ActiveWorkoutUiState, modifier: Modifier = Modifier) {
     val sets = state.session?.sets ?: return
-    LazyColumn {
+    LazyColumn(modifier) {
         items(sets, key = { it.id }) { set ->
             Row(
                 Modifier
