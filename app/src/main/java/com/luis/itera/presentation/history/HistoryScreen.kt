@@ -1,5 +1,6 @@
 package com.luis.itera.presentation.history
 
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -52,6 +53,10 @@ import com.luis.itera.presentation.theme.IteraColors
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 
 private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
 
@@ -132,18 +137,24 @@ fun HistoryScreen(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(visibleSessions, key = { it.id }) { session ->
+                        val itemModifier = Modifier.animateItem(
+                            placementSpec = tween(650),
+                            fadeOutSpec = tween(650)
+                        )
                         if (session.isFinished) {
                             DismissableSessionCard(
                                 session = session,
                                 exerciseNames = state.exerciseNames,
                                 onClick = { onSessionClick(session.id) },
-                                onDismiss = { viewModel.onSwipeDelete(session.id) }
+                                onDismiss = { viewModel.onSwipeDelete(session.id) },
+                                modifier = itemModifier
                             )
                         } else {
                             SessionCard(
                                 session = session,
                                 exerciseNames = state.exerciseNames,
-                                onClick = { onSessionClick(session.id) }
+                                onClick = { onSessionClick(session.id) },
+                                modifier = itemModifier
                             )
                         }
                     }
@@ -158,7 +169,8 @@ private fun DismissableSessionCard(
     session: Session,
     exerciseNames: Map<Long, String>,
     onClick: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -169,25 +181,52 @@ private fun DismissableSessionCard(
         },
         positionalThreshold = { totalDistance -> totalDistance * 0.5f }
     )
+    val density = LocalDensity.current
 
     SwipeToDismissBox(
         state = dismissState,
+        modifier = modifier,
         backgroundContent = {
+            val offsetPx = runCatching { dismissState.requireOffset() }.getOrDefault(0f)
+            val revealedDp = with(density) { kotlin.math.abs(offsetPx).toDp() }
+
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(IteraColors.Error, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 20.dp),
-                contentAlignment = when (dismissState.dismissDirection) {
-                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                    else -> Alignment.CenterEnd
-                }
+                    .clip(RoundedCornerShape(12.dp))
             ) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
-                    contentDescription = null,
-                    tint = IteraColors.Background
-                )
+                when (dismissState.dismissDirection) {
+                    SwipeToDismissBoxValue.StartToEnd -> Box(
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .width(revealedDp)
+                            .fillMaxHeight()
+                            .background(IteraColors.Error),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Icon(
+                            imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                            contentDescription = null,
+                            tint = IteraColors.Background,
+                            modifier = Modifier.padding(end = 16.dp)
+                        )
+                    }
+                    else -> Box(
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .width(revealedDp)
+                            .fillMaxHeight()
+                            .background(IteraColors.Error),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Icon(
+                            imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                            contentDescription = null,
+                            tint = IteraColors.Background,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+                    }
+                }
             }
         }
     ) {
@@ -245,10 +284,11 @@ private fun DayCell(
 private fun SessionCard(
     session: Session,
     exerciseNames: Map<Long, String>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        Modifier
+        modifier
             .fillMaxWidth()
             .background(IteraColors.Background, RoundedCornerShape(12.dp))
             .border(1.dp, IteraColors.Border, RoundedCornerShape(12.dp))
