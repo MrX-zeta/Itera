@@ -63,3 +63,6 @@ class HydrationRepositoryImpl @Inject constructor(
 
 private fun HydrationIntakeEntity.toDomain() =
     HydrationIntake(id, dateTimeEpochMillis, amountMl)
+
+private fun DailyHydrationGoalEntity.toDomain() =
+    DailyHydrationGoal(dateEpochDay, baseGoalMl, activityBonusMl, totalGoalMl, isActiveDay)
