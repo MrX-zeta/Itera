@@ -23,13 +23,13 @@ class SessionRepositoryImpl @Inject constructor(
     override fun getSessionsByDate(dateEpochDay: Long): Flow<List<Session>> =
         sessionDao.getSessionsWithSetsByDate(dateEpochDay).map { list -> list.map { it.toDomain() } }
 
+    override fun getSessionById(sessionId: Long): Flow<Session?> =
+        sessionDao.getSessionWithSetsById(sessionId).map { it?.toDomain() }
+
     override fun getTrainedDays(): Flow<List<Long>> = sessionDao.getTrainedDays()
 
     override suspend fun startSession(dateEpochDay: Long, focus: String?): Long =
         sessionDao.insert(SessionEntity(dateEpochDay = dateEpochDay, focus = focus))
-
-    override fun getSessionById(sessionId: Long): Flow<Session?> =
-        sessionDao.getSessionWithSetsById(sessionId).map { it?.toDomain() }
 
     override suspend fun finishSession(session: Session) {
         sessionDao.update(
@@ -43,6 +43,8 @@ class SessionRepositoryImpl @Inject constructor(
             )
         )
     }
+
+    override suspend fun deleteSession(sessionId: Long) = sessionDao.deleteById(sessionId)
 
     override suspend fun addSet(
         sessionId: Long,
@@ -70,8 +72,6 @@ class SessionRepositoryImpl @Inject constructor(
 
     override suspend fun hasFinishedSession(dateEpochDay: Long): Boolean =
         sessionDao.hasFinishedSession(dateEpochDay)
-
-    override suspend fun discardSession(sessionId: Long) = sessionDao.deleteById(sessionId)
 }
 
 private fun SessionEntity.toDomain(sets: List<WorkoutSet> = emptyList()) =

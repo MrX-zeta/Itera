@@ -9,6 +9,7 @@ import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.SessionRepository
 import com.luis.itera.presentation.navigation.IteraDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -31,6 +32,9 @@ class SessionDetailViewModel @Inject constructor(
     private val sessionId: Long =
         checkNotNull(savedStateHandle[IteraDestination.SessionDetail.ARG_SESSION_ID])
 
+    private val _deleted = MutableStateFlow(false)
+    val deleted: StateFlow<Boolean> = _deleted
+
     val uiState: StateFlow<SessionDetailUiState> = combine(
         sessionRepository.getSessionById(sessionId),
         exerciseRepository.getAll()
@@ -43,5 +47,12 @@ class SessionDetailViewModel @Inject constructor(
 
     fun onDeleteSet(set: WorkoutSet) {
         viewModelScope.launch { sessionRepository.deleteSet(set) }
+    }
+
+    fun onDeleteSession() {
+        viewModelScope.launch {
+            sessionRepository.deleteSession(sessionId)
+            _deleted.value = true
+        }
     }
 }

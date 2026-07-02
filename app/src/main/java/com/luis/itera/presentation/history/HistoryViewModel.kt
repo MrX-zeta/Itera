@@ -2,7 +2,6 @@ package com.luis.itera.presentation.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.luis.itera.domain.model.Exercise
 import com.luis.itera.domain.model.Session
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.SessionRepository
@@ -14,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -53,5 +53,9 @@ class HistoryViewModel @Inject constructor(
 
     fun onDateSelected(date: LocalDate) {
         selectedDate.value = date
+    }
+
+    fun onDeleteSession(sessionId: Long) {
+        viewModelScope.launch { sessionRepository.deleteSession(sessionId) }
     }
 }

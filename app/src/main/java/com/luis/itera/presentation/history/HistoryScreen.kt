@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +26,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,9 +37,9 @@ import com.kizitonwose.calendar.compose.rememberCalendarState
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.firstDayOfWeekFromLocale
+import com.luis.itera.R
 import com.luis.itera.domain.model.Session
 import com.luis.itera.presentation.theme.IteraColors
-import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -102,7 +106,8 @@ fun HistoryScreen(
                     SessionCard(
                         session = session,
                         exerciseNames = state.exerciseNames,
-                        onClick = { onSessionClick(session.id) }
+                        onClick = { onSessionClick(session.id) },
+                        onDelete = { viewModel.onDeleteSession(session.id) }
                     )
                 }
             }
@@ -156,7 +161,8 @@ private fun DayCell(
 private fun SessionCard(
     session: Session,
     exerciseNames: Map<Long, String>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Column(
         Modifier
@@ -167,40 +173,58 @@ private fun SessionCard(
     ) {
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "SESIÓN ${session.id}",
                 style = MaterialTheme.typography.labelSmall,
                 color = IteraColors.TextSecondary
             )
-            Text(
-                text = "${session.durationMinutes} min",
-                style = MaterialTheme.typography.bodySmall,
-                color = IteraColors.Accent
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${session.durationMinutes} min",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.Accent
+                )
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                    contentDescription = "Eliminar sesión",
+                    tint = IteraColors.TextSecondary,
+                    modifier = Modifier
+                        .padding(start = 10.dp)
+                        .clickable(onClick = onDelete)
+                )
+            }
         }
         Spacer(Modifier.height(8.dp))
         session.sets
             .groupBy { it.exerciseId }
             .forEach { (exerciseId, sets) ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = exerciseNames[exerciseId] ?: "—",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                Column(Modifier.padding(vertical = 4.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = exerciseNames[exerciseId] ?: "—",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "${sets.size} sets",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = IteraColors.Accent
+                        )
+                    }
                     Text(
                         text = sets.joinToString(" · ") { set ->
                             set.reps.toString() +
                                     if (set.weightAddedKg > 0f) "+${set.weightAddedKg}kg" else ""
                         },
                         style = MaterialTheme.typography.bodySmall,
-                        color = IteraColors.TextSecondary
+                        color = IteraColors.TextSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

@@ -169,7 +169,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun onDiscardSession() {
         val session = uiState.value.session ?: return
         viewModelScope.launch {
-            sessionRepository.discardSession(session.id)
+            sessionRepository.deleteSession(session.id)
             sessionStartMillis.value = null
             selectedExercise.value = null
         }

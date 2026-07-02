@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,10 @@ fun SessionDetailScreen(
     viewModel: SessionDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val deleted by viewModel.deleted.collectAsStateWithLifecycle()
+
+    LaunchedEffect(deleted) { if (deleted) onBack() }
+
     val session = state.session ?: return
 
     Column(
@@ -48,7 +53,8 @@ fun SessionDetailScreen(
     ) {
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "‹ VOLVER",
@@ -56,11 +62,21 @@ fun SessionDetailScreen(
                 color = IteraColors.Accent,
                 modifier = Modifier.clickable(onClick = onBack)
             )
-            Text(
-                text = "${session.durationMinutes} min",
-                style = MaterialTheme.typography.bodySmall,
-                color = IteraColors.Accent
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${session.durationMinutes} min",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.Accent
+                )
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                    contentDescription = "Eliminar sesión",
+                    tint = IteraColors.TextSecondary,
+                    modifier = Modifier
+                        .padding(start = 10.dp)
+                        .clickable(onClick = viewModel::onDeleteSession)
+                )
+            }
         }
         Spacer(Modifier.height(12.dp))
 
