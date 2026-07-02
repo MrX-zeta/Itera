@@ -1,5 +1,6 @@
 package com.luis.itera.presentation.active_workout
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -165,6 +168,9 @@ private fun ActiveSessionContent(
     onDiscardSession: () -> Unit,
     onFinishSession: () -> Unit
 ) {
+    var searchExpanded by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -175,14 +181,17 @@ private fun ActiveSessionContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
                 Icon(
                     imageVector = ImageVector.vectorResource(R.drawable.ic_back),
                     contentDescription = "Descartar entrenamiento",
                     tint = IteraColors.TextSecondary,
                     modifier = Modifier
                         .clickable(onClick = onDiscardSession)
-                        .padding(end = 12.dp)
+                        .padding(end = 16.dp)
                 )
                 Column {
                     Text(
@@ -191,6 +200,7 @@ private fun ActiveSessionContent(
                         color = IteraColors.TextSecondary
                     )
                     if (state.sessionFocuses.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
                         Text(
                             text = state.sessionFocuses.joinToString(" · ") { it.label },
                             style = MaterialTheme.typography.bodySmall,
@@ -199,6 +209,17 @@ private fun ActiveSessionContent(
                     }
                 }
             }
+            Icon(
+                imageVector = ImageVector.vectorResource(R.drawable.ic_search),
+                contentDescription = "Buscar ejercicio",
+                tint = if (searchExpanded) IteraColors.Accent else IteraColors.TextSecondary,
+                modifier = Modifier
+                    .clickable {
+                        searchExpanded = !searchExpanded
+                        if (!searchExpanded) onSearchChange("")
+                    }
+                    .padding(horizontal = 10.dp)
+            )
             if (state.sessionStartMillis != null) {
                 SessionTimer(state.sessionStartMillis)
             } else {
@@ -214,22 +235,29 @@ private fun ActiveSessionContent(
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = state.searchQuery,
-            onValueChange = onSearchChange,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Buscar ejercicio", color = IteraColors.TextSecondary) },
-            singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = IteraColors.Accent,
-                unfocusedBorderColor = IteraColors.Border,
-                focusedTextColor = IteraColors.TextPrimary,
-                unfocusedTextColor = IteraColors.TextPrimary
-            ),
-            shape = RoundedCornerShape(8.dp)
-        )
+        AnimatedVisibility(visible = searchExpanded) {
+            Column {
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = state.searchQuery,
+                    onValueChange = onSearchChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    placeholder = { Text("Buscar ejercicio", color = IteraColors.TextSecondary) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = IteraColors.Accent,
+                        unfocusedBorderColor = IteraColors.Border,
+                        focusedTextColor = IteraColors.TextPrimary,
+                        unfocusedTextColor = IteraColors.TextPrimary
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                LaunchedEffect(Unit) { focusRequester.requestFocus() }
+            }
+        }
 
         state.selectedExercise?.let { exercise ->
             Spacer(Modifier.height(12.dp))

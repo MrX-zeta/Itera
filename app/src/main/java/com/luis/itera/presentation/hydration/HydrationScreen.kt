@@ -4,7 +4,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,11 +36,13 @@ import com.luis.itera.presentation.theme.IteraColors
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlin.math.roundToInt
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.geometry.Offset
+import kotlin.math.atan2
 
 private val quickAmounts = listOf(250 to "VASO", 500 to "BOTELLA", 1000 to "LITRO")
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-private const val ML_PER_DP = 2.5f
+private const val ML_PER_TURN = 1000f
 private const val DRAG_STEP_ML = 50
 
 @Composable
@@ -154,25 +155,38 @@ private fun DraggableProgressRing(
         modifier = modifier
             .size(200.dp)
             .pointerInput(Unit) {
-                var accumulatedPx = 0f
-                detectVerticalDragGestures(
+                val center = Offset(size.width / 2f, size.height / 2f)
+                var lastAngle: Float? = null
+                var accumulatedMl = 0f
+
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        lastAngle = angleOf(offset, center)
+                        accumulatedMl = 0f
+                    },
                     onDragEnd = {
-                        accumulatedPx = 0f
+                        lastAngle = null
                         onDragEnd()
                     },
                     onDragCancel = {
-                        accumulatedPx = 0f
+                        lastAngle = null
                         onDragEnd()
                     }
-                ) { change, dragAmount ->
+                ) { change, _ ->
                     change.consume()
-                    accumulatedPx -= dragAmount
-                    val stepsMl = (accumulatedPx / density * ML_PER_DP / DRAG_STEP_ML)
-                        .roundToInt() * DRAG_STEP_ML
-                    if (stepsMl != 0) {
-                        accumulatedPx = 0f
+                    val previous = lastAngle ?: return@detectDragGestures
+                    val current = angleOf(change.position, center)
+                    var delta = current - previous
+                    if (delta > 180f) delta -= 360f
+                    if (delta < -180f) delta += 360f
+                    lastAngle = current
+
+                    accumulatedMl += delta / 360f * ML_PER_TURN
+                    val steps = (accumulatedMl / DRAG_STEP_ML).toInt()
+                    if (steps != 0) {
+                        accumulatedMl -= steps * DRAG_STEP_ML
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onDrag(stepsMl)
+                        onDrag(steps * DRAG_STEP_ML)
                     }
                 }
             },
@@ -208,6 +222,12 @@ private fun DraggableProgressRing(
             )
         }
     }
+}
+
+private fun angleOf(position: Offset, center: Offset): Float {
+    val dx = position.x - center.x
+    val dy = position.y - center.y
+    return Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
 }
 
 @Composable
