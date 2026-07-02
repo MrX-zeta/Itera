@@ -50,10 +50,16 @@ object ExerciseSeed {
         ExerciseEntity(name = "Curl de muñecas con mancuernas", category = "Gimnasio", equipment = "Mancuerna", mainMuscleGroup = "Antebrazo"),
         ExerciseEntity(name = "Curl de muñecas con barra", category = "Gimnasio", equipment = "Barra", mainMuscleGroup = "Antebrazo"),
 
+        ExerciseEntity(name = "Flexiones diamante", category = "Calistenia", equipment = "Peso Corporal", mainMuscleGroup = "Tríceps"),
+        ExerciseEntity(name = "Rompecráneos", category = "Gimnasio", equipment = "Barra", mainMuscleGroup = "Tríceps"),
+        ExerciseEntity(name = "Rompecráneos con mancuernas", category = "Gimnasio", equipment = "Mancuerna", mainMuscleGroup = "Tríceps"),
+
         ExerciseEntity(name = "Sentadilla con barra", category = "Gimnasio", equipment = "Barra", mainMuscleGroup = "Piernas"),
         ExerciseEntity(name = "Sentadilla Hack", category = "Gimnasio", equipment = "Máquina", mainMuscleGroup = "Piernas"),
         ExerciseEntity(name = "Sentadillas búlgaras con mancuernas", category = "Gimnasio", equipment = "Mancuerna", mainMuscleGroup = "Piernas"),
         ExerciseEntity(name = "Prensa de piernas", category = "Gimnasio", equipment = "Máquina", mainMuscleGroup = "Piernas"),
+        ExerciseEntity(name = "Extensión de cuádriceps en máquina", category = "Gimnasio", equipment = "Máquina", mainMuscleGroup = "Piernas"),
+        ExerciseEntity(name = "Extensión de tríceps en polea", category = "Gimnasio", equipment = "Polea", mainMuscleGroup = "Tríceps"),
         ExerciseEntity(name = "Curl femoral acostado", category = "Gimnasio", equipment = "Máquina", mainMuscleGroup = "Femoral"),
         ExerciseEntity(name = "Costurera", category = "Gimnasio", equipment = "Máquina", mainMuscleGroup = "Gastrocnemio"),
 

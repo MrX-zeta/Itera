@@ -63,15 +63,13 @@ class ActiveWorkoutViewModel @Inject constructor(
         .flatMapLatest { (query, focuses) ->
             val source = if (query.isBlank()) exerciseRepository.getAll()
             else exerciseRepository.search(query)
-            source.map { list -> filterByFocus(list, focuses, query) }
+            source.map { list -> filterByFocus(list, focuses) }
         }
 
     private fun filterByFocus(
         list: List<Exercise>,
-        focuses: Set<WorkoutFocus>,
-        query: String
+        focuses: Set<WorkoutFocus>
     ): List<Exercise> {
-        if (query.isNotBlank()) return list
         val groups = focuses.flatMap { it.muscleGroups }.toSet()
         if (groups.isEmpty()) return list
         return list.filter { it.mainMuscleGroup in groups }
