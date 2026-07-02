@@ -55,6 +55,11 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val weightKg = MutableStateFlow(0f)
     private val sessionStartMillis = MutableStateFlow<Long?>(null)
     private val selectedFocuses = MutableStateFlow<Set<WorkoutFocus>>(emptySet())
+    private val _lastRegisteredSetAt = MutableStateFlow(0L)
+
+    private companion object {
+        const val REGISTER_DEBOUNCE_MS = 700L
+    }
 
     private val exercises = combine(
         searchQuery,
@@ -144,8 +149,11 @@ class ActiveWorkoutViewModel @Inject constructor(
     }
 
     fun onRegisterSet() {
+        val now = System.currentTimeMillis()
+        if (now - _lastRegisteredSetAt.value < REGISTER_DEBOUNCE_MS) return
         val session = uiState.value.session ?: return
         val exercise = selectedExercise.value ?: return
+        _lastRegisteredSetAt.value = now
         viewModelScope.launch {
             sessionRepository.addSet(session.id, exercise.id, reps.value, weightKg.value)
         }

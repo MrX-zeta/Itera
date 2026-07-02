@@ -26,10 +26,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -40,6 +46,7 @@ import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.components.SessionTimer
 import com.luis.itera.presentation.theme.IteraColors
+import kotlinx.coroutines.delay
 
 @Composable
 fun ActiveWorkoutScreen(
@@ -231,17 +238,7 @@ private fun ActiveSessionContent(
                 )
             }
             Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onRegisterSet,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = IteraColors.Accent,
-                    contentColor = IteraColors.OnAccent
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("REGISTRAR SET", style = MaterialTheme.typography.titleMedium)
-            }
+            RegisterSetButton(onRegisterSet = onRegisterSet)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -327,5 +324,37 @@ private fun ActiveSessionContent(
         ) {
             Text("FINALIZAR SESIÓN", style = MaterialTheme.typography.titleMedium)
         }
+    }
+}
+
+@Composable
+private fun RegisterSetButton(onRegisterSet: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    var registered by remember { mutableStateOf(false) }
+
+    LaunchedEffect(registered) {
+        if (registered) {
+            delay(900L)
+            registered = false
+        }
+    }
+
+    Button(
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            registered = true
+            onRegisterSet()
+        },
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (registered) IteraColors.Surface else IteraColors.Accent,
+            contentColor = if (registered) IteraColors.Accent else IteraColors.OnAccent
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = if (registered) "✓ REGISTRADO" else "REGISTRAR SET",
+            style = MaterialTheme.typography.titleMedium
+        )
     }
 }
