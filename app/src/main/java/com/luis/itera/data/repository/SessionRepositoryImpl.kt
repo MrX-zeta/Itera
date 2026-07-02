@@ -70,6 +70,8 @@ class SessionRepositoryImpl @Inject constructor(
 
     override suspend fun hasFinishedSession(dateEpochDay: Long): Boolean =
         sessionDao.hasFinishedSession(dateEpochDay)
+
+    override suspend fun discardSession(sessionId: Long) = sessionDao.deleteById(sessionId)
 }
 
 private fun SessionEntity.toDomain(sets: List<WorkoutSet> = emptyList()) =

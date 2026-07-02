@@ -33,6 +33,12 @@ data class ActiveWorkoutUiState(
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
+
+    val blockedFocuses: Set<WorkoutFocus>
+        get() = WorkoutFocus.entries.filter { candidate ->
+            candidate !in selectedFocuses &&
+                    selectedFocuses.any { it.conflictsWith(candidate) }
+        }.toSet()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -91,9 +97,21 @@ class ActiveWorkoutViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
     fun onFocusToggle(focus: WorkoutFocus) {
-        selectedFocuses.value =
-            if (focus in selectedFocuses.value) selectedFocuses.value - focus
-            else selectedFocuses.value + focus
+        val current = selectedFocuses.value
+        selectedFocuses.value = when {
+            focus in current -> current - focus
+            current.any { it.conflictsWith(focus) } -> current
+            else -> current + focus
+        }
+    }
+
+    fun onDiscardSession() {
+        val session = uiState.value.session ?: return
+        viewModelScope.launch {
+            sessionRepository.discardSession(session.id)
+            sessionStartMillis.value = null
+            selectedExercise.value = null
+        }
     }
 
     fun onSearchQueryChange(query: String) {

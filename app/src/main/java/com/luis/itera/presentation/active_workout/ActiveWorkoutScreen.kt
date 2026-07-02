@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -28,9 +29,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.itera.R
 import com.luis.itera.domain.model.Exercise
 import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.presentation.components.FastStepper
@@ -46,6 +50,7 @@ fun ActiveWorkoutScreen(
     if (state.session == null) {
         EmptySessionContent(
             selectedFocuses = state.selectedFocuses,
+            blockedFocuses = state.blockedFocuses,
             onFocusToggle = viewModel::onFocusToggle,
             onStart = viewModel::onStartSession
         )
@@ -58,6 +63,7 @@ fun ActiveWorkoutScreen(
             onWeightDelta = viewModel::onWeightDelta,
             onRegisterSet = viewModel::onRegisterSet,
             onStartTimer = viewModel::onStartTimer,
+            onDiscardSession = viewModel::onDiscardSession,
             onFinishSession = viewModel::onFinishSession
         )
     }
@@ -67,6 +73,7 @@ fun ActiveWorkoutScreen(
 @Composable
 private fun EmptySessionContent(
     selectedFocuses: Set<WorkoutFocus>,
+    blockedFocuses: Set<WorkoutFocus>,
     onFocusToggle: (WorkoutFocus) -> Unit,
     onStart: () -> Unit
 ) {
@@ -88,10 +95,15 @@ private fun EmptySessionContent(
         ) {
             WorkoutFocus.entries.forEach { focus ->
                 val selected = focus in selectedFocuses
+                val blocked = focus in blockedFocuses
                 Text(
                     text = focus.label,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (selected) IteraColors.OnAccent else IteraColors.TextPrimary,
+                    color = when {
+                        selected -> IteraColors.OnAccent
+                        blocked -> IteraColors.Border
+                        else -> IteraColors.TextPrimary
+                    },
                     modifier = Modifier
                         .background(
                             color = if (selected) IteraColors.Accent else IteraColors.Surface,
@@ -102,7 +114,7 @@ private fun EmptySessionContent(
                             if (selected) IteraColors.Accent else IteraColors.Border,
                             RoundedCornerShape(8.dp)
                         )
-                        .clickable { onFocusToggle(focus) }
+                        .clickable(enabled = !blocked) { onFocusToggle(focus) }
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 )
             }
@@ -131,6 +143,7 @@ private fun ActiveSessionContent(
     onWeightDelta: (Float) -> Unit,
     onRegisterSet: () -> Unit,
     onStartTimer: () -> Unit,
+    onDiscardSession: () -> Unit,
     onFinishSession: () -> Unit
 ) {
     Column(
@@ -143,18 +156,28 @@ private fun ActiveSessionContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "ENTRENAMIENTO ACTIVO",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = IteraColors.TextSecondary
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_back),
+                    contentDescription = "Descartar entrenamiento",
+                    tint = IteraColors.TextSecondary,
+                    modifier = Modifier
+                        .clickable(onClick = onDiscardSession)
+                        .padding(end = 12.dp)
                 )
-                if (state.sessionFocuses.isNotEmpty()) {
+                Column {
                     Text(
-                        text = state.sessionFocuses.joinToString(" · ") { it.label },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = IteraColors.Accent
+                        text = "ENTRENAMIENTO ACTIVO",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = IteraColors.TextSecondary
                     )
+                    if (state.sessionFocuses.isNotEmpty()) {
+                        Text(
+                            text = state.sessionFocuses.joinToString(" · ") { it.label },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = IteraColors.Accent
+                        )
+                    }
                 }
             }
             if (state.sessionStartMillis != null) {

@@ -20,4 +20,11 @@ enum class WorkoutFocus(val label: String, val muscleGroups: Set<String>) {
         fun toStored(focuses: Set<WorkoutFocus>): String? =
             focuses.takeIf { it.isNotEmpty() }?.joinToString(",") { it.name }
     }
+
+    fun conflictsWith(other: WorkoutFocus): Boolean {
+        if (this == other) return false
+        if (this == FULL_BODY || other == FULL_BODY) return true
+        return muscleGroups.intersect(other.muscleGroups).isNotEmpty()
+    }
+
 }

@@ -45,4 +45,7 @@ interface SessionDao {
     @Transaction
     @Query("SELECT * FROM sessions WHERE id = :sessionId")
     fun getSessionWithSetsById(sessionId: Long): Flow<SessionWithSets?>
+
+    @Query("DELETE FROM sessions WHERE id = :sessionId")
+    suspend fun deleteById(sessionId: Long)
 }
