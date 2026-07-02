@@ -37,3 +37,4 @@ ehthumbs.db
 # Archivos generados por KSP/KAPT (Hilt y Room a veces los escapan del build folder)
 *.generated.idea/deploymentTargetSelector.xml
 **/.idea/deploymentTargetSelector.xml
+.kotlin/
