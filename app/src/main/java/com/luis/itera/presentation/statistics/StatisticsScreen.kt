@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,10 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,10 +29,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.itera.R
 import com.luis.itera.domain.model.BigThreeRecord
 import com.luis.itera.presentation.components.StatBarChart
 import com.luis.itera.presentation.components.StatLineChart
@@ -57,7 +66,7 @@ fun StatisticsScreen(
                 style = MaterialTheme.typography.labelSmall,
                 color = IteraColors.TextSecondary
             )
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
         }
 
         item {
@@ -79,13 +88,13 @@ fun StatisticsScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             WeeklyGoalRow(
                 sessionsThisWeek = state.streak.sessionsThisWeek,
                 weeklyGoal = state.streak.weeklyGoal,
                 onDelta = viewModel::onWeeklyGoalDelta
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(22.dp))
         }
 
         item {
@@ -94,30 +103,50 @@ fun StatisticsScreen(
                 style = MaterialTheme.typography.labelSmall,
                 color = IteraColors.TextSecondary
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.bigThree.forEach { record ->
                     BigThreeCard(record, Modifier.weight(1f))
                 }
             }
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(22.dp))
         }
 
         item {
+            Text(
+                text = "PROGRESIÓN",
+                style = MaterialTheme.typography.labelSmall,
+                color = IteraColors.TextSecondary
+            )
+            Spacer(Modifier.height(10.dp))
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = state.selectedExercise?.name ?: "Selecciona ejercicio",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (state.selectedExercise != null) IteraColors.TextPrimary
-                    else IteraColors.TextSecondary,
-                    modifier = Modifier
+                Row(
+                    Modifier
                         .weight(1f)
+                        .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
                         .clickable { selectorExpanded = !selectorExpanded }
-                )
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = state.selectedExercise?.name ?: "Selecciona ejercicio",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (state.selectedExercise != null) IteraColors.TextPrimary
+                        else IteraColors.TextSecondary
+                    )
+                    Icon(
+                        imageVector = ImageVector.vectorResource(R.drawable.ic_search),
+                        contentDescription = "Buscar ejercicio",
+                        tint = if (selectorExpanded) IteraColors.Accent else IteraColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(Modifier.padding(horizontal = 4.dp))
                 RangeChips(
                     selected = state.range,
                     onSelect = viewModel::onRangeSelected
@@ -134,20 +163,18 @@ fun StatisticsScreen(
                         val active = state.selectedGroup == group
                         Text(
                             text = group,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.bodySmall,
                             color = if (active) IteraColors.OnAccent else IteraColors.TextSecondary,
                             modifier = Modifier
-                                .background(
-                                    if (active) IteraColors.Accent else IteraColors.Surface,
-                                    RoundedCornerShape(8.dp)
-                                )
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (active) IteraColors.Accent else IteraColors.Surface)
                                 .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
                                 .clickable { viewModel.onGroupSelected(group) }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
             }
         }
 
@@ -161,13 +188,13 @@ fun StatisticsScreen(
                             selectorExpanded = false
                         }
                         .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
-                        .padding(12.dp),
+                        .padding(14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(exercise.name, style = MaterialTheme.typography.bodyMedium)
+                    Text(exercise.name, style = MaterialTheme.typography.bodyLarge)
                     Text(
                         exercise.mainMuscleGroup,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = IteraColors.TextSecondary
                     )
                 }
@@ -175,57 +202,83 @@ fun StatisticsScreen(
             }
         }
 
-        if (!selectorExpanded && state.selectedExercise != null) {
+        if (!selectorExpanded) {
             item {
-                Spacer(Modifier.height(14.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Text(
-                        text = "PESO MÁXIMO",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = IteraColors.TextSecondary
-                    )
-                    state.personalRecord?.let {
+                if (state.selectedExercise == null) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            text = "PR ${formatKg(it)} kg",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = IteraColors.Accent
+                            text = "Selecciona un ejercicio para ver la progresión",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = IteraColors.TextSecondary,
+                            textAlign = TextAlign.Center
                         )
                     }
-                }
-                if (state.maxWeightSeries.isEmpty()) {
-                    EmptySeries()
                 } else {
+                    Spacer(Modifier.height(18.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = "PESO MÁXIMO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = IteraColors.TextSecondary
+                        )
+                        state.personalRecord?.let {
+                            Text(
+                                text = "PR ${formatKg(it)} kg",
+                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
+                                color = IteraColors.Accent
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
                     StatLineChart(points = state.maxWeightSeries)
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Text(
-                        text = "VOLUMEN POR SESIÓN",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = IteraColors.TextSecondary
-                    )
-                    if (state.totalVolume > 0f) {
+                    if (state.maxWeightSeries.isEmpty()) {
                         Text(
-                            text = "Σ ${formatKg(state.totalVolume)} kg",
+                            text = "Sin datos en el rango",
                             style = MaterialTheme.typography.bodySmall,
-                            color = IteraColors.TextPrimary
+                            color = IteraColors.TextSecondary,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
-                }
-                if (state.volumeSeries.isEmpty()) {
-                    EmptySeries()
-                } else {
+
+                    Spacer(Modifier.height(20.dp))
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text(
+                            text = "VOLUMEN POR SESIÓN",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = IteraColors.TextSecondary
+                        )
+                        if (state.totalVolume > 0f) {
+                            Text(
+                                text = "Σ ${formatKg(state.totalVolume)} kg",
+                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
+                                color = IteraColors.TextPrimary
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
                     StatBarChart(points = state.volumeSeries)
+                    if (state.volumeSeries.isEmpty()) {
+                        Text(
+                            text = "Sin datos en el rango",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = IteraColors.TextSecondary,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -242,15 +295,16 @@ private fun MetricCard(
     Column(
         modifier
             .border(1.dp, IteraColors.Border, RoundedCornerShape(10.dp))
-            .padding(vertical = 10.dp),
+            .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = value,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp),
             color = if (accent) IteraColors.Accent else IteraColors.TextPrimary,
             textAlign = TextAlign.Center
         )
+        Spacer(Modifier.height(2.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
@@ -269,38 +323,50 @@ private fun WeeklyGoalRow(
         Modifier
             .fillMaxWidth()
             .border(1.dp, IteraColors.Border, RoundedCornerShape(10.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = "META SEMANAL · $sessionsThisWeek/$weeklyGoal",
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyLarge,
             color = if (sessionsThisWeek >= weeklyGoal) IteraColors.Accent
             else IteraColors.TextPrimary
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "−",
-                style = MaterialTheme.typography.titleMedium,
-                color = IteraColors.TextSecondary,
+            Box(
                 modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
                     .clickable { onDelta(-1) }
-                    .padding(horizontal = 12.dp)
-            )
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "−",
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 30.sp),
+                    color = IteraColors.TextSecondary
+                )
+            }
             Text(
                 text = "$weeklyGoal",
-                style = MaterialTheme.typography.titleMedium,
-                color = IteraColors.TextPrimary
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp),
+                color = IteraColors.TextPrimary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(min = 32.dp)
             )
-            Text(
-                text = "+",
-                style = MaterialTheme.typography.titleMedium,
-                color = IteraColors.Accent,
+            Box(
                 modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
                     .clickable { onDelta(1) }
-                    .padding(horizontal = 12.dp)
-            )
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "+",
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 30.sp),
+                    color = IteraColors.Accent
+                )
+            }
         }
     }
 }
@@ -310,15 +376,16 @@ private fun BigThreeCard(record: BigThreeRecord, modifier: Modifier = Modifier) 
     Column(
         modifier
             .border(1.dp, IteraColors.Border, RoundedCornerShape(10.dp))
-            .padding(vertical = 10.dp, horizontal = 6.dp),
+            .padding(vertical = 12.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = record.maxWeightKg?.let { "${formatKg(it)} kg" } ?: "—",
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
             color = if (record.maxWeightKg != null) IteraColors.Accent
             else IteraColors.TextSecondary
         )
+        Spacer(Modifier.height(2.dp))
         Text(
             text = shortName(record.exerciseName),
             style = MaterialTheme.typography.labelSmall,
@@ -342,31 +409,22 @@ private fun RangeChips(
 ) {
     Row(
         Modifier
+            .clip(RoundedCornerShape(8.dp))
             .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
     ) {
         StatsRange.entries.forEach { range ->
             val active = range == selected
             Text(
                 text = range.label,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodySmall,
                 color = if (active) IteraColors.OnAccent else IteraColors.TextSecondary,
                 modifier = Modifier
                     .background(if (active) IteraColors.Accent else IteraColors.Background)
                     .clickable { onSelect(range) }
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
             )
         }
     }
-}
-
-@Composable
-private fun EmptySeries() {
-    Text(
-        text = "Sin datos en el rango",
-        style = MaterialTheme.typography.bodySmall,
-        color = IteraColors.TextSecondary,
-        modifier = Modifier.padding(vertical = 24.dp)
-    )
 }
 
 private fun formatKg(value: Float): String =
