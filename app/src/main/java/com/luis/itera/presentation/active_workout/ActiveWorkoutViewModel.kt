@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.luis.itera.domain.model.Exercise
 import com.luis.itera.domain.model.Session
 import com.luis.itera.domain.model.WorkoutFocus
+import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.SessionRepository
 import com.luis.itera.domain.usecase.CalculateHydrationGoalUseCase
@@ -15,11 +16,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
-import kotlinx.coroutines.flow.map
 
 data class ActiveWorkoutUiState(
     val session: Session? = null,
@@ -29,7 +30,8 @@ data class ActiveWorkoutUiState(
     val reps: Int = 10,
     val weightKg: Float = 0f,
     val sessionStartMillis: Long? = null,
-    val selectedFocuses: Set<WorkoutFocus> = emptySet()
+    val selectedFocuses: Set<WorkoutFocus> = emptySet(),
+    val allExerciseNames: Map<Long, String> = emptyMap()
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -39,6 +41,9 @@ data class ActiveWorkoutUiState(
             candidate !in selectedFocuses &&
                     selectedFocuses.any { it.conflictsWith(candidate) }
         }.toSet()
+
+    fun exerciseNameOf(exerciseId: Long): String =
+        allExerciseNames[exerciseId] ?: "—"
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -55,11 +60,12 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val weightKg = MutableStateFlow(0f)
     private val sessionStartMillis = MutableStateFlow<Long?>(null)
     private val selectedFocuses = MutableStateFlow<Set<WorkoutFocus>>(emptySet())
-    private val _lastRegisteredSetAt = MutableStateFlow(0L)
+    private val lastRegisteredSetAt = MutableStateFlow(0L)
 
-    private companion object {
-        const val REGISTER_DEBOUNCE_MS = 700L
-    }
+    private val _finishedSessionId = MutableStateFlow<Long?>(null)
+    val finishedSessionId: StateFlow<Long?> = _finishedSessionId
+
+    private val allExercises = exerciseRepository.getAll()
 
     private val exercises = combine(
         searchQuery,
@@ -85,17 +91,23 @@ class ActiveWorkoutViewModel @Inject constructor(
         exercises,
         searchQuery,
         combine(selectedExercise, selectedFocuses) { e, f -> e to f },
-        combine(reps, weightKg, sessionStartMillis) { r, w, s -> Triple(r, w, s) }
-    ) { session, exerciseList, query, selection, inputs ->
+        combine(reps, weightKg, sessionStartMillis) { r, w, s -> Triple(r, w, s) },
+        allExercises
+    ) { args ->
+        @Suppress("UNCHECKED_CAST")
+        val selection = args[3] as Pair<Exercise?, Set<WorkoutFocus>>
+        val inputs = args[4] as Triple<Int, Float, Long?>
+        @Suppress("UNCHECKED_CAST")
         ActiveWorkoutUiState(
-            session = session,
-            exercises = exerciseList,
-            searchQuery = query,
+            session = args[0] as Session?,
+            exercises = args[1] as List<Exercise>,
+            searchQuery = args[2] as String,
             selectedExercise = selection.first,
+            selectedFocuses = selection.second,
             reps = inputs.first,
             weightKg = inputs.second,
             sessionStartMillis = inputs.third,
-            selectedFocuses = selection.second
+            allExerciseNames = (args[5] as List<Exercise>).associate { it.id to it.name }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
@@ -105,15 +117,6 @@ class ActiveWorkoutViewModel @Inject constructor(
             focus in current -> current - focus
             current.any { it.conflictsWith(focus) } -> current
             else -> current + focus
-        }
-    }
-
-    fun onDiscardSession() {
-        val session = uiState.value.session ?: return
-        viewModelScope.launch {
-            sessionRepository.discardSession(session.id)
-            sessionStartMillis.value = null
-            selectedExercise.value = null
         }
     }
 
@@ -150,12 +153,25 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun onRegisterSet() {
         val now = System.currentTimeMillis()
-        if (now - _lastRegisteredSetAt.value < REGISTER_DEBOUNCE_MS) return
+        if (now - lastRegisteredSetAt.value < REGISTER_DEBOUNCE_MS) return
         val session = uiState.value.session ?: return
         val exercise = selectedExercise.value ?: return
-        _lastRegisteredSetAt.value = now
+        lastRegisteredSetAt.value = now
         viewModelScope.launch {
             sessionRepository.addSet(session.id, exercise.id, reps.value, weightKg.value)
+        }
+    }
+
+    fun onDeleteSet(set: WorkoutSet) {
+        viewModelScope.launch { sessionRepository.deleteSet(set) }
+    }
+
+    fun onDiscardSession() {
+        val session = uiState.value.session ?: return
+        viewModelScope.launch {
+            sessionRepository.discardSession(session.id)
+            sessionStartMillis.value = null
+            selectedExercise.value = null
         }
     }
 
@@ -168,6 +184,15 @@ class ActiveWorkoutViewModel @Inject constructor(
             calculateHydrationGoal(session.dateEpochDay)
             sessionStartMillis.value = null
             selectedExercise.value = null
+            _finishedSessionId.value = session.id
         }
+    }
+
+    fun onFinishedSessionConsumed() {
+        _finishedSessionId.value = null
+    }
+
+    private companion object {
+        const val REGISTER_DEBOUNCE_MS = 700L
     }
 }

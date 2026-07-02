@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
 import com.luis.itera.domain.model.Exercise
 import com.luis.itera.domain.model.WorkoutFocus
+import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.components.SessionTimer
 import com.luis.itera.presentation.theme.IteraColors
@@ -50,9 +51,18 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun ActiveWorkoutScreen(
+    onSessionFinished: (Long) -> Unit,
     viewModel: ActiveWorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val finishedSessionId by viewModel.finishedSessionId.collectAsStateWithLifecycle()
+
+    LaunchedEffect(finishedSessionId) {
+        finishedSessionId?.let {
+            viewModel.onFinishedSessionConsumed()
+            onSessionFinished(it)
+        }
+    }
 
     if (state.session == null) {
         EmptySessionContent(
@@ -69,6 +79,7 @@ fun ActiveWorkoutScreen(
             onRepsDelta = viewModel::onRepsDelta,
             onWeightDelta = viewModel::onWeightDelta,
             onRegisterSet = viewModel::onRegisterSet,
+            onDeleteSet = viewModel::onDeleteSet,
             onStartTimer = viewModel::onStartTimer,
             onDiscardSession = viewModel::onDiscardSession,
             onFinishSession = viewModel::onFinishSession
@@ -149,6 +160,7 @@ private fun ActiveSessionContent(
     onRepsDelta: (Int) -> Unit,
     onWeightDelta: (Float) -> Unit,
     onRegisterSet: () -> Unit,
+    onDeleteSet: (WorkoutSet) -> Unit,
     onStartTimer: () -> Unit,
     onDiscardSession: () -> Unit,
     onFinishSession: () -> Unit
@@ -294,17 +306,29 @@ private fun ActiveSessionContent(
                         Modifier
                             .fillMaxWidth()
                             .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "SET ${set.order}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = IteraColors.TextSecondary
-                        )
-                        Text(
-                            "${set.reps} reps" + if (set.weightAddedKg > 0f) " +${set.weightAddedKg}kg" else "",
-                            style = MaterialTheme.typography.bodySmall
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = state.exerciseNameOf(set.exerciseId),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "SET ${set.order} · ${set.reps} reps" +
+                                        if (set.weightAddedKg > 0f) " +${set.weightAddedKg}kg" else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = IteraColors.TextSecondary
+                            )
+                        }
+                        Icon(
+                            imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                            contentDescription = "Eliminar set",
+                            tint = IteraColors.TextSecondary,
+                            modifier = Modifier
+                                .clickable { onDeleteSet(set) }
+                                .padding(4.dp)
                         )
                     }
                     Spacer(Modifier.height(6.dp))
