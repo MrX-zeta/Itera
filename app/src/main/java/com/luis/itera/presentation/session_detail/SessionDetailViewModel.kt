@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.itera.domain.model.Session
+import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.SessionRepository
 import com.luis.itera.presentation.navigation.IteraDestination
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SessionDetailUiState(
@@ -21,7 +23,7 @@ data class SessionDetailUiState(
 
 @HiltViewModel
 class SessionDetailViewModel @Inject constructor(
-    sessionRepository: SessionRepository,
+    private val sessionRepository: SessionRepository,
     exerciseRepository: ExerciseRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -38,4 +40,8 @@ class SessionDetailViewModel @Inject constructor(
             exerciseNames = exercises.associate { it.id to it.name }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SessionDetailUiState())
+
+    fun onDeleteSet(set: WorkoutSet) {
+        viewModelScope.launch { sessionRepository.deleteSet(set) }
+    }
 }

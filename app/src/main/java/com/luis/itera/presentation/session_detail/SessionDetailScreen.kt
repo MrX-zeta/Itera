@@ -11,16 +11,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.itera.R
 import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.presentation.theme.IteraColors
 import java.time.LocalDate
@@ -79,7 +83,8 @@ fun SessionDetailScreen(
                     item(key = exerciseId) {
                         ExerciseBlock(
                             name = state.exerciseNames[exerciseId] ?: "—",
-                            sets = sets
+                            sets = sets,
+                            onDeleteSet = viewModel::onDeleteSet
                         )
                     }
                 }
@@ -88,7 +93,11 @@ fun SessionDetailScreen(
 }
 
 @Composable
-private fun ExerciseBlock(name: String, sets: List<WorkoutSet>) {
+private fun ExerciseBlock(
+    name: String,
+    sets: List<WorkoutSet>,
+    onDeleteSet: (WorkoutSet) -> Unit
+) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -102,7 +111,8 @@ private fun ExerciseBlock(name: String, sets: List<WorkoutSet>) {
                 Modifier
                     .fillMaxWidth()
                     .padding(vertical = 3.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "SET ${set.order}",
@@ -118,6 +128,14 @@ private fun ExerciseBlock(name: String, sets: List<WorkoutSet>) {
                     style = MaterialTheme.typography.bodySmall,
                     color = if (set.weightAddedKg > 0f) IteraColors.Accent
                     else IteraColors.TextSecondary
+                )
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                    contentDescription = "Eliminar set",
+                    tint = IteraColors.TextSecondary,
+                    modifier = Modifier
+                        .clickable { onDeleteSet(set) }
+                        .padding(2.dp)
                 )
             }
         }
