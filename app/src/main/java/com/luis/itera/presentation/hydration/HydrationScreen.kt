@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.theme.IteraColors
 import java.time.Instant
 import java.time.ZoneId
@@ -89,7 +90,7 @@ fun HydrationScreen(
             color = IteraColors.TextSecondary
         )
         Spacer(Modifier.height(8.dp))
-        LazyColumn {
+        LazyColumn(Modifier.weight(1f)) {
             items(state.intakes, key = { it.id }) { intake ->
                 Row(
                     Modifier
@@ -111,6 +112,12 @@ fun HydrationScreen(
                 }
             }
         }
+        Spacer(Modifier.height(12.dp))
+        FastStepper(
+            label = "PESO CORPORAL (KG)",
+            value = state.userWeightKg,
+            onDelta = viewModel::onWeightDelta
+        )
     }
 }
 
