@@ -167,8 +167,7 @@ interface StatisticsDao {
            COALESCE(SUM(s.restSeconds), 0) AS totalRest
     FROM sets s
     INNER JOIN sessions ses ON ses.id = s.sessionId
-    WHERE ses.isFinished = 1
-          AND ses.dateEpochDay >= :fromEpochDay
+    WHERE ses.isFinished = 1 AND ses.dateEpochDay >= :fromEpochDay
     GROUP BY ses.dateEpochDay
     HAVING totalWork > 0 OR totalRest > 0
     ORDER BY ses.dateEpochDay DESC

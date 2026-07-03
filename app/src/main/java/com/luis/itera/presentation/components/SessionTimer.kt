@@ -53,44 +53,30 @@ fun SessionTimer(
         }
     }
 
-    val displayElapsed = if (state == TimerState.PAUSED) pausedElapsed else elapsed
-    val totalSeconds = (displayElapsed / 1000).toInt()
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
+    val display = if (state == TimerState.PAUSED) pausedElapsed else elapsed
+    val secs = (display / 1000).toInt()
 
     val blinkAlpha = if (state == TimerState.PAUSED) {
-        val transition = rememberInfiniteTransition(label = "blink")
-        val alpha by transition.animateFloat(
-            initialValue = 1f, targetValue = 0.3f,
-            animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse),
-            label = "blink_alpha"
-        )
-        alpha
+        val t = rememberInfiniteTransition(label = "blink")
+        val a by t.animateFloat(1f, 0.3f, infiniteRepeatable(tween(600), RepeatMode.Reverse), label = "a")
+        a
     } else 1f
 
-    val color = when (state) {
-        TimerState.INACTIVE -> IteraColors.TextSecondary
-        TimerState.RUNNING -> IteraColors.Accent
-        TimerState.PAUSED -> IteraColors.Accent
-    }
+    val color = if (state == TimerState.INACTIVE) IteraColors.TextSecondary else IteraColors.Accent
 
     Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .clickable(onClick = onTogglePause)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+        Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onTogglePause).padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = ImageVector.vectorResource(R.drawable.ic_timer_itera),
+            ImageVector.vectorResource(R.drawable.ic_rest_timer),
             contentDescription = null,
             tint = color,
             modifier = Modifier.size(14.dp)
         )
         Spacer(Modifier.width(4.dp))
         Text(
-            text = if (state == TimerState.INACTIVE) "DESCANSO"
-            else "%02d:%02d".format(minutes, seconds),
+            text = if (state == TimerState.INACTIVE) "DESCANSO" else "%02d:%02d".format(secs / 60, secs % 60),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = color,
