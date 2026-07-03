@@ -23,6 +23,9 @@ class HydrationRepositoryImpl @Inject constructor(
             .map { list -> list.map { it.toDomain() } }
     }
 
+    override fun getAllIntakes(): Flow<List<HydrationIntake>> =
+        hydrationDao.getAllIntakes().map { list -> list.map { it.toDomain() } }
+
     override fun getTotalMlForDay(dateEpochDay: Long): Flow<Int> {
         val (start, end) = dayBounds(dateEpochDay)
         return hydrationDao.getTotalMlBetween(start, end)
@@ -36,6 +39,16 @@ class HydrationRepositoryImpl @Inject constructor(
             HydrationIntakeEntity(
                 dateTimeEpochMillis = System.currentTimeMillis(),
                 amountMl = amountMl
+            )
+        )
+    }
+
+    override suspend fun deleteIntake(intake: HydrationIntake) {
+        hydrationDao.deleteIntake(
+            HydrationIntakeEntity(
+                id = intake.id,
+                dateTimeEpochMillis = intake.dateTimeEpochMillis,
+                amountMl = intake.amountMl
             )
         )
     }

@@ -22,7 +22,6 @@ import javax.inject.Inject
 data class HydrationUiState(
     val totalMl: Int = 0,
     val goal: DailyHydrationGoal? = null,
-    val intakes: List<HydrationIntake> = emptyList(),
     val userWeightKg: Float = 0f,
     val dragDeltaMl: Int = 0,
     val intakesByDay: Map<Long, List<HydrationIntake>> = emptyMap()
@@ -48,17 +47,16 @@ class HydrationViewModel @Inject constructor(
     val uiState: StateFlow<HydrationUiState> = combine(
         hydrationRepository.getTotalMlForDay(today),
         hydrationRepository.getDailyGoal(today),
-        hydrationRepository.getIntakesForDay(today),
+        hydrationRepository.getAllIntakes(),
         userPrefsRepository.getUserWeightKg(),
         dragDeltaMl
-    ) { total, goal, intakes, weight, drag ->
+    ) { total, goal, allIntakes, weight, drag ->
         HydrationUiState(
             totalMl = total,
             goal = goal,
-            intakes = intakes,
             userWeightKg = weight,
             dragDeltaMl = drag,
-            intakesByDay = intakes.groupBy {
+            intakesByDay = allIntakes.groupBy {
                 Instant.ofEpochMilli(it.dateTimeEpochMillis)
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate()
@@ -73,6 +71,10 @@ class HydrationViewModel @Inject constructor(
 
     fun onAddIntake(amountMl: Int) {
         viewModelScope.launch { hydrationRepository.addIntake(amountMl) }
+    }
+
+    fun onDeleteIntake(intake: HydrationIntake) {
+        viewModelScope.launch { hydrationRepository.deleteIntake(intake) }
     }
 
     fun onDrag(deltaMl: Int) {

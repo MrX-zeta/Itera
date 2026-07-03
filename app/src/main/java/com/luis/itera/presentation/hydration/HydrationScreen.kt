@@ -1,7 +1,9 @@
 package com.luis.itera.presentation.hydration
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -11,38 +13,48 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.itera.R
+import com.luis.itera.domain.model.HydrationIntake
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.theme.IteraColors
 import java.time.Instant
@@ -51,11 +63,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.atan2
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 
 private val quickAmounts = listOf(250 to "VASO", 500 to "BOTELLA", 1000 to "LITRO")
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -74,7 +81,6 @@ fun HydrationScreen(
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .imePadding()
             .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
             .padding(16.dp)
     ) {
@@ -123,43 +129,21 @@ fun HydrationScreen(
         Spacer(Modifier.height(8.dp))
 
         LazyColumn(Modifier.weight(1f)) {
+            val todayEpoch = LocalDate.now().toEpochDay()
+            val yesterdayEpoch = todayEpoch - 1
+
             state.intakesByDay
                 .toSortedMap(compareByDescending { it })
                 .forEach { (epochDay, dayIntakes) ->
-                    item(key = "day_$epochDay") {
-                        Text(
-                            text = LocalDate.ofEpochDay(epochDay).format(dayFormatter)
-                                .replaceFirstChar { it.uppercase() },
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                            color = IteraColors.TextSecondary,
-                            modifier = Modifier.padding(vertical = 6.dp)
+                    item(key = "card_$epochDay") {
+                        DayIntakeCard(
+                            epochDay = epochDay,
+                            todayEpoch = todayEpoch,
+                            yesterdayEpoch = yesterdayEpoch,
+                            intakes = dayIntakes.sortedByDescending { it.dateTimeEpochMillis },
+                            onDelete = viewModel::onDeleteIntake
                         )
-                    }
-                    items(
-                        items = dayIntakes.sortedByDescending { it.dateTimeEpochMillis },
-                        key = { "intake_${it.id}" }
-                    ) { intake ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = Instant.ofEpochMilli(intake.dateTimeEpochMillis)
-                                    .atZone(ZoneId.systemDefault())
-                                    .format(timeFormatter),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = IteraColors.TextSecondary
-                            )
-                            Text(
-                                text = "${if (intake.amountMl >= 0) "+" else ""}${intake.amountMl} ml",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (intake.amountMl >= 0) IteraColors.TextPrimary else IteraColors.Error
-                            )
-                        }
-                        Spacer(Modifier.height(6.dp))
+                        Spacer(Modifier.height(10.dp))
                     }
                 }
         }
@@ -169,6 +153,126 @@ fun HydrationScreen(
             value = state.userWeightKg,
             onDelta = viewModel::onWeightDelta
         )
+    }
+}
+
+@Composable
+private fun DayIntakeCard(
+    epochDay: Long,
+    todayEpoch: Long,
+    yesterdayEpoch: Long,
+    intakes: List<HydrationIntake>,
+    onDelete: (HydrationIntake) -> Unit
+) {
+    val dayLabel = when (epochDay) {
+        todayEpoch -> "Hoy"
+        yesterdayEpoch -> "Ayer"
+        else -> LocalDate.ofEpochDay(epochDay).format(dayFormatter)
+            .replaceFirstChar { it.uppercase() }
+    }
+    val dayTotal = intakes.sumOf { it.amountMl }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(IteraColors.Surface)
+            .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(12.dp))
+            .padding(14.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = dayLabel,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = IteraColors.TextPrimary
+            )
+            Text(
+                text = "$dayTotal ml",
+                style = MaterialTheme.typography.bodySmall,
+                color = IteraColors.Accent
+            )
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
+            thickness = 0.5.dp,
+            color = IteraColors.Border
+        )
+        intakes.forEachIndexed { index, intake ->
+            DismissableIntakeRow(intake = intake, onDelete = onDelete)
+            if (index < intakes.lastIndex) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    thickness = 0.5.dp,
+                    color = IteraColors.Border
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DismissableIntakeRow(
+    intake: HydrationIntake,
+    onDelete: (HydrationIntake) -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value != SwipeToDismissBoxValue.Settled) {
+                onDelete(intake)
+                true
+            } else false
+        },
+        positionalThreshold = { it * 0.5f }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val alignment = when (dismissState.dismissDirection) {
+                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                else -> Alignment.CenterEnd
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(IteraColors.Error)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = alignment
+            ) {
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                    contentDescription = null,
+                    tint = IteraColors.Background,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(IteraColors.Surface)
+                .padding(vertical = 6.dp, horizontal = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = Instant.ofEpochMilli(intake.dateTimeEpochMillis)
+                    .atZone(ZoneId.systemDefault())
+                    .format(timeFormatter),
+                style = MaterialTheme.typography.bodySmall,
+                color = IteraColors.TextSecondary
+            )
+            Text(
+                text = "${if (intake.amountMl >= 0) "+" else ""}${intake.amountMl} ml",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (intake.amountMl >= 0) IteraColors.TextPrimary else IteraColors.Error
+            )
+        }
     }
 }
 
@@ -184,7 +288,6 @@ private fun DraggableProgressRing(
 ) {
     val haptic = LocalHapticFeedback.current
     var triggerAnimation by remember { mutableStateOf(false) }
-
     LaunchedEffect(Unit) { triggerAnimation = true }
 
     val targetProgress = when {
