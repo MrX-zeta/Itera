@@ -31,4 +31,15 @@ interface HydrationDao {
 
     @Delete
     suspend fun deleteIntake(intake: HydrationIntakeEntity)
+
+    @Query("""
+    SELECT * FROM hydration_intakes 
+    WHERE dateTimeEpochMillis >= :dayStartMillis 
+    ORDER BY dateTimeEpochMillis DESC 
+    LIMIT 1
+""")
+    suspend fun getLastIntakeForDay(dayStartMillis: Long): HydrationIntakeEntity?
+
+    @Query("UPDATE hydration_intakes SET amountMl = :newAmount WHERE id = :id")
+    suspend fun updateIntakeAmount(id: Long, newAmount: Int)
 }

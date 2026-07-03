@@ -23,6 +23,12 @@ class HydrationRepositoryImpl @Inject constructor(
             .map { list -> list.map { it.toDomain() } }
     }
 
+    override suspend fun getLastIntakeForDay(dayStartMillis: Long): HydrationIntake? =
+        hydrationDao.getLastIntakeForDay(dayStartMillis)?.toDomain()
+
+    override suspend fun updateIntakeAmount(id: Long, newAmount: Int) =
+        hydrationDao.updateIntakeAmount(id, newAmount)
+
     override fun getAllIntakes(): Flow<List<HydrationIntake>> =
         hydrationDao.getAllIntakes().map { list -> list.map { it.toDomain() } }
 

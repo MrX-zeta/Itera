@@ -12,4 +12,7 @@ interface HydrationRepository {
     fun getDailyGoal(dateEpochDay: Long): Flow<DailyHydrationGoal?>
     suspend fun addIntake(amountMl: Int)
     suspend fun upsertDailyGoal(goal: DailyHydrationGoal)
+
+    suspend fun getLastIntakeForDay(dayStartMillis: Long): HydrationIntake?
+    suspend fun updateIntakeAmount(id: Long, newAmount: Int)
 }
