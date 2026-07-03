@@ -36,15 +36,15 @@ data class TopExerciseRecord(
 interface StatisticsDao {
 
     @Query("""
-        SELECT s.sessionId AS sessionId, ses.dateEpochDay AS dateEpochDay,
-               MAX(s.weightAddedKg) AS maxWeightKg
-        FROM sets s
-        INNER JOIN sessions ses ON ses.id = s.sessionId
-        WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1
-              AND ses.dateEpochDay >= :fromEpochDay
-        GROUP BY s.sessionId
-        ORDER BY ses.dateEpochDay ASC
-    """)
+    SELECT s.sessionId AS sessionId, ses.dateEpochDay AS dateEpochDay,
+           MAX(s.weightAddedKg) AS maxWeightKg
+    FROM sets s
+    INNER JOIN sessions ses ON ses.id = s.sessionId
+    WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1
+          AND ses.dateEpochDay >= :fromEpochDay AND s.weightAddedKg > 0
+    GROUP BY s.sessionId
+    ORDER BY ses.dateEpochDay ASC
+""")
     fun getMaxWeightSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<MaxWeightPoint>>
 
     @Query("""
@@ -102,7 +102,8 @@ interface StatisticsDao {
 
     @Query("""
     SELECT s.sessionId AS sessionId, ses.dateEpochDay AS dateEpochDay,
-           MAX(s.reps) AS maxWeightKg
+           CASE WHEN MAX(s.durationSeconds) > 0 THEN MAX(s.durationSeconds / 60)
+                ELSE MAX(s.reps) END AS maxWeightKg
     FROM sets s
     INNER JOIN sessions ses ON ses.id = s.sessionId
     WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1

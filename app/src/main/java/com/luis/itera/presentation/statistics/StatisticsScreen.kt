@@ -234,21 +234,31 @@ fun StatisticsScreen(
                         )
                     }
                 } else {
+                    val isCardioExercise = state.selectedExercise?.mainMuscleGroup.equals("Cardio", ignoreCase = true)
                     Spacer(Modifier.height(18.dp))
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.Bottom
                     ) {
+                        val isCardioExercise = state.selectedExercise?.mainMuscleGroup.equals("Cardio", ignoreCase = true)
+
                         Text(
-                            text = if (state.isBodyweightMode) "REPS MÁXIMAS" else "PESO MÁXIMO",
+                            text = when {
+                                isCardioExercise -> "DURACIÓN MÁXIMA"
+                                state.isBodyweightMode -> "REPS MÁXIMAS"
+                                else -> "PESO MÁXIMO"
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = IteraColors.TextSecondary
                         )
                         state.personalRecord?.let {
                             Text(
-                                text = if (state.isBodyweightMode) "MÁX ${it.toInt()} reps"
-                                else "MÁX ${formatKg(it)} kg",
+                                text = when {
+                                    isCardioExercise -> "MÁX ${it.toInt()} min"
+                                    state.isBodyweightMode -> "MÁX ${it.toInt()} reps"
+                                    else -> "MÁX ${formatKg(it)} kg"
+                                },
                                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
                                 color = IteraColors.Accent
                             )
@@ -273,14 +283,21 @@ fun StatisticsScreen(
                         verticalAlignment = Alignment.Bottom
                     ) {
                         Text(
-                            text = if (state.isBodyweightMode) "REPS POR SESIÓN" else "VOLUMEN POR SESIÓN",
+                            text = when {
+                                isCardioExercise -> "MINUTOS POR SESIÓN"
+                                state.isBodyweightMode -> "REPS POR SESIÓN"
+                                else -> "VOLUMEN POR SESIÓN"
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = IteraColors.TextSecondary
                         )
                         if (state.totalVolume > 0f) {
                             Text(
-                                text = if (state.isBodyweightMode) "Σ ${state.totalVolume.toInt()} reps"
-                                else "Σ ${formatKg(state.totalVolume)} kg",
+                                text = when {
+                                    isCardioExercise -> "Σ ${state.totalVolume.toInt()} min"
+                                    state.isBodyweightMode -> "Σ ${state.totalVolume.toInt()} reps"
+                                    else -> "Σ ${formatKg(state.totalVolume)} kg"
+                                },
                                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
                                 color = IteraColors.TextPrimary
                             )

@@ -115,7 +115,9 @@ fun ActiveWorkoutScreen(
             onDeleteSet = viewModel::onDeleteSet,
             onStartTimer = viewModel::onStartTimer,
             onDiscardSession = viewModel::onDiscardSession,
-            onFinishSession = viewModel::onFinishSession
+            onFinishSession = viewModel::onFinishSession,
+            onDurationDelta = viewModel::onDurationDelta,
+            onIntensityDelta = viewModel::onIntensityDelta
         )
     }
 }
@@ -360,7 +362,9 @@ private fun ActiveSessionContent(
     onDeleteSet: (WorkoutSet) -> Unit,
     onStartTimer: () -> Unit,
     onDiscardSession: () -> Unit,
-    onFinishSession: () -> Unit
+    onFinishSession: () -> Unit,
+    onDurationDelta: (Int) -> Unit,
+    onIntensityDelta: (Int) -> Unit
 ) {
     var searchExpanded by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
@@ -454,9 +458,11 @@ private fun ActiveSessionContent(
         }
 
         state.selectedExercise?.let { exercise ->
+            val isCardio = exercise.mainMuscleGroup.equals("Cardio", ignoreCase = true)
+
             Spacer(Modifier.height(12.dp))
             Text(exercise.name, style = MaterialTheme.typography.titleMedium)
-            if (state.lastSets.isNotEmpty()) {
+            if (!isCardio && state.lastSets.isNotEmpty()) {
                 Text(
                     text = "Última vez: " + state.lastSets.reversed().joinToString(" · ") { set ->
                         "${set.reps}" + if (set.weightAddedKg > 0f) "+${set.weightAddedKg}kg" else ""
@@ -467,8 +473,33 @@ private fun ActiveSessionContent(
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FastStepper(label = "REPS", value = state.reps.toFloat(), onDelta = { onRepsDelta(it.toInt()) }, modifier = Modifier.weight(1f))
-                FastStepper(label = "+KG", value = state.weightKg, onDelta = onWeightDelta, modifier = Modifier.weight(1f))
+                if (isCardio) {
+                    FastStepper(
+                        label = "MINUTOS",
+                        value = (state.durationSeconds / 60f),
+                        onDelta = { onDurationDelta((it * 60).toInt()) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FastStepper(
+                        label = "NIVEL",
+                        value = state.intensity.toFloat(),
+                        onDelta = { onIntensityDelta(it.toInt()) },
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    FastStepper(
+                        label = "REPS",
+                        value = state.reps.toFloat(),
+                        onDelta = { onRepsDelta(it.toInt()) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FastStepper(
+                        label = "+KG",
+                        value = state.weightKg,
+                        onDelta = onWeightDelta,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
             Spacer(Modifier.height(12.dp))
             RegisterSetButton(onRegisterSet = onRegisterSet)
@@ -535,7 +566,16 @@ private fun ActiveSessionContent(
                         Column(Modifier.weight(1f)) {
                             Text(state.exerciseNameOf(set.exerciseId), style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                "SET ${set.order} · ${set.reps} reps" + if (set.weightAddedKg > 0f) " +${set.weightAddedKg}kg" else "",
+                                text = buildString {
+                                    append("SET ${set.order} · ")
+                                    if (set.durationSeconds > 0) {
+                                        append("${set.durationSeconds / 60} min")
+                                        if (set.intensity > 0) append(" · nivel ${set.intensity}")
+                                    } else {
+                                        append("${set.reps} reps")
+                                        if (set.weightAddedKg > 0f) append(" +${set.weightAddedKg}kg")
+                                    }
+                                },
                                 style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary
                             )
                         }

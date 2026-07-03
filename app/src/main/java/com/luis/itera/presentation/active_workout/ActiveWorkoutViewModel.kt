@@ -50,7 +50,9 @@ data class ActiveWorkoutUiState(
     val lastFinishedSession: Session? = null,
     val streak: WeeklyStreak = WeeklyStreak(0, 0, 3),
     val hydrationProgress: Float = 0f,
-    val trainedDaysThisWeek: Set<Long> = emptySet()
+    val trainedDaysThisWeek: Set<Long> = emptySet(),
+    val durationSeconds: Int = 0,
+    val intensity: Int = 1
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -64,6 +66,14 @@ data class ActiveWorkoutUiState(
     fun exerciseNameOf(exerciseId: Long): String =
         allExerciseNames[exerciseId] ?: "—"
 }
+
+private data class InputBundle(
+    val reps: Int,
+    val weightKg: Float,
+    val startMillis: Long?,
+    val durationSeconds: Int,
+    val intensity: Int
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -85,6 +95,8 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val selectedFocuses = MutableStateFlow<Set<WorkoutFocus>>(emptySet())
     private val lastRegisteredSetAt = MutableStateFlow(0L)
     private val lastSets = MutableStateFlow<List<WorkoutSet>>(emptyList())
+    private val durationSeconds = MutableStateFlow(0)
+    private val intensity = MutableStateFlow(1)
 
     private val _finishedSessionId = MutableStateFlow<Long?>(null)
     val finishedSessionId: StateFlow<Long?> = _finishedSessionId
@@ -141,13 +153,15 @@ class ActiveWorkoutViewModel @Inject constructor(
         exercises,
         searchQuery,
         combine(selectedExercise, selectedFocuses, lastSets) { e, f, l -> Triple(e, f, l) },
-        combine(reps, weightKg, sessionStartMillis) { r, w, s -> Triple(r, w, s) },
+        combine(reps, weightKg, sessionStartMillis, durationSeconds, intensity) { r, w, s, d, i ->
+            InputBundle(r, w, s, d, i)
+        },
         allExercises,
-        homeData
+        homeData,
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val selection = args[3] as Triple<Exercise?, Set<WorkoutFocus>, List<WorkoutSet>>
-        val inputs = args[4] as Triple<Int, Float, Long?>
+        val inputs = args[4] as InputBundle
         val home = args[6] as HomeData
         @Suppress("UNCHECKED_CAST")
         ActiveWorkoutUiState(
@@ -157,14 +171,16 @@ class ActiveWorkoutViewModel @Inject constructor(
             selectedExercise = selection.first,
             selectedFocuses = selection.second,
             lastSets = selection.third,
-            reps = inputs.first,
-            weightKg = inputs.second,
-            sessionStartMillis = inputs.third,
+            reps = inputs.reps,
+            weightKg = inputs.weightKg,
+            sessionStartMillis = inputs.startMillis,
             allExerciseNames = (args[5] as List<Exercise>).associate { it.id to it.name },
             lastFinishedSession = home.lastSession,
             streak = home.streak,
             hydrationProgress = home.hydrationProgress,
-            trainedDaysThisWeek = home.trainedDaysThisWeek
+            trainedDaysThisWeek = home.trainedDaysThisWeek,
+            durationSeconds = inputs.durationSeconds,
+            intensity = inputs.intensity,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
@@ -233,8 +249,16 @@ class ActiveWorkoutViewModel @Inject constructor(
         val session = uiState.value.session ?: return
         val exercise = selectedExercise.value ?: return
         lastRegisteredSetAt.value = now
+        val isCardio = exercise.mainMuscleGroup.equals("Cardio", ignoreCase = true)
         viewModelScope.launch {
-            sessionRepository.addSet(session.id, exercise.id, reps.value, weightKg.value)
+            sessionRepository.addSet(
+                sessionId = session.id,
+                exerciseId = exercise.id,
+                reps = if (isCardio) 0 else reps.value,
+                weightAddedKg = if (isCardio) 0f else weightKg.value,
+                durationSeconds = if (isCardio) durationSeconds.value else 0,
+                intensity = if (isCardio) intensity.value else 0
+            )
         }
     }
 
@@ -270,6 +294,14 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun onFinishedSessionConsumed() {
         _finishedSessionId.value = null
+    }
+
+    fun onDurationDelta(delta: Int) {
+        durationSeconds.value = (durationSeconds.value + delta).coerceAtLeast(0)
+    }
+
+    fun onIntensityDelta(delta: Int) {
+        intensity.value = (intensity.value + delta).coerceIn(1, 10)
     }
 
     private companion object {

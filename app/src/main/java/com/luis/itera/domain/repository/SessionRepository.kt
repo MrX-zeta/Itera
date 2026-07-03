@@ -12,7 +12,14 @@ interface SessionRepository {
     suspend fun startSession(dateEpochDay: Long, focus: String?): Long
     suspend fun finishSession(session: Session)
     suspend fun deleteSession(sessionId: Long)
-    suspend fun addSet(sessionId: Long, exerciseId: Long, reps: Int, weightAddedKg: Float): Long
+    suspend fun addSet(
+        sessionId: Long,
+        exerciseId: Long,
+        reps: Int,
+        weightAddedKg: Float,
+        durationSeconds: Int = 0,
+        intensity: Int = 0
+    ): Long
     suspend fun deleteSet(set: WorkoutSet)
     suspend fun hasFinishedSession(dateEpochDay: Long): Boolean
     suspend fun getLastSetsForExercise(exerciseId: Long, limit: Int = 3): List<WorkoutSet>

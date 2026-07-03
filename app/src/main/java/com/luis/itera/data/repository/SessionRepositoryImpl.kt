@@ -60,7 +60,9 @@ class SessionRepositoryImpl @Inject constructor(
         sessionId: Long,
         exerciseId: Long,
         reps: Int,
-        weightAddedKg: Float
+        weightAddedKg: Float,
+        durationSeconds: Int,
+        intensity: Int
     ): Long {
         val nextOrder = setDao.getMaxOrder(sessionId) + 1
         return setDao.insert(
@@ -69,7 +71,9 @@ class SessionRepositoryImpl @Inject constructor(
                 exerciseId = exerciseId,
                 reps = reps,
                 weightAddedKg = weightAddedKg,
-                order = nextOrder
+                order = nextOrder,
+                durationSeconds = durationSeconds,
+                intensity = intensity
             )
         )
     }
@@ -94,7 +98,7 @@ private fun SessionEntity.toDomain(sets: List<WorkoutSet> = emptyList()) =
     Session(id, dateEpochDay, durationMinutes, notes, isFinished, focus, startEpochMillis, sets)
 
 private fun SetEntity.toDomain() =
-    WorkoutSet(id, sessionId, exerciseId, reps, weightAddedKg, order)
+    WorkoutSet(id, sessionId, exerciseId, reps, weightAddedKg, order, durationSeconds, intensity)
 
 private fun SessionWithSets.toDomain() =
     session.toDomain(sets.map { it.toDomain() })

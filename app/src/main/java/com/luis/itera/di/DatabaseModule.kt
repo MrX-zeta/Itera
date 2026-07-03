@@ -35,7 +35,7 @@ object DatabaseModule {
         exerciseDaoProvider: Provider<ExerciseDao>
     ): IteraDatabase =
         Room.databaseBuilder(context, IteraDatabase::class.java, "itera.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
@@ -70,5 +70,12 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
 private val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE sessions ADD COLUMN startEpochMillis INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+private val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE sets ADD COLUMN durationSeconds INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE sets ADD COLUMN intensity INTEGER NOT NULL DEFAULT 0")
     }
 }
