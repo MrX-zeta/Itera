@@ -8,5 +8,7 @@ data class WorkoutSet(
     val weightAddedKg: Float,
     val order: Int,
     val durationSeconds: Int = 0,
-    val intensity: Int = 0
+    val intensity: Int = 0,
+    val workSeconds: Int = 0,
+    val restSeconds: Int = 0
 )

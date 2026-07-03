@@ -1,5 +1,6 @@
 package com.luis.itera.presentation.statistics
 
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.itera.domain.model.Exercise
@@ -11,6 +12,7 @@ import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.StatisticsRepository
 import com.luis.itera.domain.repository.UserPrefsRepository
 import com.luis.itera.domain.usecase.CalculateWeeklyStreakUseCase
+import com.luis.itera.presentation.components.DensityPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,7 +50,8 @@ data class StatisticsUiState(
     val range: StatsRange = StatsRange.D30,
     val maxWeightSeries: List<ExerciseSeriesPoint> = emptyList(),
     val volumeSeries: List<ExerciseSeriesPoint> = emptyList(),
-    val isBodyweightMode: Boolean = false
+    val isBodyweightMode: Boolean = false,
+    val densityPoints: List<DensityPoint> = emptyList()
 ) {
     val personalRecord: Float?
         get() = maxWeightSeries.maxOfOrNull { it.value }

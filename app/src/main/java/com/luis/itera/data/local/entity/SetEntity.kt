@@ -31,5 +31,7 @@ data class SetEntity(
     val weightAddedKg: Float = 0f,
     val order: Int,
     val durationSeconds: Int = 0,
-    val intensity: Int = 0
+    val intensity: Int = 0,
+    val workSeconds: Int = 0,
+    val restSeconds: Int = 0
 )

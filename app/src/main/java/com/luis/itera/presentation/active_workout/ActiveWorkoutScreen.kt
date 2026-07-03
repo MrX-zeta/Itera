@@ -66,13 +66,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.exclude
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.text.style.TextOverflow
 
 private val homeDateFormatter = DateTimeFormatter.ofPattern("EEEE dd MMMM", Locale("es"))
@@ -422,8 +416,8 @@ private fun ActiveSessionContent(
                     }
                     .padding(horizontal = 10.dp)
             )
-            if (state.sessionStartMillis != null) {
-                SessionTimer(state.sessionStartMillis)
+            if (state.setTimerMillis > 0L) {
+                SessionTimer(state.setTimerMillis)
             } else {
                 OutlinedButton(
                     onClick = onStartTimer,
@@ -456,6 +450,7 @@ private fun ActiveSessionContent(
                 LaunchedEffect(Unit) { focusRequester.requestFocus() }
             }
         }
+
 
         state.selectedExercise?.let { exercise ->
             val isCardio = exercise.mainMuscleGroup.equals("Cardio", ignoreCase = true)

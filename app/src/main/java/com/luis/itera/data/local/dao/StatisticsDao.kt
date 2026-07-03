@@ -34,6 +34,12 @@ data class TopExerciseRecord(
     val isCardio: Boolean
 )
 
+data class DensityRow(
+    val dateEpochDay: Long,
+    val totalWork: Int,
+    val totalRest: Int
+)
+
 @Dao
 interface StatisticsDao {
 
@@ -154,4 +160,14 @@ interface StatisticsDao {
     LIMIT :limit
 """)
     fun getTopExercises(limit: Int = 3): Flow<List<TopExerciseRecord>>
+
+    @Query("""
+    SELECT ses.dateEpochDay, SUM(s.workSeconds) AS totalWork, SUM(s.restSeconds) AS totalRest
+    FROM sets s INNER JOIN sessions ses ON ses.id = s.sessionId
+    WHERE ses.isFinished = 1 AND ses.dateEpochDay >= :fromEpochDay
+    GROUP BY ses.id
+    ORDER BY ses.dateEpochDay DESC
+    LIMIT 10
+""")
+    fun getWorkoutDensity(fromEpochDay: Long): Flow<List<DensityRow>>
 }

@@ -45,6 +45,7 @@ import com.luis.itera.domain.model.BigThreeRecord
 import com.luis.itera.domain.model.TopMovementRecord
 import com.luis.itera.presentation.components.StatBarChart
 import com.luis.itera.presentation.components.StatLineChart
+import com.luis.itera.presentation.components.WorkoutDensityChart
 import com.luis.itera.presentation.theme.IteraColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -313,6 +314,13 @@ fun StatisticsScreen(
                         )
                     }
                 }
+                Spacer(Modifier.height(20.dp))
+                Text("DENSIDAD", style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
+                Spacer(Modifier.height(10.dp))
+                WorkoutDensityChart(
+                    points = state.densityPoints,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

@@ -52,7 +52,8 @@ data class ActiveWorkoutUiState(
     val hydrationProgress: Float = 0f,
     val trainedDaysThisWeek: Set<Long> = emptySet(),
     val durationSeconds: Int = 0,
-    val intensity: Int = 1
+    val intensity: Int = 1,
+    val setTimerMillis: Long = 0L
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -72,7 +73,8 @@ private data class InputBundle(
     val weightKg: Float,
     val startMillis: Long?,
     val durationSeconds: Int,
-    val intensity: Int
+    val intensity: Int,
+    val setTimerMillis: Long
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -97,6 +99,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val lastSets = MutableStateFlow<List<WorkoutSet>>(emptyList())
     private val durationSeconds = MutableStateFlow(0)
     private val intensity = MutableStateFlow(1)
+    private val setTimerStartMillis = MutableStateFlow(0L)
 
     private val _finishedSessionId = MutableStateFlow<Long?>(null)
     val finishedSessionId: StateFlow<Long?> = _finishedSessionId
@@ -153,8 +156,15 @@ class ActiveWorkoutViewModel @Inject constructor(
         exercises,
         searchQuery,
         combine(selectedExercise, selectedFocuses, lastSets) { e, f, l -> Triple(e, f, l) },
-        combine(reps, weightKg, sessionStartMillis, durationSeconds, intensity) { r, w, s, d, i ->
-            InputBundle(r, w, s, d, i)
+        combine(reps, weightKg, sessionStartMillis, durationSeconds, intensity, setTimerStartMillis) { args ->
+            InputBundle(
+                reps = args[0] as Int,
+                weightKg = args[1] as Float,
+                startMillis = args[2] as Long?,
+                durationSeconds = args[3] as Int,
+                intensity = args[4] as Int,
+                setTimerMillis = args[5] as Long
+            )
         },
         allExercises,
         homeData,
@@ -181,6 +191,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             trainedDaysThisWeek = home.trainedDaysThisWeek,
             durationSeconds = inputs.durationSeconds,
             intensity = inputs.intensity,
+            setTimerMillis = inputs.setTimerMillis
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
@@ -192,6 +203,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             else -> current + focus
         }
     }
+
 
     fun onSearchQueryChange(query: String) {
         searchQuery.value = query
@@ -248,8 +260,15 @@ class ActiveWorkoutViewModel @Inject constructor(
         if (now - lastRegisteredSetAt.value < REGISTER_DEBOUNCE_MS) return
         val session = uiState.value.session ?: return
         val exercise = selectedExercise.value ?: return
-        lastRegisteredSetAt.value = now
         val isCardio = exercise.mainMuscleGroup.equals("Cardio", ignoreCase = true)
+
+        val restSeconds = if (setTimerStartMillis.value > 0)
+            ((now - setTimerStartMillis.value) / 1000).toInt()
+        else 0
+
+        lastRegisteredSetAt.value = now
+        setTimerStartMillis.value = now
+
         viewModelScope.launch {
             sessionRepository.addSet(
                 sessionId = session.id,
@@ -257,7 +276,8 @@ class ActiveWorkoutViewModel @Inject constructor(
                 reps = if (isCardio) 0 else reps.value,
                 weightAddedKg = if (isCardio) 0f else weightKg.value,
                 durationSeconds = if (isCardio) durationSeconds.value else 0,
-                intensity = if (isCardio) intensity.value else 0
+                intensity = if (isCardio) intensity.value else 0,
+                restSeconds = restSeconds
             )
         }
     }
@@ -282,9 +302,9 @@ class ActiveWorkoutViewModel @Inject constructor(
                 sessionRepository.deleteSession(session.id)
             } else {
                 sessionRepository.finishSession(session)
-                calculateHydrationGoal(session.dateEpochDay)
             }
             sessionStartMillis.value = null
+            setTimerStartMillis.value = 0L
             selectedExercise.value = null
             if (session.sets.isNotEmpty()) {
                 _finishedSessionId.value = session.id

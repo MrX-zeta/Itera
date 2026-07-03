@@ -18,7 +18,9 @@ interface SessionRepository {
         reps: Int,
         weightAddedKg: Float,
         durationSeconds: Int = 0,
-        intensity: Int = 0
+        intensity: Int = 0,
+        workSeconds: Int = 0,
+        restSeconds: Int = 0
     ): Long
     suspend fun deleteSet(set: WorkoutSet)
     suspend fun hasFinishedSession(dateEpochDay: Long): Boolean
