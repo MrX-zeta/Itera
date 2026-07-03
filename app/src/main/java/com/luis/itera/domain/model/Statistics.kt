@@ -5,6 +5,13 @@ data class ExerciseSeriesPoint(
     val value: Float
 )
 
+data class TopMovementRecord(
+    val exerciseId: Long,
+    val exerciseName: String,
+    val displayValue: String,
+    val displayLabel: String
+)
+
 data class BigThreeRecord(
     val exerciseId: Long,
     val exerciseName: String,

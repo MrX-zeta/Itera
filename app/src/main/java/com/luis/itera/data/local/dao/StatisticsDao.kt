@@ -23,6 +23,15 @@ data class PersonalRecord(
     val dateEpochDay: Long
 )
 
+data class TopExerciseRecord(
+    val exerciseId: Long,
+    val setCount: Int,
+    val maxWeightKg: Float,
+    val estimated1RmKg: Float,
+    val maxReps: Int,
+    val hasWeight: Boolean
+)
+
 @Dao
 interface StatisticsDao {
 
@@ -124,4 +133,19 @@ interface StatisticsDao {
     )
 """)
     fun hasWeightedSets(exerciseId: Long, fromEpochDay: Long): Flow<Boolean>
+
+    @Query("""
+    SELECT s.exerciseId, COUNT(s.id) AS setCount,
+           MAX(s.weightAddedKg) AS maxWeightKg,
+           MAX(s.weightAddedKg * (1.0 + s.reps / 30.0)) AS estimated1RmKg,
+           MAX(s.reps) AS maxReps,
+           CASE WHEN MAX(s.weightAddedKg) > 0 THEN 1 ELSE 0 END AS hasWeight
+    FROM sets s
+    INNER JOIN sessions ses ON ses.id = s.sessionId
+    WHERE ses.isFinished = 1
+    GROUP BY s.exerciseId
+    ORDER BY setCount DESC
+    LIMIT :limit
+""")
+    fun getTopExercises(limit: Int = 3): Flow<List<TopExerciseRecord>>
 }

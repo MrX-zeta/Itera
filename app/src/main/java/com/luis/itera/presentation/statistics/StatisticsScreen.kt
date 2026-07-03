@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
 import com.luis.itera.domain.model.BigThreeRecord
+import com.luis.itera.domain.model.TopMovementRecord
 import com.luis.itera.presentation.components.StatBarChart
 import com.luis.itera.presentation.components.StatLineChart
 import com.luis.itera.presentation.theme.IteraColors
@@ -98,15 +100,14 @@ fun StatisticsScreen(
         }
 
         item {
-            Text(
-                text = "RÉCORDS · BIG 3",
-                style = MaterialTheme.typography.labelSmall,
-                color = IteraColors.TextSecondary
-            )
+            Text("TOP MOVIMIENTOS", style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.bigThree.forEach { record ->
-                    BigThreeCard(record, Modifier.weight(1f))
+                state.topMovements.forEach { record ->
+                    TopMovementCard(record, Modifier.weight(1f))
+                }
+                if (state.topMovements.isEmpty()) {
+                    Text("Finaliza sesiones para ver tus top", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
                 }
             }
             Spacer(Modifier.height(22.dp))
@@ -272,13 +273,12 @@ fun StatisticsScreen(
                         }
                     }
                     Spacer(Modifier.height(4.dp))
-                    StatBarChart(points = state.volumeSeries)
-                    if (state.volumeSeries.isEmpty()) {
-                        Text(
-                            text = "Sin datos en el rango",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = IteraColors.TextSecondary,
-                            modifier = Modifier.padding(top = 4.dp)
+                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                        StatBarChart(
+                            points = state.volumeSeries,
+                            modifier = Modifier.width(
+                                (state.volumeSeries.size * 32).coerceAtLeast(300).dp
+                            )
                         )
                     }
                 }
@@ -431,6 +431,19 @@ private fun RangeChips(
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun TopMovementCard(record: TopMovementRecord, modifier: Modifier = Modifier) {
+    Column(
+        modifier.border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(10.dp)).padding(vertical = 12.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(record.displayValue, style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp), color = IteraColors.Accent)
+        Text(record.displayLabel, style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
+        Spacer(Modifier.height(4.dp))
+        Text(record.exerciseName.uppercase(), style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary, textAlign = TextAlign.Center, maxLines = 2)
     }
 }
 

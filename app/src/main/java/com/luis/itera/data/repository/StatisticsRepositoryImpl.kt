@@ -1,6 +1,7 @@
 package com.luis.itera.data.repository
 
 import com.luis.itera.data.local.dao.StatisticsDao
+import com.luis.itera.data.local.dao.TopExerciseRecord
 import com.luis.itera.domain.model.ExerciseSeriesPoint
 import com.luis.itera.domain.repository.StatisticsRepository
 import kotlinx.coroutines.flow.Flow
@@ -63,4 +64,7 @@ class StatisticsRepositoryImpl @Inject constructor(
 
     override suspend fun getMostTrainedExerciseId(): Long? =
         statisticsDao.getMostTrainedExerciseId()
+
+    override fun getTopExercises(limit: Int): Flow<List<TopExerciseRecord>> =
+        statisticsDao.getTopExercises(limit)
 }

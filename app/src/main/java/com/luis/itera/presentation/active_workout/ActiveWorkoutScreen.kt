@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -117,6 +118,8 @@ private fun HomeContent(
     onLastSessionClick: (Long) -> Unit,
     onHydrationClick: () -> Unit
 ) {
+    val hasSelection = state.selectedFocuses.isNotEmpty()
+
     Column(
         Modifier
             .fillMaxSize()
@@ -142,6 +145,8 @@ private fun HomeContent(
                     color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal)
                         IteraColors.Accent else IteraColors.TextPrimary
                 )
+                Spacer(Modifier.height(10.dp))
+                WeekActivityRow(trainedDays = state.trainedDaysThisWeek)
             }
             MiniHydrationRing(
                 progress = state.hydrationProgress,
@@ -180,7 +185,12 @@ private fun HomeContent(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "${relativeDay(last.dateEpochDay)} · ${last.durationMinutes} min · ${last.sets.size} sets",
+                        text = buildString {
+                            append(relativeDay(last.dateEpochDay))
+                            if (last.durationMinutes >= 1) append(" · ${last.durationMinutes} min")
+                            else append(" · < 1 min")
+                            append(" · ${last.sets.size} sets")
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = IteraColors.TextSecondary
                     )
@@ -192,15 +202,6 @@ private fun HomeContent(
                 )
             }
         }
-
-        Spacer(Modifier.height(20.dp))
-        Text(
-            text = "ESTA SEMANA",
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-            color = IteraColors.TextSecondary
-        )
-        Spacer(Modifier.height(10.dp))
-        WeekActivityRow(trainedDays = state.trainedDaysThisWeek)
 
         Spacer(Modifier.weight(1f))
 
@@ -241,10 +242,13 @@ private fun HomeContent(
         Spacer(Modifier.height(24.dp))
         Button(
             onClick = onStart,
+            enabled = hasSelection,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = IteraColors.Accent,
-                contentColor = IteraColors.OnAccent
+                contentColor = IteraColors.OnAccent,
+                disabledContainerColor = IteraColors.Border,
+                disabledContentColor = IteraColors.TextSecondary
             ),
             shape = RoundedCornerShape(8.dp)
         ) {
@@ -256,15 +260,11 @@ private fun HomeContent(
 
 @Composable
 private fun WeekActivityRow(trainedDays: Set<Long>) {
-    val monday = LocalDate.now()
-        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     val today = LocalDate.now()
     val labels = listOf("L", "M", "M", "J", "V", "S", "D")
 
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         (0..6).forEach { offset ->
             val day = monday.plusDays(offset.toLong())
             val trained = day.toEpochDay() in trainedDays
@@ -286,7 +286,7 @@ private fun WeekActivityRow(trainedDays: Set<Long>) {
                                 .border(1.dp, IteraColors.BorderStrong, CircleShape)
                         )
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = labels[offset],
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
@@ -308,17 +308,13 @@ private fun MiniHydrationRing(progress: Float, onClick: () -> Unit) {
     ) {
         CircularProgressIndicator(
             progress = { 1f },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(4.dp),
+            modifier = Modifier.fillMaxSize().padding(4.dp),
             color = IteraColors.BorderStrong,
             strokeWidth = 3.dp
         )
         CircularProgressIndicator(
             progress = { progress },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(4.dp),
+            modifier = Modifier.fillMaxSize().padding(4.dp),
             color = IteraColors.Accent,
             strokeWidth = 3.dp
         )
@@ -360,6 +356,7 @@ private fun ActiveSessionContent(
     Column(
         Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(16.dp)
     ) {
         Row(
@@ -413,9 +410,7 @@ private fun ActiveSessionContent(
                     onClick = onStartTimer,
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, IteraColors.Border),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = IteraColors.Accent
-                    )
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.Accent)
                 ) {
                     Text("CRONÓMETRO", style = MaterialTheme.typography.labelSmall)
                 }
@@ -428,9 +423,7 @@ private fun ActiveSessionContent(
                 OutlinedTextField(
                     value = state.searchQuery,
                     onValueChange = onSearchChange,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                     placeholder = { Text("Buscar ejercicio", color = IteraColors.TextSecondary) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -459,18 +452,8 @@ private fun ActiveSessionContent(
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FastStepper(
-                    label = "REPS",
-                    value = state.reps.toFloat(),
-                    onDelta = { onRepsDelta(it.toInt()) },
-                    modifier = Modifier.weight(1f)
-                )
-                FastStepper(
-                    label = "+KG",
-                    value = state.weightKg,
-                    onDelta = onWeightDelta,
-                    modifier = Modifier.weight(1f)
-                )
+                FastStepper(label = "REPS", value = state.reps.toFloat(), onDelta = { onRepsDelta(it.toInt()) }, modifier = Modifier.weight(1f))
+                FastStepper(label = "+KG", value = state.weightKg, onDelta = onWeightDelta, modifier = Modifier.weight(1f))
             }
             Spacer(Modifier.height(12.dp))
             RegisterSetButton(onRegisterSet = onRegisterSet)
@@ -493,35 +476,17 @@ private fun ActiveSessionContent(
                     Modifier
                         .fillMaxWidth()
                         .clickable { onExerciseSelected(exercise) }
-                        .border(
-                            1.dp,
-                            if (isSelected) IteraColors.Accent else IteraColors.Border,
-                            RoundedCornerShape(8.dp)
-                        )
+                        .border(1.dp, if (isSelected) IteraColors.Accent else IteraColors.Border, RoundedCornerShape(8.dp))
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        exercise.name,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (isSelected) IteraColors.Accent else IteraColors.TextPrimary
-                    )
-                    Text(
-                        exercise.mainMuscleGroup,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = IteraColors.TextSecondary
-                    )
+                    Text(exercise.name, style = MaterialTheme.typography.bodyMedium, color = if (isSelected) IteraColors.Accent else IteraColors.TextPrimary)
+                    Text(exercise.mainMuscleGroup, style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
                 }
                 Spacer(Modifier.height(6.dp))
             }
             if (state.searchQuery.isNotBlank() && state.exercises.isEmpty()) {
-                item {
-                    CreateExercisePrompt(
-                        query = state.searchQuery,
-                        muscleGroups = muscleGroups,
-                        onCreate = onCreateExercise
-                    )
-                }
+                item { CreateExercisePrompt(query = state.searchQuery, muscleGroups = muscleGroups, onCreate = onCreateExercise) }
             }
             val sets = state.session?.sets.orEmpty()
             if (sets.isNotEmpty()) {
@@ -535,32 +500,22 @@ private fun ActiveSessionContent(
                 }
                 items(sets, key = { "set_${it.id}" }) { set ->
                     Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        Modifier.fillMaxWidth().border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
+                            Text(state.exerciseNameOf(set.exerciseId), style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                text = state.exerciseNameOf(set.exerciseId),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "SET ${set.order} · ${set.reps} reps" +
-                                        if (set.weightAddedKg > 0f) " +${set.weightAddedKg}kg" else "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = IteraColors.TextSecondary
+                                "SET ${set.order} · ${set.reps} reps" + if (set.weightAddedKg > 0f) " +${set.weightAddedKg}kg" else "",
+                                style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary
                             )
                         }
                         Icon(
                             imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
                             contentDescription = "Eliminar set",
                             tint = IteraColors.TextSecondary,
-                            modifier = Modifier
-                                .clickable { onDeleteSet(set) }
-                                .padding(4.dp)
+                            modifier = Modifier.clickable { onDeleteSet(set) }.padding(4.dp)
                         )
                     }
                     Spacer(Modifier.height(6.dp))
@@ -574,9 +529,7 @@ private fun ActiveSessionContent(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
             border = BorderStroke(1.dp, IteraColors.Border),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = IteraColors.TextSecondary
-            )
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.TextSecondary)
         ) {
             Text("FINALIZAR SESIÓN", style = MaterialTheme.typography.titleMedium)
         }
@@ -585,41 +538,21 @@ private fun ActiveSessionContent(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CreateExercisePrompt(
-    query: String,
-    muscleGroups: List<String>,
-    onCreate: (String, String) -> Unit
-) {
+private fun CreateExercisePrompt(query: String, muscleGroups: List<String>, onCreate: (String, String) -> Unit) {
     Column(
-        Modifier
-            .fillMaxWidth()
-            .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
-            .padding(12.dp)
+        Modifier.fillMaxWidth().border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp)).padding(12.dp)
     ) {
-        Text(
-            text = "Sin resultados. Crear \"$query\":",
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Text("Sin resultados. Crear \"$query\":", style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(10.dp))
-        Text(
-            text = "GRUPO MUSCULAR",
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-            color = IteraColors.TextSecondary
-        )
+        Text("GRUPO MUSCULAR", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
         Spacer(Modifier.height(8.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             muscleGroups.forEach { group ->
                 Text(
                     text = group,
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                     color = IteraColors.Accent,
-                    modifier = Modifier
-                        .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
-                        .clickable { onCreate(query, group) }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                    modifier = Modifier.border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp)).clickable { onCreate(query, group) }.padding(horizontal = 12.dp, vertical = 8.dp)
                 )
             }
         }
@@ -630,20 +563,9 @@ private fun CreateExercisePrompt(
 private fun RegisterSetButton(onRegisterSet: () -> Unit) {
     val haptic = LocalHapticFeedback.current
     var registered by remember { mutableStateOf(false) }
-
-    LaunchedEffect(registered) {
-        if (registered) {
-            delay(900L)
-            registered = false
-        }
-    }
-
+    LaunchedEffect(registered) { if (registered) { delay(900L); registered = false } }
     Button(
-        onClick = {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            registered = true
-            onRegisterSet()
-        },
+        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); registered = true; onRegisterSet() },
         modifier = Modifier.fillMaxWidth(),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (registered) IteraColors.Surface else IteraColors.Accent,
@@ -651,9 +573,6 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit) {
         ),
         shape = RoundedCornerShape(8.dp)
     ) {
-        Text(
-            text = if (registered) "✓ REGISTRADO" else "REGISTRAR SET",
-            style = MaterialTheme.typography.titleMedium
-        )
+        Text(if (registered) "✓ REGISTRADO" else "REGISTRAR SET", style = MaterialTheme.typography.titleMedium)
     }
 }

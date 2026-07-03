@@ -2,6 +2,7 @@ package com.luis.itera.domain.repository
 
 import com.luis.itera.domain.model.ExerciseSeriesPoint
 import kotlinx.coroutines.flow.Flow
+import com.luis.itera.data.local.dao.TopExerciseRecord
 
 interface StatisticsRepository {
     fun getMaxWeightSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<ExerciseSeriesPoint>>
@@ -14,4 +15,6 @@ interface StatisticsRepository {
     fun getMaxRepsSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<ExerciseSeriesPoint>>
     fun getTotalRepsSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<ExerciseSeriesPoint>>
     fun hasWeightedSets(exerciseId: Long, fromEpochDay: Long): Flow<Boolean>
+
+    fun getTopExercises(limit: Int = 3): Flow<List<TopExerciseRecord>>
 }

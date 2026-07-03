@@ -342,6 +342,10 @@ private fun SessionCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val grouped = session.sets.groupBy { it.exerciseId }
+    val displayed = grouped.entries.take(3)
+    val remaining = grouped.size - displayed.size
+
     Column(
         modifier
             .fillMaxWidth()
@@ -364,41 +368,51 @@ private fun SessionCard(
                 color = IteraColors.TextSecondary
             )
             Text(
-                text = if (session.isFinished) "${session.durationMinutes} min" else "EN CURSO",
+                text = when {
+                    !session.isFinished -> "EN CURSO"
+                    session.durationMinutes < 1 -> "< 1 min"
+                    else -> "${session.durationMinutes} min"
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = IteraColors.Accent
             )
         }
         Spacer(Modifier.height(8.dp))
-        session.sets
-            .groupBy { it.exerciseId }
-            .forEach { (exerciseId, sets) ->
-                Column(Modifier.padding(vertical = 4.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = exerciseNames[exerciseId] ?: "—",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "${sets.size} sets",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = IteraColors.Accent
-                        )
-                    }
+        displayed.forEach { (exerciseId, sets) ->
+            Column(Modifier.padding(vertical = 4.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = sets.joinToString(" · ") { set ->
-                            set.reps.toString() +
-                                    if (set.weightAddedKg > 0f) "+${set.weightAddedKg}kg" else ""
-                        },
+                        text = exerciseNames[exerciseId] ?: "—",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "${sets.size} sets",
                         style = MaterialTheme.typography.bodySmall,
-                        color = IteraColors.TextSecondary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        color = IteraColors.Accent
                     )
                 }
+                Text(
+                    text = sets.joinToString(" · ") { set ->
+                        set.reps.toString() +
+                                if (set.weightAddedKg > 0f) "+${set.weightAddedKg}kg" else ""
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.TextSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
+        }
+        if (remaining > 0) {
+            Text(
+                text = "+ $remaining ejercicios más",
+                style = MaterialTheme.typography.bodySmall,
+                color = IteraColors.TextSecondary,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
     }
 }
