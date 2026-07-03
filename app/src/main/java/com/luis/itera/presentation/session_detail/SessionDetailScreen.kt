@@ -1,8 +1,11 @@
 package com.luis.itera.presentation.session_detail
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,10 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +30,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
@@ -57,36 +66,35 @@ fun SessionDetailScreen(
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(16.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp)
     ) {
         Row(
-            Modifier.fillMaxWidth(),
+            Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "‹ VOLVER",
-                style = MaterialTheme.typography.labelSmall,
-                color = IteraColors.Accent,
-                modifier = Modifier.clickable(onClick = onBack)
-            )
+            ElongatedBackButton(onClick = onBack)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = if (session.isFinished) "${session.durationMinutes} min" else "EN CURSO",
+                    text = when {
+                        !session.isFinished -> "EN CURSO"
+                        session.durationMinutes < 1 -> "< 1 min"
+                        else -> "${session.durationMinutes} min"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = IteraColors.Accent
                 )
-                Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
-                    contentDescription = "Eliminar sesión",
-                    tint = IteraColors.TextSecondary,
-                    modifier = Modifier
-                        .padding(start = 10.dp)
-                        .clickable(onClick = viewModel::onDeleteSession)
-                )
+                IconButton(onClick = viewModel::onDeleteSession) {
+                    Icon(
+                        imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                        contentDescription = "Eliminar sesión",
+                        tint = IteraColors.TextSecondary
+                    )
+                }
             }
         }
-        Spacer(Modifier.height(16.dp))
 
         Text(
             text = LocalDate.ofEpochDay(session.dateEpochDay).format(dateFormatter)
@@ -109,16 +117,15 @@ fun SessionDetailScreen(
         )
         Spacer(Modifier.height(20.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             session.sets
                 .groupBy { it.exerciseId }
                 .forEach { (exerciseId, sets) ->
                     item(key = exerciseId) {
-                        ExerciseBlock(
+                        ExerciseDetailCard(
                             name = state.exerciseNames[exerciseId] ?: "—",
-                            sets = sets,
-                            onDeleteSet = viewModel::onDeleteSet
-                        )
+                            sets = sets
+                        ) { viewModel.onDeleteSet(it) }
                     }
                 }
         }
@@ -126,7 +133,47 @@ fun SessionDetailScreen(
 }
 
 @Composable
-private fun ExerciseBlock(
+private fun ElongatedBackButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Canvas(Modifier.size(width = 28.dp, height = 14.dp)) {
+            val stroke = 1.8.dp.toPx()
+            val tipY = size.height / 2f
+            val tipX = 0f
+            val armLen = 7.dp.toPx()
+
+            drawLine(
+                color = IteraColors.Accent,
+                start = Offset(tipX, tipY),
+                end = Offset(size.width, tipY),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = IteraColors.Accent,
+                start = Offset(tipX, tipY),
+                end = Offset(tipX + armLen, tipY - armLen),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = IteraColors.Accent,
+                start = Offset(tipX, tipY),
+                end = Offset(tipX + armLen, tipY + armLen),
+                strokeWidth = stroke,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExerciseDetailCard(
     name: String,
     sets: List<WorkoutSet>,
     onDeleteSet: (WorkoutSet) -> Unit
@@ -134,30 +181,42 @@ private fun ExerciseBlock(
     Column(
         Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(IteraColors.Surface)
             .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(12.dp))
-            .padding(14.dp)
+            .padding(16.dp)
     ) {
-        Text(text = name, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(10.dp))
+        Text(
+            text = name,
+            style = MaterialTheme.typography.titleMedium,
+            color = IteraColors.TextPrimary
+        )
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 10.dp),
+            thickness = 0.5.dp,
+            color = IteraColors.Border
+        )
         sets.sortedBy { it.order }.forEach { set ->
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "SET ${set.order}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = IteraColors.TextSecondary
+                    color = IteraColors.TextSecondary,
+                    modifier = Modifier.weight(0.2f)
                 )
                 Text(
                     text = when {
                         set.durationSeconds > 0 -> "${set.durationSeconds / 60} min"
                         else -> "${set.reps} reps"
                     },
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(0.3f)
                 )
                 Text(
                     text = when {
@@ -170,16 +229,20 @@ private fun ExerciseBlock(
                         set.durationSeconds > 0 -> IteraColors.Accent
                         set.weightAddedKg > 0f -> IteraColors.Accent
                         else -> IteraColors.TextSecondary
-                    }
+                    },
+                    modifier = Modifier.weight(0.3f)
                 )
-                Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
-                    contentDescription = "Eliminar set",
-                    tint = IteraColors.TextSecondary,
-                    modifier = Modifier
-                        .clickable { onDeleteSet(set) }
-                        .padding(2.dp)
-                )
+                IconButton(
+                    onClick = { onDeleteSet(set) },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
+                        contentDescription = "Eliminar set",
+                        tint = IteraColors.TextSecondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     }
