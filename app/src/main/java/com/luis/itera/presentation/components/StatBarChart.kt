@@ -1,6 +1,7 @@
 package com.luis.itera.presentation.components
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,55 +32,53 @@ fun StatBarChart(
     points: List<ExerciseSeriesPoint>,
     modifier: Modifier = Modifier
 ) {
-    val progress = remember(points) { Animatable(0f) }
-    LaunchedEffect(points) { progress.snapTo(0f); progress.animateTo(1f, tween(600)) }
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(points) {
+        progress.snapTo(0f)
+        progress.animateTo(1f, tween(1000, easing = FastOutSlowInEasing))
+    }
 
     val textMeasurer = rememberTextMeasurer()
-    val xLabelStyle = TextStyle(fontSize = 9.sp, color = IteraColors.TextSecondary.copy(alpha = 0.6f))
-    val yLabelStyle = TextStyle(fontSize = 10.sp, color = IteraColors.TextSecondary.copy(alpha = 0.5f))
+    val xStyle = TextStyle(fontSize = 9.sp, color = IteraColors.TextSecondary.copy(alpha = 0.6f))
+    val yStyle = TextStyle(fontSize = 9.sp, color = IteraColors.TextSecondary.copy(alpha = 0.45f))
 
-    Canvas(modifier.fillMaxWidth().height(110.dp)) {
-        val xLabelZone = 16.dp.toPx()
-        val yLabelWidth = 32.dp.toPx()
-        val yLabelGap = 6.dp.toPx()
-        val baseline = size.height - xLabelZone - 2.dp.toPx()
-        val top = 6.dp.toPx()
-        val chartHeight = baseline - top
-        val chartWidth = size.width - yLabelWidth - yLabelGap
-        val dash = PathEffect.dashPathEffect(floatArrayOf(6f, 10f))
+    Canvas(modifier.fillMaxWidth().height(100.dp)) {
+        val xZone = 16.dp.toPx()
+        val yW = 30.dp.toPx()
+        val baseline = size.height - xZone
+        val top = 4.dp.toPx()
+        val h = baseline - top
+        val w = size.width - yW
+        val dash = PathEffect.dashPathEffect(floatArrayOf(4f, 8f))
 
-        drawLine(IteraColors.Border, Offset(0f, baseline), Offset(chartWidth, baseline), 1.dp.toPx())
-        drawLine(IteraColors.BorderStrong, Offset(0f, top), Offset(chartWidth, top), 0.5.dp.toPx(), pathEffect = dash)
-        drawLine(IteraColors.BorderStrong, Offset(0f, top + chartHeight * 0.5f), Offset(chartWidth, top + chartHeight * 0.5f), 0.5.dp.toPx(), pathEffect = dash)
+        drawLine(IteraColors.Border, Offset(0f, baseline), Offset(w, baseline), 0.5.dp.toPx())
 
         if (points.isEmpty()) return@Canvas
-
         val maxV = points.maxOf { it.value }.takeIf { it > 0f } ?: 1f
-        val yAnchor = chartWidth + yLabelGap
 
-        val maxLabel = textMeasurer.measure(maxV.toInt().toString(), yLabelStyle)
-        drawText(maxLabel, topLeft = Offset(yAnchor, top - maxLabel.size.height / 2f))
+        listOf(0.25f, 0.5f, 0.75f, 1f).forEach { pct ->
+            val y = baseline - h * pct
+            drawLine(IteraColors.BorderStrong, Offset(0f, y), Offset(w, y), 0.5.dp.toPx(), pathEffect = dash)
+            val label = textMeasurer.measure((maxV * pct).toInt().toString(), yStyle)
+            drawText(label, topLeft = Offset(w + 4.dp.toPx(), y - label.size.height / 2f))
+        }
 
-        val midLabel = textMeasurer.measure((maxV / 2f).toInt().toString(), yLabelStyle)
-        drawText(midLabel, topLeft = Offset(yAnchor, top + chartHeight * 0.5f - midLabel.size.height / 2f))
+        val slot = w / points.size
+        val barW = (slot * 0.6f).coerceAtMost(18.dp.toPx())
 
-        val slot = chartWidth / points.size
-        val barWidth = (slot * 0.6f).coerceAtMost(20.dp.toPx())
-        val threshold = maxV * 0.8f
-
-        points.forEachIndexed { i, point ->
-            val barH = chartHeight * (point.value / maxV) * progress.value
+        points.forEachIndexed { i, pt ->
+            val bH = h * (pt.value / maxV) * progress.value
             val cx = slot * i + slot / 2f
-            val left = cx - barWidth / 2f
+            val left = cx - barW / 2f
 
-            if (point.value >= threshold) {
-                drawRect(IteraColors.Accent.copy(alpha = 0.25f), Offset(left, baseline - barH), Size(barWidth, barH))
+            if (pt.value >= maxV * 0.8f) {
+                drawRect(IteraColors.Accent.copy(alpha = 0.25f), Offset(left, baseline - bH), Size(barW, bH))
             }
-            drawRect(IteraColors.Accent, Offset(left, baseline - barH), Size(barWidth, barH), style = Stroke(1.dp.toPx()))
+            drawRect(IteraColors.Accent, Offset(left, baseline - bH), Size(barW, bH), style = Stroke(1.dp.toPx()))
 
-            val dateLabel = LocalDate.ofEpochDay(point.dateEpochDay).format(barDateFormatter)
-            val measured = textMeasurer.measure(dateLabel, xLabelStyle)
-            drawText(measured, topLeft = Offset(cx - measured.size.width / 2f, baseline + 4.dp.toPx()))
+            val dl = LocalDate.ofEpochDay(pt.dateEpochDay).format(barDateFormatter)
+            val m = textMeasurer.measure(dl, xStyle)
+            drawText(m, topLeft = Offset(cx - m.size.width / 2f, baseline + 3.dp.toPx()))
         }
     }
 }

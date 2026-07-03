@@ -1,6 +1,7 @@
 package com.luis.itera.presentation.components
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -23,58 +25,41 @@ fun StatLineChart(
     points: List<ExerciseSeriesPoint>,
     modifier: Modifier = Modifier
 ) {
-    val progress = remember(points) { Animatable(0f) }
+    val progress = remember { Animatable(0f) }
     LaunchedEffect(points) {
         progress.snapTo(0f)
-        progress.animateTo(1f, tween(600))
+        progress.animateTo(1f, tween(1000, easing = FastOutSlowInEasing))
     }
 
-    Canvas(
-        modifier
-            .fillMaxWidth()
-            .height(110.dp)
-    ) {
-        val baseline = size.height - 14.dp.toPx()
-        drawLine(IteraColors.Border, Offset(0f, baseline), Offset(size.width, baseline), 1.dp.toPx())
-
-        if (points.isEmpty()) return@Canvas
-
+    Canvas(modifier.fillMaxWidth().height(80.dp)) {
+        if (points.size < 2) return@Canvas
+        val maxV = points.maxOf { it.value }.takeIf { it > 0f } ?: 1f
         val minV = points.minOf { it.value }
-        val maxV = points.maxOf { it.value }
-        val rangeV = (maxV - minV).takeIf { it > 0f } ?: 1f
-        val top = 8.dp.toPx()
-        val chartHeight = baseline - top - 8.dp.toPx()
+        val range = (maxV - minV).takeIf { it > 0f } ?: 1f
+        val pad = 6.dp.toPx()
+        val w = size.width - pad * 2
+        val h = size.height - pad * 2
+        val dash = PathEffect.dashPathEffect(floatArrayOf(4f, 8f))
 
-        val dash = PathEffect.dashPathEffect(floatArrayOf(6f, 10f))
-        drawLine(IteraColors.Border, Offset(0f, top), Offset(size.width, top), 0.5.dp.toPx(), pathEffect = dash)
-        drawLine(IteraColors.Border, Offset(0f, top + chartHeight / 2), Offset(size.width, top + chartHeight / 2), 0.5.dp.toPx(), pathEffect = dash)
-
-        val stepX = if (points.size == 1) 0f else (size.width - 24.dp.toPx()) / (points.size - 1)
-        val startX = 12.dp.toPx()
-
-        fun pointAt(index: Int): Offset {
-            val normalized = (points[index].value - minV) / rangeV
-            return Offset(startX + stepX * index, top + chartHeight * (1f - normalized))
-        }
+        val prY = pad + h * (1f - (maxV - minV) / range)
+        drawLine(IteraColors.Accent.copy(alpha = 0.2f), Offset(0f, prY), Offset(size.width, prY), 0.5.dp.toPx(), pathEffect = dash)
 
         val path = Path()
-        points.indices.forEach { i ->
-            val p = pointAt(i)
-            if (i == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
+        points.forEachIndexed { i, pt ->
+            val x = pad + w * i / (points.size - 1)
+            val y = pad + h * (1f - (pt.value - minV) / range)
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
 
         clipRect(right = size.width * progress.value) {
-            drawPath(path, IteraColors.Accent, style = Stroke(width = 1.5.dp.toPx()))
+            drawPath(path, IteraColors.Accent, style = Stroke(width = 2.dp.toPx()))
         }
 
-        val maxIndex = points.indexOfFirst { it.value == maxV }
-        points.indices.forEach { i ->
-            val p = pointAt(i)
-            if (i == maxIndex) {
-                drawCircle(IteraColors.Accent, radius = 3.5.dp.toPx(), center = p)
-            } else {
-                drawCircle(IteraColors.Background, radius = 3.dp.toPx(), center = p)
-                drawCircle(IteraColors.Accent, radius = 3.dp.toPx(), center = p, style = Stroke(width = 1.5.dp.toPx()))
+        points.forEachIndexed { i, pt ->
+            val x = pad + w * i / (points.size - 1)
+            val y = pad + h * (1f - (pt.value - minV) / range)
+            if (x <= size.width * progress.value) {
+                drawCircle(IteraColors.Accent, 3.dp.toPx(), Offset(x, y))
             }
         }
     }
