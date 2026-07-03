@@ -94,9 +94,16 @@ class StatisticsViewModel @Inject constructor(
             TopMovementRecord(
                 exerciseId = record.exerciseId,
                 exerciseName = nameMap[record.exerciseId] ?: "—",
-                displayValue = if (record.hasWeight) "${formatKg(record.estimated1RmKg)} kg"
-                else "${record.maxReps} reps",
-                displayLabel = if (record.hasWeight) "1RM EST" else "MÁX REPS"
+                displayValue = when {
+                    record.isCardio -> "${record.maxDurationSeconds / 60} min"
+                    record.hasWeight -> "${formatKg(record.estimated1RmKg)} kg"
+                    else -> "${record.maxReps} reps"
+                },
+                displayLabel = when {
+                    record.isCardio -> "MÁX DURACIÓN"
+                    record.hasWeight -> "1RM EST"
+                    else -> "MÁX REPS"
+                }
             )
         }
     }

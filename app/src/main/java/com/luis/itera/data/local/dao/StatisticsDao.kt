@@ -29,7 +29,9 @@ data class TopExerciseRecord(
     val maxWeightKg: Float,
     val estimated1RmKg: Float,
     val maxReps: Int,
-    val hasWeight: Boolean
+    val maxDurationSeconds: Int,
+    val hasWeight: Boolean,
+    val isCardio: Boolean
 )
 
 @Dao
@@ -115,7 +117,8 @@ interface StatisticsDao {
 
     @Query("""
     SELECT s.sessionId AS sessionId, ses.dateEpochDay AS dateEpochDay,
-           SUM(s.reps) AS volumeKg
+           CASE WHEN SUM(s.durationSeconds) > 0 THEN SUM(s.durationSeconds) / 60
+                ELSE SUM(s.reps) END AS volumeKg
     FROM sets s
     INNER JOIN sessions ses ON ses.id = s.sessionId
     WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1
@@ -140,7 +143,9 @@ interface StatisticsDao {
            MAX(s.weightAddedKg) AS maxWeightKg,
            MAX(s.weightAddedKg * (1.0 + s.reps / 30.0)) AS estimated1RmKg,
            MAX(s.reps) AS maxReps,
-           CASE WHEN MAX(s.weightAddedKg) > 0 THEN 1 ELSE 0 END AS hasWeight
+           MAX(s.durationSeconds) AS maxDurationSeconds,
+           CASE WHEN MAX(s.weightAddedKg) > 0 THEN 1 ELSE 0 END AS hasWeight,
+           CASE WHEN MAX(s.durationSeconds) > 0 THEN 1 ELSE 0 END AS isCardio
     FROM sets s
     INNER JOIN sessions ses ON ses.id = s.sessionId
     WHERE ses.isFinished = 1

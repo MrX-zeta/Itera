@@ -153,13 +153,24 @@ private fun ExerciseBlock(
                     color = IteraColors.TextSecondary
                 )
                 Text(
-                    text = "${set.reps} reps",
+                    text = when {
+                        set.durationSeconds > 0 -> "${set.durationSeconds / 60} min"
+                        else -> "${set.reps} reps"
+                    },
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = if (set.weightAddedKg > 0f) "+${set.weightAddedKg} kg" else "corporal",
+                    text = when {
+                        set.durationSeconds > 0 && set.intensity > 0 -> "nivel ${set.intensity}"
+                        set.weightAddedKg > 0f -> "+${set.weightAddedKg} kg"
+                        else -> "corporal"
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (set.weightAddedKg > 0f) IteraColors.Accent else IteraColors.TextSecondary
+                    color = when {
+                        set.durationSeconds > 0 -> IteraColors.Accent
+                        set.weightAddedKg > 0f -> IteraColors.Accent
+                        else -> IteraColors.TextSecondary
+                    }
                 )
                 Icon(
                     imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
