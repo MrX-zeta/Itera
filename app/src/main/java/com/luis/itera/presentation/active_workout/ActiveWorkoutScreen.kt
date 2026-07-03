@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
@@ -119,12 +122,14 @@ private fun HomeContent(
     onHydrationClick: () -> Unit
 ) {
     val hasSelection = state.selectedFocuses.isNotEmpty()
+    val focusManager = LocalFocusManager.current
 
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
-            .padding(top = 32.dp, bottom = 16.dp)
+            .statusBarsPadding()
+            .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
+            .padding(16.dp)
     ) {
         Row(
             Modifier.fillMaxWidth(),
@@ -352,11 +357,13 @@ private fun ActiveSessionContent(
 ) {
     var searchExpanded by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
 
     Column(
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
+            .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
             .padding(16.dp)
     ) {
         Row(

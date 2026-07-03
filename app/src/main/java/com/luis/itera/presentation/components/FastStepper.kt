@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -51,11 +52,10 @@ fun FastStepper(
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     var editing by remember { mutableStateOf(false) }
-    var textValue by remember(editing) { mutableStateOf("") }
-
+    var hasGainedFocus by remember { mutableStateOf(false) }
     val displayText = if (value % 1f == 0f) value.toInt().toString() else "%.1f".format(value)
+    var textValue by remember(editing) { mutableStateOf(displayText) }
 
-    // Función interna para guardar el input manual
     val saveManualInput = {
         val parsed = textValue.toFloatOrNull()
         if (parsed != null) {
@@ -63,6 +63,7 @@ fun FastStepper(
             else onDelta(parsed - value)
         }
         editing = false
+        hasGainedFocus = false
         focusManager.clearFocus()
     }
 
@@ -81,7 +82,6 @@ fun FastStepper(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // BOTÓN MENOS (Corregido)
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -103,7 +103,6 @@ fun FastStepper(
                 Text("−", style = MaterialTheme.typography.titleLarge, color = IteraColors.TextSecondary)
             }
 
-            // INPUT CENTRAL (Corregido)
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
@@ -112,12 +111,25 @@ fun FastStepper(
                     BasicTextField(
                         value = textValue,
                         onValueChange = { input ->
-                            // Permite números y un solo punto decimal
-                            if (input.isEmpty() || input.matches(Regex("^\\d*\\.?\\d*\$"))) {
+                            if (input.isEmpty() || input.matches(Regex("^\\d*\\.?\\d*$"))) {
                                 textValue = input
                             }
                         },
-                        modifier = Modifier.focusRequester(focusRequester),
+                        modifier = Modifier
+                            .focusRequester(focusRequester)
+                            .onFocusChanged { state ->
+                                if (state.isFocused) {
+                                    hasGainedFocus = true
+                                } else if (editing && hasGainedFocus) {
+                                    val parsed = textValue.toFloatOrNull()
+                                    if (parsed != null) {
+                                        if (onValueSet != null) onValueSet(parsed)
+                                        else onDelta(parsed - value)
+                                    }
+                                    editing = false
+                                    hasGainedFocus = false
+                                }
+                            },
                         textStyle = TextStyle(
                             fontSize = 22.sp,
                             textAlign = TextAlign.Center,
@@ -141,15 +153,11 @@ fun FastStepper(
                         text = displayText,
                         style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp),
                         color = IteraColors.TextPrimary,
-                        modifier = Modifier.clickable {
-                            textValue = displayText
-                            editing = true
-                        }
+                        modifier = Modifier.clickable { editing = true }
                     )
                 }
             }
 
-            // BOTÓN MÁS (Corregido)
             Box(
                 modifier = Modifier
                     .size(44.dp)
