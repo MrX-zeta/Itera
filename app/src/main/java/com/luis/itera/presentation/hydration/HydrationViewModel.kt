@@ -66,8 +66,18 @@ class HydrationViewModel @Inject constructor(
 
         val filtered = allIntakes.filter { it.id !in pending }
 
+        val pendingTodayMl = allIntakes
+            .filter { it.id in pending }
+            .filter {
+                Instant.ofEpochMilli(it.dateTimeEpochMillis)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .toEpochDay() == today
+            }
+            .sumOf { it.amountMl }
+
         HydrationUiState(
-            totalMl = total,
+            totalMl = (total - pendingTodayMl).coerceAtLeast(0),
             goal = goal,
             userWeightKg = weight,
             dragDeltaMl = drag,
