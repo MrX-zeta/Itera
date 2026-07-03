@@ -469,14 +469,32 @@ private fun RangeChips(
 private fun TopMovementCard(record: TopMovementRecord, modifier: Modifier = Modifier) {
     Column(
         modifier
+            .height(110.dp)
             .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(10.dp))
-            .padding(vertical = 16.dp, horizontal = 8.dp),
+            .padding(vertical = 12.dp, horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(record.displayValue, style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp), color = IteraColors.Accent)
-        Text(record.displayLabel, style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
-        Text(record.exerciseName.uppercase(), style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary, textAlign = TextAlign.Center, maxLines = 2)
+        Text(
+            record.displayValue,
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
+            color = IteraColors.Accent
+        )
+        Text(
+            record.displayLabel,
+            style = MaterialTheme.typography.labelSmall,
+            color = IteraColors.TextSecondary
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            record.exerciseName.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = IteraColors.TextSecondary,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            minLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

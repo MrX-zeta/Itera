@@ -379,7 +379,7 @@ private fun SessionCard(
         }
         Spacer(Modifier.height(8.dp))
         displayed.forEach { (exerciseId, sets) ->
-            Column(Modifier.padding(vertical = 4.dp)) {
+            Column(Modifier.padding(vertical = 6.dp)) {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
