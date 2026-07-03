@@ -24,6 +24,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.itera.presentation.theme.IteraColors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 data class DensityPoint(
     val label: String,
@@ -47,10 +49,28 @@ fun WorkoutDensityChart(
         return
     }
 
-    val progress = remember { Animatable(0f) }
+    // 1. Dos estados de animación completamente independientes
+    val bgProgress = remember { Animatable(0f) }
+    val fgProgress = remember { Animatable(0f) }
+
     LaunchedEffect(points) {
-        progress.snapTo(0f)
-        progress.animateTo(1f, tween(1000, easing = FastOutSlowInEasing))
+        bgProgress.snapTo(0f)
+        fgProgress.snapTo(0f)
+
+        // 2. Fase de Entrada: Salen casi juntas
+        launch {
+            // La barra opaca (total) se va directo al 100% de su tamaño
+            bgProgress.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+        }
+
+        // La barra cyan fuerte llega simulando el valor "anterior" (75% de su tamaño total)
+        fgProgress.animateTo(0.75f, tween(700, easing = FastOutSlowInEasing))
+
+        // 3. Fase de Pausa: Se mantiene un instante para que el ojo lo procese
+        delay(200)
+
+        // 4. Fase de Actualización: Da el estirón final hasta su valor real (100%)
+        fgProgress.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
     }
 
     val textMeasurer = rememberTextMeasurer()
@@ -70,20 +90,41 @@ fun WorkoutDensityChart(
         points.forEachIndexed { i, pt ->
             val cy = slot * i + slot / 2f
             val total = (pt.workSeconds + pt.restSeconds).toFloat()
-            val totalW = (total / maxTotal) * barArea * progress.value
-            val workW = if (total > 0) (pt.workSeconds / total) * totalW else 0f
+
+            // 5. Matemáticas separadas para que cada barra respete su propia animación
+            val maxBarW = (total / maxTotal) * barArea
+            val maxWorkW = if (total > 0) (pt.workSeconds / total) * maxBarW else 0f
+
+            val currentBgW = maxBarW * bgProgress.value
+            val currentFgW = maxWorkW * fgProgress.value
 
             val label = textMeasurer.measure(pt.label, labelStyle)
             drawText(label, topLeft = Offset(0f, cy - label.size.height / 2f))
 
-            if (totalW > 0) {
-                drawRoundRect(Color(0xFF1A3A35), Offset(labelW, cy - barH / 2f), Size(totalW, barH), r)
-                if (workW > 0) drawRoundRect(IteraColors.Accent, Offset(labelW, cy - barH / 2f), Size(workW, barH), r)
+            if (currentBgW > 0) {
+                // Dibujo de la barra opaca
+                drawRoundRect(
+                    color = Color(0xFF1A3A35),
+                    topLeft = Offset(labelW, cy - barH / 2f),
+                    size = Size(currentBgW, barH),
+                    cornerRadius = r
+                )
+
+                // Dibujo de la barra cyan fuerte
+                if (currentFgW > 0) {
+                    drawRoundRect(
+                        color = IteraColors.Accent,
+                        topLeft = Offset(labelW, cy - barH / 2f),
+                        size = Size(currentFgW, barH),
+                        cornerRadius = r
+                    )
+                }
             }
 
+            // El texto de los minutos se desliza suavemente junto con la barra opaca
             val mins = "${(total / 60).toInt()}m"
             val vm = textMeasurer.measure(mins, valueStyle)
-            drawText(vm, topLeft = Offset(labelW + totalW + 6.dp.toPx(), cy - vm.size.height / 2f))
+            drawText(vm, topLeft = Offset(labelW + currentBgW + 6.dp.toPx(), cy - vm.size.height / 2f))
         }
     }
 }
