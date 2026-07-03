@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -61,6 +62,7 @@ fun StatisticsScreen(
         Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .navigationBarsPadding()
     ) {
         item {
             Text(
@@ -437,12 +439,14 @@ private fun RangeChips(
 @Composable
 private fun TopMovementCard(record: TopMovementRecord, modifier: Modifier = Modifier) {
     Column(
-        modifier.border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(10.dp)).padding(vertical = 12.dp, horizontal = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier
+            .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(10.dp))
+            .padding(vertical = 16.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(record.displayValue, style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp), color = IteraColors.Accent)
         Text(record.displayLabel, style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
-        Spacer(Modifier.height(4.dp))
         Text(record.exerciseName.uppercase(), style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary, textAlign = TextAlign.Center, maxLines = 2)
     }
 }

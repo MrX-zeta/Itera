@@ -62,7 +62,7 @@ class StatisticsRepositoryImpl @Inject constructor(
     override fun getAllTrainedDays(): Flow<List<Long>> =
         statisticsDao.getAllTrainedDays()
 
-    override suspend fun getMostTrainedExerciseId(): Long? =
+    override fun getMostTrainedExerciseId(): Flow<Long?> =
         statisticsDao.getMostTrainedExerciseId()
 
     override fun getTopExercises(limit: Int): Flow<List<TopExerciseRecord>> =

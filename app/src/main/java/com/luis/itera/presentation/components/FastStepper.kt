@@ -4,6 +4,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -38,7 +38,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.itera.presentation.theme.IteraColors
-import kotlinx.coroutines.delay
 
 @Composable
 fun FastStepper(
@@ -52,12 +51,23 @@ fun FastStepper(
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     var editing by remember { mutableStateOf(false) }
-    var textValue by remember { mutableStateOf("") }
+    var textValue by remember(editing) { mutableStateOf("") }
 
     val displayText = if (value % 1f == 0f) value.toInt().toString() else "%.1f".format(value)
 
+    // Función interna para guardar el input manual
+    val saveManualInput = {
+        val parsed = textValue.toFloatOrNull()
+        if (parsed != null) {
+            if (onValueSet != null) onValueSet(parsed)
+            else onDelta(parsed - value)
+        }
+        editing = false
+        focusManager.clearFocus()
+    }
+
     Column(
-        modifier
+        modifier = modifier
             .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -71,25 +81,29 @@ fun FastStepper(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
+            // BOTÓN MENOS (Corregido)
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onDelta(-1f)
-                    }
                     .pointerInput(Unit) {
-                        detectTapGestures(onLongPress = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onDelta(-5f)
-                        })
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onDelta(-1f)
+                            },
+                            onLongPress = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onDelta(-5f)
+                            }
+                        )
                     },
                 contentAlignment = Alignment.Center
             ) {
                 Text("−", style = MaterialTheme.typography.titleLarge, color = IteraColors.TextSecondary)
             }
 
+            // INPUT CENTRAL (Corregido)
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
@@ -98,16 +112,12 @@ fun FastStepper(
                     BasicTextField(
                         value = textValue,
                         onValueChange = { input ->
-                            textValue = input.filter { it.isDigit() || it == '.' }
+                            // Permite números y un solo punto decimal
+                            if (input.isEmpty() || input.matches(Regex("^\\d*\\.?\\d*\$"))) {
+                                textValue = input
+                            }
                         },
-                        modifier = Modifier
-                            .focusRequester(focusRequester)
-                            .onFocusChanged { state ->
-                                if (!state.isFocused && editing) {
-                                    editing = false
-                                    textValue.toFloatOrNull()?.let { onValueSet?.invoke(it) ?: onDelta(it - value) }
-                                }
-                            },
+                        modifier = Modifier.focusRequester(focusRequester),
                         textStyle = TextStyle(
                             fontSize = 22.sp,
                             textAlign = TextAlign.Center,
@@ -119,7 +129,9 @@ fun FastStepper(
                             keyboardType = if (label == "REPS") KeyboardType.Number else KeyboardType.Decimal,
                             imeAction = ImeAction.Done
                         ),
-                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
+                        keyboardActions = KeyboardActions(
+                            onDone = { saveManualInput() }
+                        )
                     )
                     LaunchedEffect(Unit) {
                         focusRequester.requestFocus()
@@ -137,19 +149,22 @@ fun FastStepper(
                 }
             }
 
+            // BOTÓN MÁS (Corregido)
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onDelta(1f)
-                    }
                     .pointerInput(Unit) {
-                        detectTapGestures(onLongPress = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onDelta(5f)
-                        })
+                        detectTapGestures(
+                            onTap = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onDelta(1f)
+                            },
+                            onLongPress = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onDelta(5f)
+                            }
+                        )
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -157,16 +172,4 @@ fun FastStepper(
             }
         }
     }
-}
-
-@Composable
-private fun Column(
-    modifier: Modifier,
-    horizontalAlignment: Alignment.Horizontal,
-    content: @Composable () -> Unit
-) {
-    androidx.compose.foundation.layout.Column(
-        modifier = modifier,
-        horizontalAlignment = horizontalAlignment
-    ) { content() }
 }

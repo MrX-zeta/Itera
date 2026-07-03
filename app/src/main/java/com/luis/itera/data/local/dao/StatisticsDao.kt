@@ -98,7 +98,7 @@ interface StatisticsDao {
         ORDER BY COUNT(s.id) DESC
         LIMIT 1
     """)
-    suspend fun getMostTrainedExerciseId(): Long?
+    fun getMostTrainedExerciseId(): Flow<Long?>
 
     @Query("""
     SELECT s.sessionId AS sessionId, ses.dateEpochDay AS dateEpochDay,

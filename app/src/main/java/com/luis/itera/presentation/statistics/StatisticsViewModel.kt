@@ -108,7 +108,15 @@ class StatisticsViewModel @Inject constructor(
         if (group == null) exercises else exercises.filter { it.mainMuscleGroup == group }
     }
 
-    private val series = combine(selectedExercise, range) { exercise, r -> exercise to r }
+    private val defaultExercise = combine(
+        statisticsRepository.getMostTrainedExerciseId(),
+        exerciseRepository.getAll(),
+        selectedExercise
+    ) { defaultId, exercises, manual ->
+        manual ?: defaultId?.let { id -> exercises.find { it.id == id } }
+    }
+
+    private val series = combine(defaultExercise, range) { exercise, r -> exercise to r }
         .flatMapLatest { (exercise, r) ->
             if (exercise == null) flowOf(SeriesBundle())
             else {
@@ -134,7 +142,7 @@ class StatisticsViewModel @Inject constructor(
         summary,
         topMovements,
         filteredExercises,
-        combine(selectedExercise, selectedGroup, range) { e, g, r -> Triple(e, g, r) },
+        combine(defaultExercise, selectedGroup, range) { e, g, r -> Triple(e, g, r) },
         series
     ) { summaryData, topMov, exercises, selection, seriesData ->
         StatisticsUiState(
@@ -151,14 +159,6 @@ class StatisticsViewModel @Inject constructor(
             isBodyweightMode = seriesData.isBodyweight
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsUiState())
-
-    init {
-        viewModelScope.launch {
-            val defaultId = statisticsRepository.getMostTrainedExerciseId() ?: return@launch
-            val exercise = exerciseRepository.getAll().first().find { it.id == defaultId }
-            if (selectedExercise.value == null) selectedExercise.value = exercise
-        }
-    }
 
     fun onExerciseSelected(exercise: Exercise) { selectedExercise.value = exercise }
     fun onGroupSelected(group: String?) { selectedGroup.value = if (selectedGroup.value == group) null else group }
