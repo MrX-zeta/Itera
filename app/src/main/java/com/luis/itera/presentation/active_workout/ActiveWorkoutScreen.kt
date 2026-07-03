@@ -66,6 +66,13 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 
 private val homeDateFormatter = DateTimeFormatter.ofPattern("EEEE dd MMMM", Locale("es"))
 
@@ -127,10 +134,9 @@ private fun HomeContent(
     Column(
         Modifier
             .fillMaxSize()
-            .statusBarsPadding()
-            .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
-            .padding(16.dp)
-    ) {
+            .padding(horizontal = 16.dp)
+            .padding(top = 32.dp, bottom = 16.dp)
+    ){
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -363,9 +369,10 @@ private fun ActiveSessionContent(
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
+            .imePadding()
             .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
             .padding(16.dp)
-    ) {
+    ){
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

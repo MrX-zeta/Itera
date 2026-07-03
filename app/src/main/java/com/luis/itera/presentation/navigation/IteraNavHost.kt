@@ -5,6 +5,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -120,11 +122,14 @@ fun IteraNavHost() {
                 }
             }
         }
-    ) { padding ->
+    ) { paddingValues ->
         NavHost(
             navController = navController,
             startDestination = IteraDestination.ActiveWorkout.route,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .consumeWindowInsets(paddingValues),
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() }
         ) {
