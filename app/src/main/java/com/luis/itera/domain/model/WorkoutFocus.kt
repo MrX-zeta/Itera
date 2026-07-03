@@ -7,7 +7,7 @@ enum class WorkoutFocus(val label: String, val muscleGroups: Set<String>) {
     UPPER("UPPER", setOf("Pecho", "Espalda", "Hombros", "Bíceps", "Tríceps", "Antebrazo", "Trapecios")),
     LOWER("LOWER", setOf("Piernas", "Femoral", "Gastrocnemio")),
     FULL_BODY("FULL BODY", setOf("Pecho", "Espalda", "Hombros", "Bíceps", "Tríceps", "Antebrazo", "Trapecios", "Piernas", "Femoral", "Gastrocnemio")),
-    CARDIO("CARDIO", emptySet());
+    CARDIO("CARDIO", setOf("Cardio"));
 
     fun conflictsWith(other: WorkoutFocus): Boolean = when {
         this == FULL_BODY || other == FULL_BODY -> true

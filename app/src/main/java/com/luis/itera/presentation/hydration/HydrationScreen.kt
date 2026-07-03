@@ -51,6 +51,11 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.atan2
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 
 private val quickAmounts = listOf(250 to "VASO", 500 to "BOTELLA", 1000 to "LITRO")
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -178,9 +183,21 @@ private fun DraggableProgressRing(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    var triggerAnimation by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { triggerAnimation = true }
+
+    val targetProgress = when {
+        isDragging -> progress
+        triggerAnimation -> progress
+        else -> 0f
+    }
     val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = if (isDragging) 0 else 600),
+        targetValue = targetProgress,
+        animationSpec = tween(
+            durationMillis = if (isDragging) 0 else 1000,
+            easing = FastOutSlowInEasing
+        ),
         label = "hydration_progress"
     )
 

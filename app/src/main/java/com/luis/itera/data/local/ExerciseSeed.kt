@@ -63,7 +63,10 @@ object ExerciseSeed {
         ExerciseEntity(name = "Curl femoral acostado", category = "Gimnasio", equipment = "Máquina", mainMuscleGroup = "Femoral"),
         ExerciseEntity(name = "Costurera", category = "Gimnasio", equipment = "Máquina", mainMuscleGroup = "Gastrocnemio"),
 
-        ExerciseEntity(name = "Carrera continua", category = "Cardio", equipment = "Peso Corporal", mainMuscleGroup = "Piernas"),
-        ExerciseEntity(name = "Cuerda (saltos)", category = "Cardio", equipment = "Peso Corporal", mainMuscleGroup = "Piernas")
+        ExerciseEntity(name = "Carrera continua", category = "Cardio", equipment = "Ninguno", mainMuscleGroup = "Cardio"),
+        ExerciseEntity(name = "Saltar cuerda", category = "Cardio", equipment = "Cuerda", mainMuscleGroup = "Cardio"),
+        ExerciseEntity(name = "Burpees", category = "Cardio", equipment = "Ninguno", mainMuscleGroup = "Cardio"),
+        ExerciseEntity(name = "Trote suave", category = "Cardio", equipment = "Ninguno", mainMuscleGroup = "Cardio"),
+
     )
 }
