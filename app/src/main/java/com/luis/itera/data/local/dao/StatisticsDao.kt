@@ -174,4 +174,13 @@ interface StatisticsDao {
     LIMIT 10
 """)
     fun getWorkoutDensity(fromEpochDay: Long): Flow<List<DensityRow>>
+
+    @Query("""
+    SELECT s.exerciseId FROM sets s
+    INNER JOIN sessions ses ON ses.id = s.sessionId
+    WHERE ses.isFinished = 1
+    ORDER BY ses.dateEpochDay DESC, s.id DESC
+    LIMIT 1
+""")
+    fun getLastExercisedId(): Flow<Long?>
 }

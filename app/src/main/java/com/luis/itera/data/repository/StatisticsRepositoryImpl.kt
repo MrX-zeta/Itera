@@ -71,4 +71,7 @@ class StatisticsRepositoryImpl @Inject constructor(
 
     override fun getWorkoutDensity(fromEpochDay: Long): Flow<List<DensityRow>> =
         statisticsDao.getWorkoutDensity(fromEpochDay)
+
+    override fun getLastExercisedId(): Flow<Long?> =
+        statisticsDao.getLastExercisedId()
 }

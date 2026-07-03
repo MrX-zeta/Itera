@@ -118,7 +118,7 @@ fun FastStepper(
                         value = textValue,
                         onValueChange = { input ->
                             if (input.isEmpty() || input.matches(Regex("^\\d*\\.?\\d*$"))) {
-                                textValue = input
+                                textValue = input.trimStart('0').ifEmpty { if (input.contains('.')) "0" else "" }
                             }
                         },
                         modifier = Modifier

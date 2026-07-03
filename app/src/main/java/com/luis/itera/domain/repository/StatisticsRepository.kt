@@ -20,4 +20,6 @@ interface StatisticsRepository {
     fun getTopExercises(limit: Int = 3): Flow<List<TopExerciseRecord>>
 
     fun getWorkoutDensity(fromEpochDay: Long): Flow<List<DensityRow>>
+
+    fun getLastExercisedId(): Flow<Long?>
 }

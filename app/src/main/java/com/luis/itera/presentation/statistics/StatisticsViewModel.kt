@@ -76,7 +76,8 @@ class StatisticsViewModel @Inject constructor(
 
     val muscleGroups = listOf(
         "Pecho", "Espalda", "Hombros", "Bíceps", "Tríceps",
-        "Antebrazo", "Trapecios", "Piernas", "Femoral", "Gastrocnemio"
+        "Antebrazo", "Trapecios", "Piernas", "Femoral", "Gastrocnemio",
+        "Cardio"
     )
 
     private val monthStart = LocalDate.now().withDayOfMonth(1).toEpochDay()
@@ -121,11 +122,11 @@ class StatisticsViewModel @Inject constructor(
     }
 
     private val defaultExercise = combine(
-        statisticsRepository.getMostTrainedExerciseId(),
+        statisticsRepository.getLastExercisedId(),
         exerciseRepository.getAll(),
         selectedExercise
-    ) { defaultId, exercises, manual ->
-        manual ?: defaultId?.let { id -> exercises.find { it.id == id } }
+    ) { lastId, exercises, manual ->
+        manual ?: lastId?.let { id -> exercises.find { it.id == id } }
     }
 
     private val series = combine(defaultExercise, range) { exercise, r -> exercise to r }
