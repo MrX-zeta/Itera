@@ -53,12 +53,18 @@ fun FastStepper(
     val focusRequester = remember { FocusRequester() }
     var editing by remember { mutableStateOf(false) }
     var hasGainedFocus by remember { mutableStateOf(false) }
-    val displayText = if (value % 1f == 0f) value.toInt().toString() else "%.1f".format(value)
+    var optimisticValue by remember { mutableStateOf<Float?>(null) }
+
+    LaunchedEffect(value) { optimisticValue = null }
+
+    val currentDisplayValue = optimisticValue ?: value
+    val displayText = if (currentDisplayValue % 1f == 0f) currentDisplayValue.toInt().toString() else "%.1f".format(currentDisplayValue)
     var textValue by remember(editing) { mutableStateOf(displayText) }
 
     val saveManualInput = {
         val parsed = textValue.toFloatOrNull()
         if (parsed != null) {
+            optimisticValue = parsed
             if (onValueSet != null) onValueSet(parsed)
             else onDelta(parsed - value)
         }
@@ -123,6 +129,7 @@ fun FastStepper(
                                 } else if (editing && hasGainedFocus) {
                                     val parsed = textValue.toFloatOrNull()
                                     if (parsed != null) {
+                                        optimisticValue = parsed
                                         if (onValueSet != null) onValueSet(parsed)
                                         else onDelta(parsed - value)
                                     }
@@ -145,9 +152,7 @@ fun FastStepper(
                             onDone = { saveManualInput() }
                         )
                     )
-                    LaunchedEffect(Unit) {
-                        focusRequester.requestFocus()
-                    }
+                    LaunchedEffect(Unit) { focusRequester.requestFocus() }
                 } else {
                     Text(
                         text = displayText,
