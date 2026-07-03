@@ -177,9 +177,7 @@ interface StatisticsDao {
 
     @Query("""
     SELECT s.exerciseId FROM sets s
-    INNER JOIN sessions ses ON ses.id = s.sessionId
-    WHERE ses.isFinished = 1
-    ORDER BY ses.dateEpochDay DESC, s.id DESC
+    ORDER BY s.id DESC
     LIMIT 1
 """)
     fun getLastExercisedId(): Flow<Long?>
