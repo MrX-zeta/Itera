@@ -1,5 +1,8 @@
 package com.luis.itera.presentation.navigation
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
@@ -12,7 +15,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
@@ -44,8 +49,10 @@ private val navItems = listOf(
 )
 
 private fun IteraDestination.ownsRoute(route: String?): Boolean = when (this) {
+    IteraDestination.ActiveWorkout ->
+        route == IteraDestination.ActiveWorkout.route || route == IteraDestination.SessionDetail.route
     IteraDestination.History ->
-        route == IteraDestination.History.route || route == IteraDestination.SessionDetail.route
+        route == IteraDestination.History.route
     else -> route == this.route
 }
 
@@ -63,9 +70,29 @@ fun IteraNavHost() {
                 tonalElevation = 0.dp
             ) {
                 navItems.forEach { item ->
+                    val selected = item.destination.ownsRoute(currentRoute)
+                    val iconScale by animateFloatAsState(
+                        targetValue = if (selected) 1.15f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        label = "tab_scale"
+                    )
+                    val iconAlpha by animateFloatAsState(
+                        targetValue = if (selected) 1f else 0.6f,
+                        label = "tab_alpha"
+                    )
+
                     NavigationBarItem(
-                        selected = item.destination.ownsRoute(currentRoute),
+                        selected = selected,
                         onClick = {
+                            if (currentRoute == IteraDestination.SessionDetail.route) {
+                                navController.popBackStack(
+                                    route = item.destination.route,
+                                    inclusive = false
+                                )
+                            }
                             navController.navigate(item.destination.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
@@ -78,7 +105,10 @@ fun IteraNavHost() {
                             Icon(
                                 imageVector = ImageVector.vectorResource(item.iconRes),
                                 contentDescription = item.destination.route,
-                                modifier = Modifier.size(30.dp)
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .scale(iconScale)
+                                    .graphicsLayer { alpha = iconAlpha }
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
@@ -122,6 +152,7 @@ fun IteraNavHost() {
                     }
                 )
             }
+            composable(IteraDestination.Statistics.route) { StatisticsScreen() }
             composable(IteraDestination.Hydration.route) { HydrationScreen() }
             composable(
                 route = IteraDestination.SessionDetail.route,
@@ -131,7 +162,6 @@ fun IteraNavHost() {
             ) {
                 SessionDetailScreen(onBack = { navController.popBackStack() })
             }
-            composable(IteraDestination.Statistics.route) { StatisticsScreen() }
         }
     }
 }

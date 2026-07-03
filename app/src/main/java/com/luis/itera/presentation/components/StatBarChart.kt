@@ -1,12 +1,13 @@
 package com.luis.itera.presentation.components
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -20,11 +21,11 @@ fun StatBarChart(
     points: List<ExerciseSeriesPoint>,
     modifier: Modifier = Modifier
 ) {
-    val progress by animateFloatAsState(
-        targetValue = if (points.isEmpty()) 0f else 1f,
-        animationSpec = tween(600),
-        label = "bar_progress"
-    )
+    val progress = remember(points) { Animatable(0f) }
+    LaunchedEffect(points) {
+        progress.snapTo(0f)
+        progress.animateTo(1f, tween(600))
+    }
 
     Canvas(
         modifier
@@ -44,7 +45,7 @@ fun StatBarChart(
         val threshold = maxV * 0.8f
 
         points.forEachIndexed { i, point ->
-            val barHeight = chartHeight * (point.value / maxV) * progress
+            val barHeight = chartHeight * (point.value / maxV) * progress.value
             val left = slot * i + (slot - barWidth) / 2
             val topLeft = Offset(left, baseline - barHeight)
             val barSize = Size(barWidth, barHeight)

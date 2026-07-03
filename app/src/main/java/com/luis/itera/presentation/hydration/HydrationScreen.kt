@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,9 +26,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -34,14 +38,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.theme.IteraColors
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.ui.geometry.Offset
+import java.util.Locale
 import kotlin.math.atan2
 
 private val quickAmounts = listOf(250 to "VASO", 500 to "BOTELLA", 1000 to "LITRO")
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+private val dayFormatter = DateTimeFormatter.ofPattern("EEEE dd MMM", Locale("es"))
 private const val ML_PER_TURN = 3500f
 private const val DRAG_STEP_ML = 50
 
@@ -54,11 +59,12 @@ fun HydrationScreen(
     Column(
         Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(16.dp)
     ) {
         Text(
             text = "HIDRATACIÓN · HOY",
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
             color = IteraColors.TextSecondary
         )
         state.goal?.takeIf { it.isActiveDay }?.let {
@@ -79,7 +85,6 @@ fun HydrationScreen(
             onDragEnd = viewModel::onDragEnd,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
-
         Spacer(Modifier.height(24.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -92,40 +97,56 @@ fun HydrationScreen(
                 )
             }
         }
-
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
 
         Text(
             text = "REGISTRO",
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
             color = IteraColors.TextSecondary
         )
         Spacer(Modifier.height(8.dp))
+
         LazyColumn(Modifier.weight(1f)) {
-            items(state.intakes, key = { it.id }) { intake ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = Instant.ofEpochMilli(intake.dateTimeEpochMillis)
-                            .atZone(ZoneId.systemDefault())
-                            .format(timeFormatter),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = IteraColors.TextSecondary
-                    )
-                    Text(
-                        text = "${if (intake.amountMl >= 0) "+" else ""}${intake.amountMl} ml",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (intake.amountMl >= 0) IteraColors.TextPrimary
-                        else IteraColors.TextSecondary
-                    )
+            state.intakesByDay
+                .toSortedMap(compareByDescending { it })
+                .forEach { (epochDay, dayIntakes) ->
+                    item(key = "day_$epochDay") {
+                        Text(
+                            text = LocalDate.ofEpochDay(epochDay).format(dayFormatter)
+                                .replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                            color = IteraColors.TextSecondary,
+                            modifier = Modifier.padding(vertical = 6.dp)
+                        )
+                    }
+                    items(
+                        items = dayIntakes.sortedByDescending { it.dateTimeEpochMillis },
+                        key = { "intake_${it.id}" }
+                    ) { intake ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = Instant.ofEpochMilli(intake.dateTimeEpochMillis)
+                                    .atZone(ZoneId.systemDefault())
+                                    .format(timeFormatter),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = IteraColors.TextSecondary
+                            )
+                            Text(
+                                text = "${if (intake.amountMl >= 0) "+" else ""}${intake.amountMl} ml",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (intake.amountMl >= 0) IteraColors.TextPrimary else IteraColors.Error
+                            )
+                        }
+                    }
                 }
-            }
         }
         Spacer(Modifier.height(12.dp))
+
         FastStepper(
             label = "PESO CORPORAL (KG)",
             value = state.userWeightKg,
@@ -195,7 +216,7 @@ private fun DraggableProgressRing(
         CircularProgressIndicator(
             progress = { 1f },
             modifier = Modifier.fillMaxSize(),
-            color = IteraColors.Border,
+            color = IteraColors.BorderStrong,
             strokeWidth = 4.dp
         )
         CircularProgressIndicator(
@@ -240,7 +261,7 @@ private fun QuickAmountButton(
 ) {
     Column(
         modifier = modifier
-            .border(1.dp, IteraColors.Border, RoundedCornerShape(10.dp))
+            .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally

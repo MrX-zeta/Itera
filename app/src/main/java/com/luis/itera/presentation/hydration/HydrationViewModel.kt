@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 
 data class HydrationUiState(
@@ -22,7 +24,8 @@ data class HydrationUiState(
     val goal: DailyHydrationGoal? = null,
     val intakes: List<HydrationIntake> = emptyList(),
     val userWeightKg: Float = 0f,
-    val dragDeltaMl: Int = 0
+    val dragDeltaMl: Int = 0,
+    val intakesByDay: Map<Long, List<HydrationIntake>> = emptyMap()
 ) {
     val displayTotalMl: Int
         get() = (totalMl + dragDeltaMl).coerceAtLeast(0)
@@ -54,7 +57,13 @@ class HydrationViewModel @Inject constructor(
             goal = goal,
             intakes = intakes,
             userWeightKg = weight,
-            dragDeltaMl = drag
+            dragDeltaMl = drag,
+            intakesByDay = intakes.groupBy {
+                Instant.ofEpochMilli(it.dateTimeEpochMillis)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .toEpochDay()
+            }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HydrationUiState())
 
@@ -87,5 +96,4 @@ class HydrationViewModel @Inject constructor(
             calculateHydrationGoal(today)
         }
     }
-
 }

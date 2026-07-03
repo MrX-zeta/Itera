@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -50,6 +51,7 @@ fun SessionDetailScreen(
     Column(
         Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(16.dp)
     ) {
         Row(
@@ -65,7 +67,7 @@ fun SessionDetailScreen(
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${session.durationMinutes} min",
+                    text = if (session.isFinished) "${session.durationMinutes} min" else "EN CURSO",
                     style = MaterialTheme.typography.bodySmall,
                     color = IteraColors.Accent
                 )
@@ -79,7 +81,7 @@ fun SessionDetailScreen(
                 )
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
 
         Text(
             text = LocalDate.ofEpochDay(session.dateEpochDay).format(dateFormatter)
@@ -87,20 +89,22 @@ fun SessionDetailScreen(
             style = MaterialTheme.typography.headlineSmall
         )
         WorkoutFocus.fromStored(session.focus).takeIf { it.isNotEmpty() }?.let { focuses ->
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = focuses.joinToString(" · ") { it.label },
                 style = MaterialTheme.typography.bodySmall,
                 color = IteraColors.Accent
             )
         }
+        Spacer(Modifier.height(4.dp))
         Text(
             text = "${session.sets.size} sets totales",
             style = MaterialTheme.typography.bodySmall,
             color = IteraColors.TextSecondary
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             session.sets
                 .groupBy { it.exerciseId }
                 .forEach { (exerciseId, sets) ->
@@ -125,16 +129,16 @@ private fun ExerciseBlock(
     Column(
         Modifier
             .fillMaxWidth()
-            .border(1.dp, IteraColors.Border, RoundedCornerShape(12.dp))
-            .padding(12.dp)
+            .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(12.dp))
+            .padding(14.dp)
     ) {
         Text(text = name, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
         sets.sortedBy { it.order }.forEach { set ->
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 3.dp),
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -150,8 +154,7 @@ private fun ExerciseBlock(
                 Text(
                     text = if (set.weightAddedKg > 0f) "+${set.weightAddedKg} kg" else "corporal",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (set.weightAddedKg > 0f) IteraColors.Accent
-                    else IteraColors.TextSecondary
+                    color = if (set.weightAddedKg > 0f) IteraColors.Accent else IteraColors.TextSecondary
                 )
                 Icon(
                     imageVector = ImageVector.vectorResource(R.drawable.ic_trash),
