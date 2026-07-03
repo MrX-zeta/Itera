@@ -14,6 +14,7 @@ import com.luis.itera.domain.repository.StatisticsRepository
 import com.luis.itera.domain.repository.UserPrefsRepository
 import com.luis.itera.domain.usecase.CalculateHydrationGoalUseCase
 import com.luis.itera.domain.usecase.CalculateWeeklyStreakUseCase
+import com.luis.itera.presentation.components.TimerState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,7 +54,9 @@ data class ActiveWorkoutUiState(
     val trainedDaysThisWeek: Set<Long> = emptySet(),
     val durationSeconds: Int = 0,
     val intensity: Int = 1,
-    val setTimerMillis: Long = 0L
+    val setTimerMillis: Long = 0L,
+    val timerPaused: Boolean = false,
+    val pausedElapsed: Long = 0L
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -63,6 +66,13 @@ data class ActiveWorkoutUiState(
             candidate !in selectedFocuses &&
                     selectedFocuses.any { it.conflictsWith(candidate) }
         }.toSet()
+
+    val timerState: TimerState
+        get() = when {
+            setTimerMillis == 0L -> TimerState.INACTIVE
+            timerPaused -> TimerState.PAUSED
+            else -> TimerState.RUNNING
+        }
 
     fun exerciseNameOf(exerciseId: Long): String =
         allExerciseNames[exerciseId] ?: "—"
@@ -74,7 +84,9 @@ private data class InputBundle(
     val startMillis: Long?,
     val durationSeconds: Int,
     val intensity: Int,
-    val setTimerMillis: Long
+    val setTimerMillis: Long,
+    val timerPaused: Boolean,
+    val pausedElapsed: Long
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -100,6 +112,8 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val durationSeconds = MutableStateFlow(0)
     private val intensity = MutableStateFlow(1)
     private val setTimerStartMillis = MutableStateFlow(0L)
+    private val timerPaused = MutableStateFlow(false)
+    private val pausedElapsed = MutableStateFlow(0L)
 
     private val _finishedSessionId = MutableStateFlow<Long?>(null)
     val finishedSessionId: StateFlow<Long?> = _finishedSessionId
@@ -147,7 +161,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             streak = calculateWeeklyStreak(trainedDays, weeklyGoal),
             hydrationProgress = goal?.totalGoalMl?.takeIf { it > 0 }
                 ?.let { (totalMl.toFloat() / it).coerceIn(0f, 1f) } ?: 0f,
-            trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet()
+            trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet(),
         )
     }
 
@@ -156,14 +170,16 @@ class ActiveWorkoutViewModel @Inject constructor(
         exercises,
         searchQuery,
         combine(selectedExercise, selectedFocuses, lastSets) { e, f, l -> Triple(e, f, l) },
-        combine(reps, weightKg, sessionStartMillis, durationSeconds, intensity, setTimerStartMillis) { args ->
+        combine(reps, weightKg, sessionStartMillis, durationSeconds, intensity, setTimerStartMillis, timerPaused, pausedElapsed) { args ->
             InputBundle(
                 reps = args[0] as Int,
                 weightKg = args[1] as Float,
                 startMillis = args[2] as Long?,
                 durationSeconds = args[3] as Int,
                 intensity = args[4] as Int,
-                setTimerMillis = args[5] as Long
+                setTimerMillis = args[5] as Long,
+                timerPaused = args[6] as Boolean,
+                pausedElapsed = args[7] as Long
             )
         },
         allExercises,
@@ -191,7 +207,9 @@ class ActiveWorkoutViewModel @Inject constructor(
             trainedDaysThisWeek = home.trainedDaysThisWeek,
             durationSeconds = inputs.durationSeconds,
             intensity = inputs.intensity,
-            setTimerMillis = inputs.setTimerMillis
+            setTimerMillis = inputs.setTimerMillis,
+            timerPaused = inputs.timerPaused,
+            pausedElapsed = inputs.pausedElapsed
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
@@ -219,6 +237,18 @@ class ActiveWorkoutViewModel @Inject constructor(
                 reps.value = last.reps
                 weightKg.value = last.weightAddedKg
             }
+        }
+    }
+
+    fun onToggleTimerPause() {
+        if (setTimerStartMillis.value == 0L) return
+        if (timerPaused.value) {
+            val now = System.currentTimeMillis()
+            setTimerStartMillis.value = now - pausedElapsed.value
+            timerPaused.value = false
+        } else {
+            pausedElapsed.value = System.currentTimeMillis() - setTimerStartMillis.value
+            timerPaused.value = true
         }
     }
 
@@ -262,12 +292,16 @@ class ActiveWorkoutViewModel @Inject constructor(
         val exercise = selectedExercise.value ?: return
         val isCardio = exercise.mainMuscleGroup.equals("Cardio", ignoreCase = true)
 
-        val restSeconds = if (setTimerStartMillis.value > 0)
-            ((now - setTimerStartMillis.value) / 1000).toInt()
-        else 0
+        val restSeconds = when {
+            setTimerStartMillis.value == 0L -> 0
+            timerPaused.value -> (pausedElapsed.value / 1000).toInt()
+            else -> ((now - setTimerStartMillis.value) / 1000).toInt()
+        }
 
         lastRegisteredSetAt.value = now
         setTimerStartMillis.value = now
+        timerPaused.value = false
+        pausedElapsed.value = 0L
 
         viewModelScope.launch {
             sessionRepository.addSet(
@@ -305,6 +339,8 @@ class ActiveWorkoutViewModel @Inject constructor(
             }
             sessionStartMillis.value = null
             setTimerStartMillis.value = 0L
+            timerPaused.value = false
+            pausedElapsed.value = 0L
             selectedExercise.value = null
             if (session.sets.isNotEmpty()) {
                 _finishedSessionId.value = session.id

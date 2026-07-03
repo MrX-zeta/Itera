@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -304,18 +305,20 @@ fun StatisticsScreen(
                             )
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Row(Modifier.horizontalScroll(rememberScrollState())) {
-                        StatBarChart(
-                            points = state.volumeSeries,
-                            modifier = Modifier.width(
-                                (state.volumeSeries.size * 32).coerceAtLeast(300).dp
-                            )
-                        )
-                    }
+                    Spacer(Modifier.height(6.dp))
+                    StatBarChart(
+                        points = state.volumeSeries,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
+            }
+            item {
                 Spacer(Modifier.height(20.dp))
-                Text("DENSIDAD", style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
+                Text(
+                    "DENSIDAD DE ENTRENAMIENTO",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = IteraColors.TextSecondary
+                )
                 Spacer(Modifier.height(10.dp))
                 WorkoutDensityChart(
                     points = state.densityPoints,

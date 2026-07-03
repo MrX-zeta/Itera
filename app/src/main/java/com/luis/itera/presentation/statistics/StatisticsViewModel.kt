@@ -8,6 +8,7 @@ import com.luis.itera.domain.model.ExerciseSeriesPoint
 import com.luis.itera.domain.model.TopMovementRecord
 import com.luis.itera.domain.model.WeeklyStreak
 import com.luis.itera.domain.model.WorkoutFocus
+import java.util.Locale
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.StatisticsRepository
 import com.luis.itera.domain.repository.UserPrefsRepository
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 enum class StatsRange(val label: String, val days: Long) {
@@ -148,13 +150,36 @@ class StatisticsViewModel @Inject constructor(
             }
         }
 
+    private val density = range.flatMapLatest { r ->
+        val from = LocalDate.now().minusDays(r.days).toEpochDay()
+        statisticsRepository.getWorkoutDensity(from).map { rows ->
+            rows.map { row ->
+                DensityPoint(
+                    label = LocalDate.ofEpochDay(row.dateEpochDay)
+                        .format(DateTimeFormatter.ofPattern("dd/MM", Locale("es"))),
+                    workSeconds = row.totalWork,
+                    restSeconds = row.totalRest
+                )
+            }
+        }
+    }
+
     val uiState: StateFlow<StatisticsUiState> = combine(
         summary,
         topMovements,
         filteredExercises,
         combine(defaultExercise, selectedGroup, range) { e, g, r -> Triple(e, g, r) },
-        series
-    ) { summaryData, topMov, exercises, selection, seriesData ->
+        series,
+        density
+    ) { args ->
+        @Suppress("UNCHECKED_CAST")
+        val summaryData = args[0] as Triple<Int, String?, WeeklyStreak>
+        val topMov = args[1] as List<TopMovementRecord>
+        val exercises = args[2] as List<Exercise>
+        val selection = args[3] as Triple<Exercise?, String?, StatsRange>
+        val seriesData = args[4] as SeriesBundle
+        val densityPts = args[5] as List<DensityPoint>
+
         StatisticsUiState(
             sessionsThisMonth = summaryData.first,
             topFocus = summaryData.second,
@@ -166,7 +191,8 @@ class StatisticsViewModel @Inject constructor(
             range = selection.third,
             maxWeightSeries = seriesData.maxSeries,
             volumeSeries = seriesData.volumeSeries,
-            isBodyweightMode = seriesData.isBodyweight
+            isBodyweightMode = seriesData.isBodyweight,
+            densityPoints = densityPts
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsUiState())
 
@@ -180,6 +206,8 @@ class StatisticsViewModel @Inject constructor(
             userPrefsRepository.setWeeklyGoal(current + delta)
         }
     }
+
+
 
     private fun topFocusOf(focusList: List<String>): String? =
         focusList.flatMap { WorkoutFocus.fromStored(it) }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key?.label

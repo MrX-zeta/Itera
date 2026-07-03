@@ -77,7 +77,7 @@ fun ActiveWorkoutScreen(
     onLastSessionClick: (Long) -> Unit,
     onHydrationClick: () -> Unit,
     viewModel: ActiveWorkoutViewModel = hiltViewModel()
-) {
+){
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val finishedSessionId by viewModel.finishedSessionId.collectAsStateWithLifecycle()
 
@@ -111,7 +111,8 @@ fun ActiveWorkoutScreen(
             onDiscardSession = viewModel::onDiscardSession,
             onFinishSession = viewModel::onFinishSession,
             onDurationDelta = viewModel::onDurationDelta,
-            onIntensityDelta = viewModel::onIntensityDelta
+            onIntensityDelta = viewModel::onIntensityDelta,
+            onToggleTimerPause = viewModel::onToggleTimerPause
         )
     }
 }
@@ -358,7 +359,8 @@ private fun ActiveSessionContent(
     onDiscardSession: () -> Unit,
     onFinishSession: () -> Unit,
     onDurationDelta: (Int) -> Unit,
-    onIntensityDelta: (Int) -> Unit
+    onIntensityDelta: (Int) -> Unit,
+    onToggleTimerPause: () -> Unit,
 ) {
     var searchExpanded by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
@@ -417,7 +419,12 @@ private fun ActiveSessionContent(
                     .padding(horizontal = 10.dp)
             )
             if (state.setTimerMillis > 0L) {
-                SessionTimer(state.setTimerMillis)
+                SessionTimer(
+                    startMillis = state.setTimerMillis,
+                    pausedElapsed = state.pausedElapsed,
+                    state = state.timerState,
+                    onTogglePause = onToggleTimerPause
+                )
             } else {
                 OutlinedButton(
                     onClick = onStartTimer,

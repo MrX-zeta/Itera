@@ -1,5 +1,6 @@
 package com.luis.itera.data.repository
 
+import com.luis.itera.data.local.dao.DensityRow
 import com.luis.itera.data.local.dao.StatisticsDao
 import com.luis.itera.data.local.dao.TopExerciseRecord
 import com.luis.itera.domain.model.ExerciseSeriesPoint
@@ -67,4 +68,7 @@ class StatisticsRepositoryImpl @Inject constructor(
 
     override fun getTopExercises(limit: Int): Flow<List<TopExerciseRecord>> =
         statisticsDao.getTopExercises(limit)
+
+    override fun getWorkoutDensity(fromEpochDay: Long): Flow<List<DensityRow>> =
+        statisticsDao.getWorkoutDensity(fromEpochDay)
 }

@@ -162,9 +162,14 @@ interface StatisticsDao {
     fun getTopExercises(limit: Int = 3): Flow<List<TopExerciseRecord>>
 
     @Query("""
-    SELECT ses.dateEpochDay, SUM(s.workSeconds) AS totalWork, SUM(s.restSeconds) AS totalRest
-    FROM sets s INNER JOIN sessions ses ON ses.id = s.sessionId
-    WHERE ses.isFinished = 1 AND ses.dateEpochDay >= :fromEpochDay
+    SELECT ses.dateEpochDay,
+           COALESCE(SUM(s.workSeconds), 0) AS totalWork,
+           COALESCE(SUM(s.restSeconds), 0) AS totalRest
+    FROM sets s
+    INNER JOIN sessions ses ON ses.id = s.sessionId
+    WHERE ses.isFinished = 1
+          AND ses.dateEpochDay >= :fromEpochDay
+          AND (s.workSeconds > 0 OR s.restSeconds > 0)
     GROUP BY ses.id
     ORDER BY ses.dateEpochDay DESC
     LIMIT 10
