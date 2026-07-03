@@ -432,7 +432,7 @@ private fun ActiveSessionContent(
                     border = BorderStroke(1.dp, IteraColors.Border),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.Accent)
                 ) {
-                    Text("CRONÓMETRO", style = MaterialTheme.typography.labelSmall)
+                    Text("DESCANSO", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

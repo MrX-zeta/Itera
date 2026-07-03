@@ -81,17 +81,16 @@ fun SessionTimer(
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (state == TimerState.RUNNING) {
-            Icon(
-                imageVector = ImageVector.vectorResource(R.drawable.ic_timer_itera),
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(Modifier.width(4.dp))
-        }
+        Icon(
+            imageVector = ImageVector.vectorResource(R.drawable.ic_timer_itera),
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(Modifier.width(4.dp))
         Text(
-            text = "%02d:%02d".format(minutes, seconds),
+            text = if (state == TimerState.INACTIVE) "DESCANSO"
+            else "%02d:%02d".format(minutes, seconds),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = color,

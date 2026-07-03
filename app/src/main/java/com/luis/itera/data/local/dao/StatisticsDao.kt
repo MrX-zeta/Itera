@@ -169,8 +169,8 @@ interface StatisticsDao {
     INNER JOIN sessions ses ON ses.id = s.sessionId
     WHERE ses.isFinished = 1
           AND ses.dateEpochDay >= :fromEpochDay
-          AND (s.workSeconds > 0 OR s.restSeconds > 0)
-    GROUP BY ses.id
+    GROUP BY ses.dateEpochDay
+    HAVING totalWork > 0 OR totalRest > 0
     ORDER BY ses.dateEpochDay DESC
     LIMIT 10
 """)
