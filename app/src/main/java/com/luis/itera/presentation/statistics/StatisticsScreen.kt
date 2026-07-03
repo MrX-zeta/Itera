@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -159,9 +160,12 @@ fun StatisticsScreen(
             if (selectorExpanded) {
                 Spacer(Modifier.height(10.dp))
                 Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
+                    Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(end = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    Spacer(Modifier.width(0.dp))
                     viewModel.muscleGroups.forEach { group ->
                         val active = state.selectedGroup == group
                         Text(
@@ -192,13 +196,21 @@ fun StatisticsScreen(
                         }
                         .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
                         .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(exercise.name, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        exercise.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
                     Text(
                         exercise.mainMuscleGroup,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = IteraColors.TextSecondary
+                        color = IteraColors.TextSecondary,
+                        modifier = Modifier.padding(start = 8.dp)
                     )
                 }
                 Spacer(Modifier.height(6.dp))

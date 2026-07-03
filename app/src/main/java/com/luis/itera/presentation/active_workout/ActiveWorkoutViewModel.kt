@@ -254,11 +254,17 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun onFinishSession() {
         val session = uiState.value.session ?: return
         viewModelScope.launch {
-            sessionRepository.finishSession(session)
-            calculateHydrationGoal(session.dateEpochDay)
+            if (session.sets.isEmpty()) {
+                sessionRepository.deleteSession(session.id)
+            } else {
+                sessionRepository.finishSession(session)
+                calculateHydrationGoal(session.dateEpochDay)
+            }
             sessionStartMillis.value = null
             selectedExercise.value = null
-            _finishedSessionId.value = session.id
+            if (session.sets.isNotEmpty()) {
+                _finishedSessionId.value = session.id
+            }
         }
     }
 

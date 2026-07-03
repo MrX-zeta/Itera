@@ -73,6 +73,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.text.style.TextOverflow
 
 private val homeDateFormatter = DateTimeFormatter.ofPattern("EEEE dd MMMM", Locale("es"))
 
@@ -492,10 +493,23 @@ private fun ActiveSessionContent(
                         .clickable { onExerciseSelected(exercise) }
                         .border(1.dp, if (isSelected) IteraColors.Accent else IteraColors.Border, RoundedCornerShape(8.dp))
                         .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(exercise.name, style = MaterialTheme.typography.bodyMedium, color = if (isSelected) IteraColors.Accent else IteraColors.TextPrimary)
-                    Text(exercise.mainMuscleGroup, style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
+                    Text(
+                        exercise.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isSelected) IteraColors.Accent else IteraColors.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        exercise.mainMuscleGroup,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = IteraColors.TextSecondary,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
                 }
                 Spacer(Modifier.height(6.dp))
             }

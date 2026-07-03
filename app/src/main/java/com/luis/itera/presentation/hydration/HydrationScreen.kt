@@ -137,7 +137,8 @@ fun HydrationScreen(
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 3.dp),
+                                .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
@@ -153,6 +154,7 @@ fun HydrationScreen(
                                 color = if (intake.amountMl >= 0) IteraColors.TextPrimary else IteraColors.Error
                             )
                         }
+                        Spacer(Modifier.height(6.dp))
                     }
                 }
         }

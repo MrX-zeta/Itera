@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.luis.itera.domain.model.ExerciseSeriesPoint
@@ -33,13 +34,18 @@ fun StatBarChart(
             .height(90.dp)
     ) {
         val baseline = size.height - 4.dp.toPx()
+        val top = 6.dp.toPx()
+        val chartHeight = baseline - top
+        val dash = PathEffect.dashPathEffect(floatArrayOf(6f, 10f))
+
         drawLine(IteraColors.Border, Offset(0f, baseline), Offset(size.width, baseline), 1.dp.toPx())
+        drawLine(IteraColors.BorderStrong, Offset(0f, top), Offset(size.width, top), 0.5.dp.toPx(), pathEffect = dash)
+        drawLine(IteraColors.BorderStrong, Offset(0f, top + chartHeight * 0.33f), Offset(size.width, top + chartHeight * 0.33f), 0.5.dp.toPx(), pathEffect = dash)
+        drawLine(IteraColors.BorderStrong, Offset(0f, top + chartHeight * 0.66f), Offset(size.width, top + chartHeight * 0.66f), 0.5.dp.toPx(), pathEffect = dash)
 
         if (points.isEmpty()) return@Canvas
 
         val maxV = points.maxOf { it.value }.takeIf { it > 0f } ?: 1f
-        val top = 6.dp.toPx()
-        val chartHeight = baseline - top
         val slot = size.width / points.size
         val barWidth = (slot * 0.55f).coerceAtMost(20.dp.toPx())
         val threshold = maxV * 0.8f
