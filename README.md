@@ -13,7 +13,7 @@
 
 ## Problema que resuelve
 
-Las apps de fitness populares (Strong, Hevy, FitNotes) requieren cuentas, conexión a internet, o monetizan features básicos detrás de paywalls. El usuario que entrena en un gimnasio sin señal, o que simplemente quiere registrar sets sin fricción, queda desatendido.
+Las apps de fitness populares requieren cuentas, conexión a internet, o monetizan features básicos detrás de paywalls. El usuario que entrena en un gimnasio sin señal, o que simplemente quiere registrar sets sin fricción, queda desatendido.
 
 Itera elimina esa barrera: abres la app, seleccionas tu enfoque del día, registras sets y te vas. Sin onboarding, sin login, sin sync.
 
@@ -147,19 +147,3 @@ Itera es un proyecto **standalone** sin backend ni microservicios. Todo el valor
 - **Gestos avanzados** — anillo de hidratación con arrastre angular (`atan2`), swipe-to-delete con `SwipeToDismissBox`, long press en steppers.
 - **Room reactivo** — todos los DAOs exponen `Flow<T>`, la UI nunca hace polling.
 - **Hilt** — inyección en ViewModels, repositorios, use cases y módulo de BD con migraciones.
-
----
-
-## Tópicos sugeridos para GitHub
-
-```
-android, kotlin, jetpack-compose, room, hilt, mvvm, clean-architecture,
-fitness-app, offline-first, workout-tracker, material3, coroutines, datastore
-```
-
-## Descripción sugerida para GitHub
-
-```
-App Android nativa offline-first para registro de entrenamientos (fuerza, calistenia y cardio)
-con módulo de hidratación, estadísticas dinámicas y UI oscura clínica en Jetpack Compose.
-```
