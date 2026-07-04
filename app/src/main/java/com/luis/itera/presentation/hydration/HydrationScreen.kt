@@ -103,7 +103,7 @@ fun HydrationScreen(viewModel: HydrationViewModel = hiltViewModel()) {
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(40.dp))
 
             DraggableProgressRing(
                 progress = state.progress,

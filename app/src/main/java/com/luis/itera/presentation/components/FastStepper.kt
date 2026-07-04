@@ -87,7 +87,7 @@ fun FastStepper(
     Column(
         modifier = modifier
             .border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp))
-            .padding(8.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
