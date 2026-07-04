@@ -17,6 +17,7 @@ import com.luis.itera.presentation.components.DensityPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -81,6 +82,14 @@ class StatisticsViewModel @Inject constructor(
     )
 
     private val monthStart = LocalDate.now().withDayOfMonth(1).toEpochDay()
+
+    init {
+        viewModelScope.launch {
+            statisticsRepository.getLastExercisedId()
+                .distinctUntilChanged()
+                .collect { selectedExercise.value = null }
+        }
+    }
 
     private val summary = combine(
         statisticsRepository.getFinishedSessionCount(monthStart),
