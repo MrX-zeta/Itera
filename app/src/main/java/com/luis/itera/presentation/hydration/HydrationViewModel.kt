@@ -69,18 +69,8 @@ class HydrationViewModel @Inject constructor(
 
         val filtered = allIntakes.filter { it.id !in pending }
 
-        val pendingTodayMl = allIntakes
-            .filter { it.id in pending }
-            .filter {
-                Instant.ofEpochMilli(it.dateTimeEpochMillis)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-                    .toEpochDay() == today
-            }
-            .sumOf { it.amountMl }
-
         HydrationUiState(
-            totalMl = (total - pendingTodayMl).coerceAtLeast(0),
+            totalMl = total,
             goal = goal,
             userWeightKg = weight,
             dragDeltaMl = drag,
@@ -126,20 +116,23 @@ class HydrationViewModel @Inject constructor(
     fun stageForDeletion(intake: HydrationIntake) {
         stagedIntakes.value = stagedIntakes.value + (intake.id to intake)
         pendingDeletionIds.value = pendingDeletionIds.value + intake.id
+        viewModelScope.launch(Dispatchers.IO) {
+            hydrationRepository.deleteIntake(intake)
+        }
     }
 
     fun undoDeletion(intakeId: Long) {
+        val intake = stagedIntakes.value[intakeId] ?: return
         pendingDeletionIds.value = pendingDeletionIds.value - intakeId
         stagedIntakes.value = stagedIntakes.value - intakeId
+        viewModelScope.launch(Dispatchers.IO) {
+            hydrationRepository.reInsertIntake(intake.dateTimeEpochMillis, intake.amountMl)
+        }
     }
 
     fun commitDeletion(intakeId: Long) {
-        val intake = stagedIntakes.value[intakeId] ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            hydrationRepository.deleteIntake(intake)
-            pendingDeletionIds.value = pendingDeletionIds.value - intakeId
-            stagedIntakes.value = stagedIntakes.value - intakeId
-        }
+        pendingDeletionIds.value = pendingDeletionIds.value - intakeId
+        stagedIntakes.value = stagedIntakes.value - intakeId
     }
 
     fun onDrag(deltaMl: Int) {
@@ -162,9 +155,5 @@ class HydrationViewModel @Inject constructor(
             userPrefsRepository.setUserWeightKg(newWeight)
             calculateHydrationGoal(today)
         }
-    }
-
-    override fun onCleared() {
-        pendingDeletionIds.value.forEach { commitDeletion(it) }
     }
 }

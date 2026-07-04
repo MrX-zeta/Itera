@@ -15,4 +15,6 @@ interface HydrationRepository {
 
     suspend fun getLastIntakeForDay(dayStartMillis: Long): HydrationIntake?
     suspend fun updateIntakeAmount(id: Long, newAmount: Int)
+
+    suspend fun reInsertIntake(dateTimeEpochMillis: Long, amountMl: Int)
 }

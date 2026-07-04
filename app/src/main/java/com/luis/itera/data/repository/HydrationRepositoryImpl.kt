@@ -71,6 +71,12 @@ class HydrationRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun reInsertIntake(dateTimeEpochMillis: Long, amountMl: Int) {
+        hydrationDao.insertIntake(
+            HydrationIntakeEntity(dateTimeEpochMillis = dateTimeEpochMillis, amountMl = amountMl)
+        )
+    }
+
     private fun dayBounds(dateEpochDay: Long): Pair<Long, Long> {
         val zone = ZoneId.systemDefault()
         val date = LocalDate.ofEpochDay(dateEpochDay)
