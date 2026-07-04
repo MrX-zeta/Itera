@@ -18,13 +18,24 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("${System.getProperty("user.home")}/itera-release.jks")
+            storePassword = System.getenv("ITERA_STORE_PASSWORD") ?: ""
+            keyAlias = "itera"
+            keyPassword = System.getenv("ITERA_KEY_PASSWORD") ?: ""
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
