@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -95,19 +94,15 @@ fun HydrationScreen(viewModel: HydrationViewModel = hiltViewModel()) {
                 .statusBarsPadding()
                 .padding(padding)
                 .imePadding()
+                .padding(16.dp)
         ) {
             Text(
                 "HIDRATACIÓN · HOY",
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                color = IteraColors.TextSecondary
+                style = MaterialTheme.typography.titleMedium,
+                color = IteraColors.TextSecondary,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
             )
-            state.goal?.takeIf { it.isActiveDay }?.let {
-                Text(
-                    "+${it.activityBonusMl} ml día activo",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = IteraColors.Accent
-                )
-            }
             Spacer(Modifier.height(20.dp))
 
             DraggableProgressRing(

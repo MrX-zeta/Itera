@@ -10,6 +10,8 @@ import com.luis.itera.domain.usecase.CalculateHydrationGoalUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -47,6 +49,7 @@ class HydrationViewModel @Inject constructor(
     private val dragDeltaMl = MutableStateFlow(0)
     private val pendingDeletionIds = MutableStateFlow<Set<Long>>(emptySet())
     private val stagedIntakes = MutableStateFlow<Map<Long, HydrationIntake>>(emptyMap())
+    private val intakeMutex = Mutex()
 
     val uiState: StateFlow<HydrationUiState> = combine(
         hydrationRepository.getTotalMlForDay(today),
@@ -97,24 +100,26 @@ class HydrationViewModel @Inject constructor(
 
     fun onAddIntake(amountMl: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            val now = System.currentTimeMillis()
-            val dayStartMillis = LocalDate.now()
-                .atStartOfDay(ZoneId.systemDefault())
-                .toInstant()
-                .toEpochMilli()
+            intakeMutex.withLock {
+                val now = System.currentTimeMillis()
+                val dayStartMillis = LocalDate.now()
+                    .atStartOfDay(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
 
-            val last = hydrationRepository.getLastIntakeForDay(dayStartMillis)
-            if (last != null) {
-                val lastZoned = Instant.ofEpochMilli(last.dateTimeEpochMillis)
-                    .atZone(ZoneId.systemDefault())
-                val nowZoned = Instant.ofEpochMilli(now)
-                    .atZone(ZoneId.systemDefault())
-                if (lastZoned.hour == nowZoned.hour && lastZoned.minute == nowZoned.minute) {
-                    hydrationRepository.updateIntakeAmount(last.id, last.amountMl + amountMl)
-                    return@launch
+                val last = hydrationRepository.getLastIntakeForDay(dayStartMillis)
+                if (last != null) {
+                    val lastZoned = Instant.ofEpochMilli(last.dateTimeEpochMillis)
+                        .atZone(ZoneId.systemDefault())
+                    val nowZoned = Instant.ofEpochMilli(now)
+                        .atZone(ZoneId.systemDefault())
+                    if (lastZoned.hour == nowZoned.hour && lastZoned.minute == nowZoned.minute) {
+                        hydrationRepository.updateIntakeAmount(last.id, last.amountMl + amountMl)
+                        return@withLock
+                    }
                 }
+                hydrationRepository.addIntake(amountMl)
             }
-            hydrationRepository.addIntake(amountMl)
         }
     }
 
