@@ -135,12 +135,12 @@ interface StatisticsDao {
     fun getTotalRepsSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<VolumePoint>>
 
     @Query("""
-    SELECT EXISTS(
-        SELECT 1 FROM sets s
+    SELECT (
+        SELECT COUNT(DISTINCT s.sessionId) FROM sets s
         INNER JOIN sessions ses ON ses.id = s.sessionId
         WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1
               AND ses.dateEpochDay >= :fromEpochDay AND s.weightAddedKg > 0
-    )
+    ) >= 2
 """)
     fun hasWeightedSets(exerciseId: Long, fromEpochDay: Long): Flow<Boolean>
 

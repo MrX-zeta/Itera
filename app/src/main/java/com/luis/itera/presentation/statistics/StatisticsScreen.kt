@@ -178,7 +178,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                     }
                 } else {
                     val isCardio = state.selectedExercise?.mainMuscleGroup.equals("Cardio", ignoreCase = true)
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(20.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                         Text(
                             when { isCardio -> "DURACIÓN MÁXIMA"; state.isBodyweightMode -> "REPS MÁXIMAS"; else -> "PESO MÁXIMO" },
@@ -191,7 +191,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                             )
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(10.dp))
                     if (state.maxWeightSeries.size >= 2) {
                         StatLineChart(points = state.maxWeightSeries)
                     } else {
@@ -200,7 +200,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                             style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary
                         )
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(18.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
                         Text(
                             when { isCardio -> "MINUTOS TOTALES"; state.isBodyweightMode -> "REPS TOTALES"; else -> "VOLUMEN TOTAL" },
@@ -223,7 +223,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                 }
             }
             item {
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(20.dp))
                 Text("DENSIDAD DE ENTRENAMIENTO", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
                 Spacer(Modifier.height(10.dp))
                 WorkoutDensityChart(points = state.densityPoints, modifier = Modifier.fillMaxWidth())
