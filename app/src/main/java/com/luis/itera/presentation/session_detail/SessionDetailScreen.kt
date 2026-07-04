@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -77,10 +78,19 @@ fun SessionDetailScreen(
         ) {
             ElongatedBackButton(onClick = onBack)
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (session.isFinished && session.durationMinutes < 1) {
+                    Icon(
+                        ImageVector.vectorResource(R.drawable.ic_flash),
+                        contentDescription = null,
+                        tint = IteraColors.Accent,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                }
                 Text(
                     text = when {
                         !session.isFinished -> "EN CURSO"
-                        session.durationMinutes < 1 -> "< 1 min"
+                        session.durationMinutes < 1 -> "Rápida"
                         else -> "${session.durationMinutes} min"
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -102,18 +112,18 @@ fun SessionDetailScreen(
             style = MaterialTheme.typography.headlineSmall
         )
         WorkoutFocus.fromStored(session.focus).takeIf { it.isNotEmpty() }?.let { focuses ->
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(10.dp))
             Text(
                 text = focuses.joinToString(" · ") { it.label },
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = IteraColors.Accent
             )
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             text = "${session.sets.size} sets totales",
-            style = MaterialTheme.typography.bodySmall,
-            color = IteraColors.TextSecondary
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+            color = IteraColors.TextPrimary
         )
         Spacer(Modifier.height(20.dp))
 
@@ -224,7 +234,7 @@ private fun ExerciseDetailCard(
                         set.weightAddedKg > 0f -> "+${set.weightAddedKg} kg"
                         else -> "corporal"
                     },
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
                     color = when {
                         set.durationSeconds > 0 -> IteraColors.Accent
                         set.weightAddedKg > 0f -> IteraColors.Accent

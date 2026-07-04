@@ -24,11 +24,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -112,13 +114,16 @@ fun HistoryScreen(
         Column(
             Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
                 .padding(padding)
                 .padding(16.dp)
         ) {
             Text(
                 text = "HISTORIAL",
-                style = MaterialTheme.typography.labelSmall,
-                color = IteraColors.TextSecondary
+                style = MaterialTheme.typography.titleMedium,
+                color = IteraColors.TextSecondary,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(12.dp))
 
@@ -304,7 +309,7 @@ private fun DayCell(
     Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .padding(2.dp)
+            .padding(1.dp)
             .then(
                 if (isSelected) Modifier.border(1.dp, IteraColors.Accent, CircleShape)
                 else Modifier
@@ -325,11 +330,11 @@ private fun DayCell(
             if (isTrained && inMonth) {
                 Box(
                     Modifier
-                        .size(4.dp)
+                        .size(3.dp)
                         .background(IteraColors.Accent, CircleShape)
                 )
             } else {
-                Spacer(Modifier.size(4.dp))
+                Spacer(Modifier.size(3.dp))
             }
         }
     }
@@ -354,23 +359,22 @@ private fun SessionCard(
             .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = WorkoutFocus.fromStored(session.focus)
-                    .takeIf { it.isNotEmpty() }
-                    ?.joinToString(" · ") { it.label }
-                    ?: "SESIÓN ${session.id}",
-                style = MaterialTheme.typography.labelSmall,
-                color = IteraColors.TextSecondary
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (!session.isFinished || session.durationMinutes < 1) {
+                if (session.isFinished && session.durationMinutes < 1) {
+                    Icon(
+                        ImageVector.vectorResource(R.drawable.ic_flash),
+                        contentDescription = null,
+                        tint = IteraColors.Accent,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                }
+            }
             Text(
                 text = when {
                     !session.isFinished -> "EN CURSO"
-                    session.durationMinutes < 1 -> "< 1 min"
+                    session.durationMinutes < 1 -> "Rápida"
                     else -> "${session.durationMinutes} min"
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -379,7 +383,7 @@ private fun SessionCard(
         }
         Spacer(Modifier.height(8.dp))
         displayed.forEach { (exerciseId, sets) ->
-            Column(Modifier.padding(vertical = 6.dp)) {
+            Column(Modifier.padding(vertical = 8.dp)) {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
