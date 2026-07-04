@@ -38,3 +38,5 @@ ehthumbs.db
 *.generated.idea/deploymentTargetSelector.xml
 **/.idea/deploymentTargetSelector.xml
 .kotlin/
+*.jks
+*.keystore
