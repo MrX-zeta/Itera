@@ -11,12 +11,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.luis.itera.domain.model.ExerciseSeriesPoint
 import com.luis.itera.presentation.theme.IteraColors
 
@@ -31,35 +34,53 @@ fun StatLineChart(
         progress.animateTo(1f, tween(1000, easing = FastOutSlowInEasing))
     }
 
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(fontSize = 12.sp, color = IteraColors.TextSecondary.copy(alpha = 0.7f))
+    val prLabelStyle = TextStyle(fontSize = 12.sp, color = IteraColors.Accent.copy(alpha = 0.9f))
+
     Canvas(modifier.fillMaxWidth().height(80.dp)) {
         if (points.size < 2) return@Canvas
         val maxV = points.maxOf { it.value }.takeIf { it > 0f } ?: 1f
         val minV = points.minOf { it.value }
         val range = (maxV - minV).takeIf { it > 0f } ?: 1f
         val pad = 6.dp.toPx()
+        val topPad = 20.dp.toPx()
         val w = size.width - pad * 2
-        val h = size.height - pad * 2
+        val h = size.height - topPad - pad
         val dash = PathEffect.dashPathEffect(floatArrayOf(4f, 8f))
 
-        val prY = pad + h * (1f - (maxV - minV) / range)
+        val prY = topPad + h * (1f - (maxV - minV) / range)
         drawLine(IteraColors.Accent.copy(alpha = 0.2f), Offset(0f, prY), Offset(size.width, prY), 0.5.dp.toPx(), pathEffect = dash)
 
         val path = Path()
-        points.forEachIndexed { i, pt ->
+        val coords = points.mapIndexed { i, pt ->
             val x = pad + w * i / (points.size - 1)
-            val y = pad + h * (1f - (pt.value - minV) / range)
+            val y = if (maxV == minV) topPad + h * 0.5f
+            else topPad + h * (1f - (pt.value - minV) / range)
             if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            Triple(x, y, pt.value)
         }
 
         clipRect(right = size.width * progress.value) {
             drawPath(path, IteraColors.Accent, style = Stroke(width = 2.dp.toPx()))
         }
 
-        points.forEachIndexed { i, pt ->
-            val x = pad + w * i / (points.size - 1)
-            val y = pad + h * (1f - (pt.value - minV) / range)
-            if (x <= size.width * progress.value) {
-                drawCircle(IteraColors.Accent, 3.dp.toPx(), Offset(x, y))
+        val maxIndex = points.indices.maxBy { points[it].value }
+        val lastIndex = points.lastIndex
+
+        coords.forEachIndexed { i, (x, y, value) ->
+            if (x > size.width * progress.value) return@forEachIndexed
+
+            drawCircle(IteraColors.Accent, 3.dp.toPx(), Offset(x, y))
+
+            val isKey = i == 0 || i == lastIndex || i == maxIndex
+            if (isKey) {
+                val label = if (value % 1f == 0f) value.toInt().toString() else "%.1f".format(value)
+                val style = if (i == maxIndex) prLabelStyle else labelStyle
+                val measured = textMeasurer.measure(label, style)
+                val labelX = (x - measured.size.width / 2f).coerceIn(0f, size.width - measured.size.width)
+                val labelY = y - measured.size.height - 12.dp.toPx()
+                drawText(measured, topLeft = Offset(labelX, labelY.coerceAtLeast(0f)))
             }
         }
     }

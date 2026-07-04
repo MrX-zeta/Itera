@@ -126,13 +126,7 @@ class StatisticsViewModel @Inject constructor(
         exerciseRepository.getAll(),
         selectedExercise
     ) { lastId, exercises, manual ->
-        val lastExercise = lastId?.let { id -> exercises.find { it.id == id } }
-        when {
-            manual != null && manual.id == lastId -> manual
-            manual != null && lastId != null -> lastExercise
-            manual != null -> manual
-            else -> lastExercise
-        }
+        manual ?: lastId?.let { id -> exercises.find { it.id == id } }
     }
 
     private val series = combine(defaultExercise, range) { exercise, r -> exercise to r }

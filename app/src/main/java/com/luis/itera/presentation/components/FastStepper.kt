@@ -58,19 +58,30 @@ fun FastStepper(
     LaunchedEffect(value) { optimisticValue = null }
 
     val currentDisplayValue = optimisticValue ?: value
-    val displayText = if (currentDisplayValue % 1f == 0f) currentDisplayValue.toInt().toString() else "%.1f".format(currentDisplayValue)
+    val displayText = if (currentDisplayValue % 1f == 0f)
+        currentDisplayValue.toInt().toString()
+    else "%.1f".format(currentDisplayValue)
+
     var textValue by remember(editing) { mutableStateOf(displayText) }
 
-    val saveManualInput = {
-        val parsed = textValue.toFloatOrNull()
-        if (parsed != null) {
-            optimisticValue = parsed
-            if (onValueSet != null) onValueSet(parsed)
-            else onDelta(parsed - value)
+    val commitEditing = {
+        val parsed = textValue.toFloatOrNull() ?: 0f
+        optimisticValue = parsed
+        if (onValueSet != null) onValueSet(parsed)
+        else {
+            val delta = parsed - value
+            if (delta != 0f) onDelta(delta)
         }
         editing = false
         hasGainedFocus = false
-        focusManager.clearFocus()
+    }
+
+    val exitEditingForButton = {
+        if (editing) {
+            editing = false
+            hasGainedFocus = false
+            focusManager.clearFocus()
+        }
     }
 
     Column(
@@ -79,11 +90,8 @@ fun FastStepper(
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = IteraColors.TextSecondary
-        )
+        Text(label, style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -95,10 +103,12 @@ fun FastStepper(
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onTap = {
+                                exitEditingForButton()
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onDelta(-1f)
                             },
                             onLongPress = {
+                                exitEditingForButton()
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 onDelta(-5f)
                             }
@@ -109,16 +119,20 @@ fun FastStepper(
                 Text("−", style = MaterialTheme.typography.titleLarge, color = IteraColors.TextSecondary)
             }
 
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 if (editing) {
                     BasicTextField(
                         value = textValue,
                         onValueChange = { input ->
                             if (input.isEmpty() || input.matches(Regex("^\\d*\\.?\\d*$"))) {
-                                textValue = input.trimStart('0').ifEmpty { if (input.contains('.')) "0" else "" }
+                                val cleaned = input.trimStart('0')
+                                textValue = when {
+                                    input.isEmpty() -> ""
+                                    input == "0" -> "0"
+                                    cleaned.isEmpty() -> "0"
+                                    cleaned.startsWith('.') -> "0$cleaned"
+                                    else -> cleaned
+                                }
                             }
                         },
                         modifier = Modifier
@@ -127,14 +141,7 @@ fun FastStepper(
                                 if (state.isFocused) {
                                     hasGainedFocus = true
                                 } else if (editing && hasGainedFocus) {
-                                    val parsed = textValue.toFloatOrNull()
-                                    if (parsed != null) {
-                                        optimisticValue = parsed
-                                        if (onValueSet != null) onValueSet(parsed)
-                                        else onDelta(parsed - value)
-                                    }
-                                    editing = false
-                                    hasGainedFocus = false
+                                    commitEditing()
                                 }
                             },
                         textStyle = TextStyle(
@@ -149,7 +156,10 @@ fun FastStepper(
                             imeAction = ImeAction.Done
                         ),
                         keyboardActions = KeyboardActions(
-                            onDone = { saveManualInput() }
+                            onDone = {
+                                commitEditing()
+                                focusManager.clearFocus()
+                            }
                         )
                     )
                     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -170,10 +180,12 @@ fun FastStepper(
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onTap = {
+                                exitEditingForButton()
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onDelta(1f)
                             },
                             onLongPress = {
+                                exitEditingForButton()
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 onDelta(5f)
                             }
