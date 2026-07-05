@@ -1,6 +1,8 @@
 package com.luis.itera.data.local
 
 import android.content.Context
+import androidx.datastore.dataStore
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -33,6 +35,15 @@ class UserPrefsDataStore @Inject constructor(
 
     suspend fun setWeeklyGoal(goal: Int) {
         context.dataStore.edit { it[weeklyGoalKey] = goal.coerceIn(1, 7) }
+    }
+
+    private val onboardingKey = booleanPreferencesKey("onboarding_completed")
+
+    fun getOnboardingCompleted(): Flow<Boolean> =
+        context.dataStore.data.map { it[onboardingKey] ?: false }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.dataStore.edit { it[onboardingKey] = completed }
     }
 
     private companion object {

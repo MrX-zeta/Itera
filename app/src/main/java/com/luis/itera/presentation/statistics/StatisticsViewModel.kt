@@ -34,7 +34,8 @@ import javax.inject.Inject
 
 enum class StatsRange(val label: String, val days: Long) {
     D30("30D", 30),
-    D90("90D", 90)
+    D90("90D", 90),
+    ALL("TODO", 36500)
 }
 
 private data class SeriesBundle(

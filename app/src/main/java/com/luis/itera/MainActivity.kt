@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.presentation.navigation.IteraNavHost
 import com.luis.itera.presentation.theme.IteraTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -15,7 +17,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             IteraTheme {
-                IteraNavHost()
+                val viewModel: MainViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+                val onboardingState by viewModel.onboardingCompleted.collectAsStateWithLifecycle()
+
+                onboardingState?.let { completed ->
+                    IteraNavHost(
+                        onboardingCompleted = completed,
+                        onOnboardingDone = {}
+                    )
+                }
             }
         }
     }

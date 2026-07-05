@@ -7,4 +7,7 @@ interface UserPrefsRepository {
     suspend fun setUserWeightKg(weightKg: Float)
     fun getWeeklyGoal(): Flow<Int>
     suspend fun setWeeklyGoal(goal: Int)
+
+    fun getOnboardingCompleted(): Flow<Boolean>
+    suspend fun setOnboardingCompleted(completed: Boolean)
 }
