@@ -417,20 +417,15 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null)
     }
 
     val fireTransition = rememberInfiniteTransition(label = "fire")
-    val fireScale by fireTransition.animateFloat(
-        initialValue = 0.85f, targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(tween(400), RepeatMode.Reverse),
-        label = "fire_scale"
+    val fireGlow by fireTransition.animateFloat(
+        initialValue = 0.5f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
+        label = "fire_glow"
     )
-    val fireRotation by fireTransition.animateFloat(
-        initialValue = -8f, targetValue = 8f,
-        animationSpec = infiniteRepeatable(tween(300), RepeatMode.Reverse),
-        label = "fire_rot"
-    )
-    val fireAlpha by fireTransition.animateFloat(
-        initialValue = 0.7f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(250), RepeatMode.Reverse),
-        label = "fire_alpha"
+    val fireLift by fireTransition.animateFloat(
+        initialValue = 0f, targetValue = -3f,
+        animationSpec = infiniteRepeatable(tween(450), RepeatMode.Reverse),
+        label = "fire_lift"
     )
 
     val container = when { prText != null -> IteraColors.Accent; registered -> IteraColors.Surface; else -> IteraColors.Accent }
@@ -449,19 +444,15 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null)
     ) {
         if (prText != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("NUEVO ", style = MaterialTheme.typography.titleMedium)
                 Icon(
                     ImageVector.vectorResource(R.drawable.ic_fire), null,
-                    tint = IteraColors.OnAccent.copy(alpha = fireAlpha),
+                    tint = IteraColors.OnAccent.copy(alpha = fireGlow),
                     modifier = Modifier
                         .size(22.dp)
-                        .graphicsLayer {
-                            scaleX = fireScale
-                            scaleY = fireScale
-                            rotationZ = fireRotation
-                        }
+                        .graphicsLayer { translationY = fireLift }
                 )
-                Text(" $prText", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.width(6.dp))
+                Text("NUEVO $prText", style = MaterialTheme.typography.titleMedium)
             }
         } else {
             Text(if (registered) "✓ REGISTRADO" else "REGISTRAR SET", style = MaterialTheme.typography.titleMedium)
