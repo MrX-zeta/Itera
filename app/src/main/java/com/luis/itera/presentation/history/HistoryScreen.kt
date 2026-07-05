@@ -75,8 +75,10 @@ import java.util.Locale
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import com.luis.itera.domain.model.WorkoutFocus
+import java.time.LocalDate
 
 private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
+private val cardDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("es"))
 private const val MIN_REVEAL_MS = 125L
 
 @Composable
@@ -382,6 +384,11 @@ private fun SessionCard(
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = IteraColors.Accent
+                )
+                Text(
+                    text = " · ${LocalDate.ofEpochDay(session.dateEpochDay).format(cardDateFormatter)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.TextSecondary
                 )
             }
             if (session.sets.any { it.isPr }) {
