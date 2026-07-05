@@ -1,6 +1,15 @@
 package com.luis.itera.presentation.active_workout
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import com.luis.itera.domain.repository.SaveRoutineResult
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,12 +23,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -31,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +43,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +57,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -64,6 +72,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
 import com.luis.itera.domain.model.Exercise
+import com.luis.itera.domain.model.Routine
 import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.presentation.components.ConfettiOverlay
@@ -88,29 +97,46 @@ fun ActiveWorkoutScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val finishedSessionId by viewModel.finishedSessionId.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(finishedSessionId) {
         finishedSessionId?.let { viewModel.onFinishedSessionConsumed(); onSessionFinished(it) }
     }
-    if (state.session == null) {
-        HomeContent(state, viewModel::onFocusToggle, viewModel::onStartSession, onLastSessionClick, onHydrationClick)
-    } else {
-        ActiveSessionContent(
-            state = state,
-            muscleGroups = viewModel.muscleGroups,
-            onCreateExercise = viewModel::onCreateExercise,
-            onSearchChange = viewModel::onSearchQueryChange,
-            onExerciseSelected = viewModel::onExerciseSelected,
-            onRepsDelta = viewModel::onRepsDelta,
-            onWeightDelta = viewModel::onWeightDelta,
-            onRegisterSet = viewModel::onRegisterSet,
-            onDeleteSet = viewModel::onDeleteSet,
-            onStartTimer = viewModel::onStartTimer,
-            onDiscardSession = viewModel::onDiscardSession,
-            onFinishSession = viewModel::onFinishSession,
-            onDurationDelta = viewModel::onDurationDelta,
-            onIntensityDelta = viewModel::onIntensityDelta,
-            onToggleTimerPause = viewModel::onToggleTimerPause
-        )
+    LaunchedEffect(Unit) {
+        viewModel.routineFeedback.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+    Box(Modifier.fillMaxSize()) {
+        if (state.session == null) {
+            HomeContent(
+                state,
+                viewModel::onFocusToggle,
+                viewModel::onStartSession,
+                onLastSessionClick,
+                onHydrationClick,
+                viewModel::onStartRoutine
+            )
+        } else {
+            ActiveSessionContent(
+                state = state,
+                muscleGroups = viewModel.muscleGroups,
+                onCreateExercise = viewModel::onCreateExercise,
+                onSearchChange = viewModel::onSearchQueryChange,
+                onExerciseSelected = viewModel::onExerciseSelected,
+                onRepsDelta = viewModel::onRepsDelta,
+                onWeightDelta = viewModel::onWeightDelta,
+                onRegisterSet = viewModel::onRegisterSet,
+                onDeleteSet = viewModel::onDeleteSet,
+                onStartTimer = viewModel::onStartTimer,
+                onDiscardSession = viewModel::onDiscardSession,
+                onFinishSession = viewModel::onFinishSession,
+                onDurationDelta = viewModel::onDurationDelta,
+                onIntensityDelta = viewModel::onIntensityDelta,
+                onToggleTimerPause = viewModel::onToggleTimerPause,
+                onSaveRoutine = viewModel::onSaveRoutine
+            )
+        }
+        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -121,7 +147,8 @@ private fun HomeContent(
     onFocusToggle: (WorkoutFocus) -> Unit,
     onStart: () -> Unit,
     onLastSessionClick: (Long) -> Unit,
-    onHydrationClick: () -> Unit
+    onHydrationClick: () -> Unit,
+    onStartRoutine: (Routine) -> Unit
 ) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 32.dp, bottom = 16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -164,6 +191,25 @@ private fun HomeContent(
             }
         }
         Spacer(Modifier.weight(1f))
+        if (state.routines.isNotEmpty()) {
+            Text("MIS RUTINAS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
+            Spacer(Modifier.height(10.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.routines.forEach { routine ->
+                    Text(
+                        routine.name,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = IteraColors.OnAccent,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(IteraColors.Accent)
+                            .clickable { onStartRoutine(routine) }
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+        }
         Text("¿QUÉ TOCA HOY?", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
         Spacer(Modifier.height(12.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -243,12 +289,12 @@ private fun ActiveSessionContent(
     onFinishSession: () -> Unit,
     onDurationDelta: (Int) -> Unit,
     onIntensityDelta: (Int) -> Unit,
-    onToggleTimerPause: () -> Unit
+    onToggleTimerPause: () -> Unit,
+    onSaveRoutine: (String) -> Unit
 ) {
     var searchExpanded by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
-
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -299,7 +345,6 @@ private fun ActiveSessionContent(
                     val count = lastSessionSets.size
                     val weight = first.weightAddedKg
                     val repsVal = first.reps
-
                     Text(
                         text = buildString {
                             append("Última vez: ${count}×${repsVal}")
@@ -313,7 +358,7 @@ private fun ActiveSessionContent(
                     if (suggestion != null) {
                         val isWeightUp = suggestion.contains("↑")
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Sugerido: ${suggestion.replace(" ↑ peso", "")}", style = MaterialTheme.typography.bodySmall, color = IteraColors.Accent.copy(alpha = 0.6f))
+                            Text("Sugerido: ${suggestion.replace(" ↑ peso", "")}", style = MaterialTheme.typography.bodySmall, color = IteraColors.Accent.copy(alpha = 0.85f))
                             if (isWeightUp) {
                                 Spacer(Modifier.width(4.dp))
                                 Icon(ImageVector.vectorResource(R.drawable.ic_weight_up), null, tint = IteraColors.Accent, modifier = Modifier.size(14.dp))
@@ -363,7 +408,7 @@ private fun ActiveSessionContent(
                                             if (set.weightAddedKg > 0f) set.weightAddedKg >= (exSets.maxOfOrNull { it.weightAddedKg } ?: 0f)
                                             else set.reps >= (exSets.maxOfOrNull { it.reps } ?: 0)
                                         } ?: false
-                                        if (isPRSet && state.session?.sets?.count { it.exerciseId == set.exerciseId } ?: 0 > 1) {
+                                        if (isPRSet && (state.session?.sets?.count { it.exerciseId == set.exerciseId } ?: 0) > 1) {
                                             Spacer(Modifier.width(4.dp))
                                             Box(Modifier.size(6.dp).background(IteraColors.Accent, CircleShape))
                                         }
@@ -382,9 +427,37 @@ private fun ActiveSessionContent(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            OutlinedButton(onFinishSession, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, IteraColors.Border),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.TextSecondary)) {
-                Text("FINALIZAR SESIÓN", style = MaterialTheme.typography.titleMedium)
+            val hasSets = state.session?.sets?.isNotEmpty() == true
+            val alreadyRoutine = state.matchingRoutine != null
+            if (hasSets && !alreadyRoutine) {
+                var showDialog by remember { mutableStateOf(false) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { showDialog = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, IteraColors.Border),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.Accent)
+                    ) { Text("GUARDAR RUTINA", style = MaterialTheme.typography.labelSmall) }
+                    OutlinedButton(
+                        onClick = onFinishSession,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, IteraColors.Border),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.TextSecondary)
+                    ) { Text("FINALIZAR", style = MaterialTheme.typography.labelSmall) }
+                }
+                if (showDialog) {
+                    SaveRoutineDialog(
+                        onDismiss = { showDialog = false },
+                        onSave = { name -> onSaveRoutine(name); showDialog = false }
+                    )
+                }
+            } else {
+                OutlinedButton(onFinishSession, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, IteraColors.Border),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.TextSecondary)) {
+                    Text("FINALIZAR SESIÓN", style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
         ConfettiOverlay(trigger = state.prCelebrationText != null)
@@ -409,6 +482,42 @@ private fun CreateExercisePrompt(query: String, muscleGroups: List<String>, onCr
 }
 
 @Composable
+private fun SaveRoutineDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IteraColors.Surface,
+        title = { Text("Guardar rutina", color = IteraColors.TextPrimary) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                placeholder = { Text("Ej. Push Day", color = IteraColors.TextSecondary) },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = IteraColors.Accent,
+                    unfocusedBorderColor = IteraColors.Border,
+                    focusedTextColor = IteraColors.TextPrimary,
+                    unfocusedTextColor = IteraColors.TextPrimary
+                ),
+                shape = RoundedCornerShape(8.dp)
+            )
+        },
+        confirmButton = {
+            Text(
+                "GUARDAR",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = if (name.isBlank()) IteraColors.TextSecondary else IteraColors.Accent,
+                modifier = Modifier.clickable(enabled = name.isNotBlank()) { onSave(name) }.padding(8.dp)
+            )
+        },
+        dismissButton = {
+            Text("CANCELAR", style = MaterialTheme.typography.labelMedium, color = IteraColors.TextSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
+        }
+    )
+}
+
+@Composable
 private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null) {
     val haptic = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
@@ -419,7 +528,6 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null)
             repeat(3) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); delay(200) }
         }
     }
-
     val fireTransition = rememberInfiniteTransition(label = "fire")
     val fireScaleY by fireTransition.animateFloat(
         initialValue = 1f, targetValue = 1.18f,
@@ -431,15 +539,8 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null)
         animationSpec = infiniteRepeatable(tween(280), RepeatMode.Reverse),
         label = "fire_scaleX"
     )
-    val fireLift by fireTransition.animateFloat(
-        initialValue = 0f, targetValue = -3f,
-        animationSpec = infiniteRepeatable(tween(450), RepeatMode.Reverse),
-        label = "fire_lift"
-    )
-
     val container = when { prText != null -> IteraColors.Accent; registered -> IteraColors.Surface; else -> IteraColors.Accent }
     val content = when { prText != null -> IteraColors.OnAccent; registered -> IteraColors.Accent; else -> IteraColors.OnAccent }
-
     Button(
         onClick = {
             focusManager.clearFocus()
@@ -461,7 +562,7 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null)
                         .graphicsLayer {
                             scaleX = fireScaleX
                             scaleY = fireScaleY
-                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+                            transformOrigin = TransformOrigin(0.5f, 1f)
                         }
                 )
                 Spacer(Modifier.width(6.dp))

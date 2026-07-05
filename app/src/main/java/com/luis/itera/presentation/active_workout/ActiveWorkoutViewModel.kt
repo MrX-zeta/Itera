@@ -2,13 +2,17 @@ package com.luis.itera.presentation.active_workout
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.luis.itera.domain.model.DailyHydrationGoal
 import com.luis.itera.domain.model.Exercise
+import com.luis.itera.domain.model.Routine
 import com.luis.itera.domain.model.Session
 import com.luis.itera.domain.model.WeeklyStreak
 import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.HydrationRepository
+import com.luis.itera.domain.repository.RoutineRepository
+import com.luis.itera.domain.repository.SaveRoutineResult
 import com.luis.itera.domain.repository.SessionRepository
 import com.luis.itera.domain.repository.StatisticsRepository
 import com.luis.itera.domain.repository.UserPrefsRepository
@@ -18,10 +22,14 @@ import com.luis.itera.presentation.components.TimerState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -35,7 +43,8 @@ private data class HomeData(
     val lastSession: Session? = null,
     val streak: WeeklyStreak = WeeklyStreak(0, 0, 3),
     val hydrationProgress: Float = 0f,
-    val trainedDaysThisWeek: Set<Long> = emptySet()
+    val trainedDaysThisWeek: Set<Long> = emptySet(),
+    val routines: List<Routine> = emptyList()
 )
 
 data class ActiveWorkoutUiState(
@@ -58,7 +67,8 @@ data class ActiveWorkoutUiState(
     val setTimerMillis: Long = 0L,
     val timerPaused: Boolean = false,
     val pausedElapsed: Long = 0L,
-    val prCelebrationText: String? = null
+    val prCelebrationText: String? = null,
+    val routines: List<Routine> = emptyList()
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -68,6 +78,13 @@ data class ActiveWorkoutUiState(
             candidate !in selectedFocuses &&
                     selectedFocuses.any { it.conflictsWith(candidate) }
         }.toSet()
+
+    val matchingRoutine: Routine?
+        get() {
+            val current = session?.sets?.map { it.exerciseId }?.distinct()?.toSet() ?: return null
+            if (current.isEmpty()) return null
+            return routines.firstOrNull { it.exerciseIds.toSet() == current }
+        }
 
     val timerState: TimerState
         get() = when {
@@ -80,14 +97,11 @@ data class ActiveWorkoutUiState(
         get() {
             val last = lastSets.firstOrNull() ?: return null
             if (last.weightAddedKg <= 0f) return "${last.reps + 1} reps"
-
             val sameWeight = lastSets.filter { it.weightAddedKg == last.weightAddedKg }
             val perSession = sameWeight.groupBy { it.sessionId }
                 .entries.sortedByDescending { it.key }
                 .map { it.value.maxOf { s -> s.reps } }
-
             val ceilingReached = perSession.size >= 3 && perSession.first() - perSession.last() >= 3
-
             return if (ceilingReached) {
                 val w = last.weightAddedKg + 2.5f
                 "${perSession.last()} reps +${fmtW(w)}kg ↑ peso"
@@ -123,7 +137,8 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val userPrefsRepository: UserPrefsRepository,
     private val statisticsRepository: StatisticsRepository,
     private val calculateHydrationGoal: CalculateHydrationGoalUseCase,
-    private val calculateWeeklyStreak: CalculateWeeklyStreakUseCase
+    private val calculateWeeklyStreak: CalculateWeeklyStreakUseCase,
+    private val routineRepository: RoutineRepository
 ) : ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
@@ -141,9 +156,13 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val pausedElapsed = MutableStateFlow(0L)
     private val _prCelebration = MutableStateFlow<String?>(null)
     private val celebratedExercises = mutableSetOf<Long>()
+    private val activeRoutineExerciseIds = MutableStateFlow<List<Long>>(emptyList())
 
     private val _finishedSessionId = MutableStateFlow<Long?>(null)
     val finishedSessionId: StateFlow<Long?> = _finishedSessionId
+
+    private val _routineFeedback = MutableSharedFlow<String>()
+    val routineFeedback: SharedFlow<String> = _routineFeedback.asSharedFlow()
 
     val muscleGroups = listOf(
         "Pecho", "Espalda", "Hombros", "Bíceps", "Tríceps",
@@ -154,12 +173,19 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val allExercises = exerciseRepository.getAll()
 
     private val exercises = combine(
-        searchQuery, sessionRepository.getActiveSession()
-    ) { query, session -> query to WorkoutFocus.fromStored(session?.focus) }
-        .flatMapLatest { (query, focuses) ->
-            val source = if (query.isBlank()) exerciseRepository.getAll() else exerciseRepository.search(query)
-            source.map { list -> filterByFocus(list, focuses) }
+        searchQuery, sessionRepository.getActiveSession(), activeRoutineExerciseIds
+    ) { query, session, routineIds ->
+        Triple(query, WorkoutFocus.fromStored(session?.focus), routineIds)
+    }.flatMapLatest { (query, focuses, routineIds) ->
+        val source = if (query.isBlank()) exerciseRepository.getAll() else exerciseRepository.search(query)
+        source.map { list ->
+            when {
+                query.isNotBlank() -> list
+                routineIds.isNotEmpty() -> list.filter { it.id in routineIds }.sortedBy { routineIds.indexOf(it.id) }
+                else -> filterByFocus(list, focuses)
+            }
         }
+    }
 
     private fun filterByFocus(list: List<Exercise>, focuses: Set<WorkoutFocus>): List<Exercise> {
         val groups = focuses.flatMap { it.muscleGroups }.toSet()
@@ -171,14 +197,24 @@ class ActiveWorkoutViewModel @Inject constructor(
         statisticsRepository.getAllTrainedDays(),
         userPrefsRepository.getWeeklyGoal(),
         hydrationRepository.getTotalMlForDay(today),
-        hydrationRepository.getDailyGoal(today)
-    ) { last, trainedDays, weeklyGoal, totalMl, goal ->
+        hydrationRepository.getDailyGoal(today),
+        routineRepository.getRoutines()
+    ) { args ->
+        val last = args[0] as Session?
+        @Suppress("UNCHECKED_CAST")
+        val trainedDays = args[1] as List<Long>
+        val weeklyGoal = args[2] as Int
+        val totalMl = args[3] as Int
+        val goal = args[4] as DailyHydrationGoal?
+        @Suppress("UNCHECKED_CAST")
+        val routines = args[5] as List<Routine>
         val weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toEpochDay()
         HomeData(
             lastSession = last,
             streak = calculateWeeklyStreak(trainedDays, weeklyGoal),
             hydrationProgress = goal?.totalGoalMl?.takeIf { it > 0 }?.let { (totalMl.toFloat() / it).coerceIn(0f, 1f) } ?: 0f,
-            trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet()
+            trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet(),
+            routines = routines
         )
     }
 
@@ -228,9 +264,28 @@ class ActiveWorkoutViewModel @Inject constructor(
             setTimerMillis = inputs.setTimerMillis,
             timerPaused = inputs.timerPaused,
             pausedElapsed = inputs.pausedElapsed,
-            prCelebrationText = inputs.prCelebrationText
+            prCelebrationText = inputs.prCelebrationText,
+            routines = home.routines
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
+
+    init {
+        viewModelScope.launch {
+            var hadSession = false
+            sessionRepository.getActiveSession().collect { session ->
+                if (session != null) {
+                    hadSession = true
+                    if (activeRoutineExerciseIds.value.isNotEmpty() && selectedExercise.value == null) {
+                        val firstId = activeRoutineExerciseIds.value.first()
+                        exerciseRepository.getAll().first().find { it.id == firstId }?.let { onExerciseSelected(it) }
+                    }
+                } else if (hadSession) {
+                    hadSession = false
+                    activeRoutineExerciseIds.value = emptyList()
+                }
+            }
+        }
+    }
 
     fun onFocusToggle(focus: WorkoutFocus) {
         val current = selectedFocuses.value
@@ -250,18 +305,14 @@ class ActiveWorkoutViewModel @Inject constructor(
             val previous = sessionRepository.getLastSetsForExercise(exercise.id, 50)
             lastSets.value = previous
             val last = previous.firstOrNull() ?: return@launch
-
             if (last.weightAddedKg > 0f) {
                 val sameWeight = previous.filter { it.weightAddedKg == last.weightAddedKg }
                 val perSession = sameWeight.groupBy { it.sessionId }
                     .entries.sortedByDescending { it.key }
                     .map { it.value.maxOf { s -> s.reps } }
-
                 val ceilingReached = perSession.size >= 3 && perSession.first() - perSession.last() >= 3
-
                 val lastSessionId = previous.first().sessionId
                 val lastSessionMax = previous.filter { it.sessionId == lastSessionId }.maxOf { it.reps }
-
                 if (ceilingReached) {
                     weightKg.value = last.weightAddedKg + 2.5f
                     reps.value = perSession.last()
@@ -306,6 +357,29 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
+    fun onStartRoutine(routine: Routine) {
+        activeRoutineExerciseIds.value = routine.exerciseIds
+        viewModelScope.launch {
+            sessionRepository.startSession(LocalDate.now().toEpochDay(), routine.focus)
+        }
+    }
+
+    fun onSaveRoutine(name: String) {
+        val session = uiState.value.session ?: return
+        val exerciseIds = session.sets.map { it.exerciseId }.distinct()
+        if (exerciseIds.isEmpty() || name.isBlank()) return
+        viewModelScope.launch {
+            when (val result = routineRepository.saveRoutine(name.trim(), session.focus, exerciseIds)) {
+                is SaveRoutineResult.Created -> _routineFeedback.emit("Rutina \"${name.trim()}\" guardada")
+                is SaveRoutineResult.Duplicate -> _routineFeedback.emit("Ya existe como \"${result.existingName}\"")
+            }
+        }
+    }
+
+    fun onDeleteRoutine(routineId: Long) {
+        viewModelScope.launch { routineRepository.deleteRoutine(routineId) }
+    }
+
     fun onStartTimer() { sessionStartMillis.value = System.currentTimeMillis() }
 
     fun onRegisterSet() {
@@ -314,21 +388,17 @@ class ActiveWorkoutViewModel @Inject constructor(
         val session = uiState.value.session ?: return
         val exercise = selectedExercise.value ?: return
         val isCardio = exercise.mainMuscleGroup.equals("Cardio", ignoreCase = true)
-
         val restSeconds = when {
             setTimerStartMillis.value == 0L -> 0
             timerPaused.value -> (pausedElapsed.value / 1000).toInt()
             else -> ((now - setTimerStartMillis.value) / 1000).toInt()
         }
-
         lastRegisteredSetAt.value = now
         setTimerStartMillis.value = now
         timerPaused.value = false
         pausedElapsed.value = 0L
-
         val currentReps = reps.value
         val currentWeight = weightKg.value
-
         viewModelScope.launch {
             var prText: String? = null
             if (!isCardio && exercise.id !in celebratedExercises) {
@@ -348,7 +418,6 @@ class ActiveWorkoutViewModel @Inject constructor(
                     }
                 }
             }
-
             sessionRepository.addSet(
                 sessionId = session.id,
                 exerciseId = exercise.id,
@@ -359,7 +428,6 @@ class ActiveWorkoutViewModel @Inject constructor(
                 restSeconds = restSeconds,
                 isPr = prText != null
             )
-
             if (prText != null) {
                 celebratedExercises.add(exercise.id)
                 _prCelebration.value = prText
