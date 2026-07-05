@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -62,13 +63,28 @@ private fun IteraDestination.ownsRoute(route: String?): Boolean = when (this) {
 @Composable
 fun IteraNavHost(
     onboardingCompleted: Boolean,
-    onOnboardingDone: () -> Unit
+    onOnboardingDone: () -> Unit,
+    deepLinkRoute: String? = null,
+    onDeepLinkHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
     val showBottomBar = currentRoute != IteraDestination.Onboarding.route
+
+    // Navega al destino pedido por el widget (p. ej. hidratación) una vez que la
+    // app ya pasó el onboarding.
+    LaunchedEffect(deepLinkRoute, onboardingCompleted) {
+        if (deepLinkRoute != null && onboardingCompleted) {
+            navController.navigate(deepLinkRoute) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            onDeepLinkHandled()
+        }
+    }
 
     Scaffold(
         containerColor = IteraColors.Background,

@@ -30,7 +30,7 @@ class UserPrefsDataStore @Inject constructor(
 
 
     suspend fun setUserWeightKg(weightKg: Float) {
-        context.dataStore.edit { it[weightKey] = weightKg }
+        context.dataStore.edit { it[weightKey] = weightKg.coerceIn(MIN_WEIGHT_KG, MAX_WEIGHT_KG) }
     }
 
     suspend fun setWeeklyGoal(goal: Int) {
@@ -46,8 +46,19 @@ class UserPrefsDataStore @Inject constructor(
         context.dataStore.edit { it[onboardingKey] = completed }
     }
 
+    private val widgetPinRequestedKey = booleanPreferencesKey("widget_pin_requested")
+
+    fun getWidgetPinRequested(): Flow<Boolean> =
+        context.dataStore.data.map { it[widgetPinRequestedKey] ?: false }
+
+    suspend fun setWidgetPinRequested(requested: Boolean) {
+        context.dataStore.edit { it[widgetPinRequestedKey] = requested }
+    }
+
     private companion object {
         const val DEFAULT_WEIGHT_KG = 70f
         const val DEFAULT_WEEKLY_GOAL = 3
+        const val MIN_WEIGHT_KG = 30f
+        const val MAX_WEIGHT_KG = 250f
     }
 }

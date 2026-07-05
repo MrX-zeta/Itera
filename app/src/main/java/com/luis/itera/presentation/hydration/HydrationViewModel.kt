@@ -7,6 +7,7 @@ import com.luis.itera.domain.model.HydrationIntake
 import com.luis.itera.domain.repository.HydrationRepository
 import com.luis.itera.domain.repository.UserPrefsRepository
 import com.luis.itera.domain.usecase.CalculateHydrationGoalUseCase
+import com.luis.itera.presentation.widget.WidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +43,8 @@ data class HydrationUiState(
 class HydrationViewModel @Inject constructor(
     private val hydrationRepository: HydrationRepository,
     private val userPrefsRepository: UserPrefsRepository,
-    private val calculateHydrationGoal: CalculateHydrationGoalUseCase
+    private val calculateHydrationGoal: CalculateHydrationGoalUseCase,
+    private val widgetUpdater: WidgetUpdater
 ) : ViewModel() {
 
     private val today = LocalDate.now().toEpochDay()
@@ -89,6 +91,7 @@ class HydrationViewModel @Inject constructor(
     }
 
     fun onAddIntake(amountMl: Int) {
+        if (amountMl <= 0) return
         viewModelScope.launch(Dispatchers.IO) {
             intakeMutex.withLock {
                 val now = System.currentTimeMillis()
@@ -96,7 +99,6 @@ class HydrationViewModel @Inject constructor(
                     .atStartOfDay(ZoneId.systemDefault())
                     .toInstant()
                     .toEpochMilli()
-
                 val last = hydrationRepository.getLastIntakeForDay(dayStartMillis)
                 if (last != null) {
                     val lastZoned = Instant.ofEpochMilli(last.dateTimeEpochMillis)
@@ -105,10 +107,12 @@ class HydrationViewModel @Inject constructor(
                         .atZone(ZoneId.systemDefault())
                     if (lastZoned.hour == nowZoned.hour && lastZoned.minute == nowZoned.minute) {
                         hydrationRepository.updateIntakeAmount(last.id, last.amountMl + amountMl)
+                        widgetUpdater.refresh()
                         return@withLock
                     }
                 }
                 hydrationRepository.addIntake(amountMl)
+                widgetUpdater.refresh()
             }
         }
     }
@@ -118,6 +122,7 @@ class HydrationViewModel @Inject constructor(
         pendingDeletionIds.value = pendingDeletionIds.value + intake.id
         viewModelScope.launch(Dispatchers.IO) {
             hydrationRepository.deleteIntake(intake)
+            widgetUpdater.refresh()
         }
     }
 
@@ -127,6 +132,7 @@ class HydrationViewModel @Inject constructor(
         stagedIntakes.value = stagedIntakes.value - intakeId
         viewModelScope.launch(Dispatchers.IO) {
             hydrationRepository.reInsertIntake(intake.dateTimeEpochMillis, intake.amountMl)
+            widgetUpdater.refresh()
         }
     }
 
@@ -146,7 +152,10 @@ class HydrationViewModel @Inject constructor(
         val delta = dragDeltaMl.value
         dragDeltaMl.value = 0
         if (delta == 0) return
-        viewModelScope.launch(Dispatchers.IO) { hydrationRepository.addIntake(delta) }
+        viewModelScope.launch(Dispatchers.IO) {
+            hydrationRepository.addIntake(delta)
+            widgetUpdater.refresh()
+        }
     }
 
     fun onWeightDelta(delta: Float) {
@@ -154,6 +163,7 @@ class HydrationViewModel @Inject constructor(
             val newWeight = (uiState.value.userWeightKg + delta).coerceIn(30f, 250f)
             userPrefsRepository.setUserWeightKg(newWeight)
             calculateHydrationGoal(today)
+            widgetUpdater.refresh()
         }
     }
 }

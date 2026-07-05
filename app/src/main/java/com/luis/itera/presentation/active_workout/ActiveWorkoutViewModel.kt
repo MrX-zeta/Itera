@@ -12,6 +12,7 @@ import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.HydrationRepository
 import com.luis.itera.domain.repository.RoutineRepository
+import com.luis.itera.presentation.widget.WidgetUpdater
 import com.luis.itera.domain.repository.SaveRoutineResult
 import com.luis.itera.domain.repository.SessionRepository
 import com.luis.itera.domain.repository.StatisticsRepository
@@ -138,7 +139,8 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val statisticsRepository: StatisticsRepository,
     private val calculateHydrationGoal: CalculateHydrationGoalUseCase,
     private val calculateWeeklyStreak: CalculateWeeklyStreakUseCase,
-    private val routineRepository: RoutineRepository
+    private val routineRepository: RoutineRepository,
+    private val widgetUpdater: WidgetUpdater
 ) : ViewModel() {
 
     private val searchQuery = MutableStateFlow("")
@@ -457,6 +459,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             } else {
                 sessionRepository.finishSession(session)
             }
+            widgetUpdater.refresh()
             sessionStartMillis.value = null
             setTimerStartMillis.value = 0L
             timerPaused.value = false
