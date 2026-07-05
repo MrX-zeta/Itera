@@ -17,6 +17,7 @@ import com.luis.itera.domain.usecase.CalculateWeeklyStreakUseCase
 import com.luis.itera.presentation.components.TimerState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +57,8 @@ data class ActiveWorkoutUiState(
     val intensity: Int = 1,
     val setTimerMillis: Long = 0L,
     val timerPaused: Boolean = false,
-    val pausedElapsed: Long = 0L
+    val pausedElapsed: Long = 0L,
+    val prCelebrationText: String? = null
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -74,9 +76,31 @@ data class ActiveWorkoutUiState(
             else -> TimerState.RUNNING
         }
 
+    val suggestion: String?
+        get() {
+            val last = lastSets.firstOrNull() ?: return null
+            if (last.weightAddedKg <= 0f) return "${last.reps + 1} reps"
+
+            val sameWeight = lastSets.filter { it.weightAddedKg == last.weightAddedKg }
+            val perSession = sameWeight.groupBy { it.sessionId }
+                .entries.sortedByDescending { it.key }
+                .map { it.value.maxOf { s -> s.reps } }
+
+            val ceilingReached = perSession.size >= 3 && perSession.first() - perSession.last() >= 3
+
+            return if (ceilingReached) {
+                val w = last.weightAddedKg + 2.5f
+                "${perSession.last()} reps +${fmtW(w)}kg ↑ peso"
+            } else {
+                "${perSession.first() + 1} reps +${fmtW(last.weightAddedKg)}kg"
+            }
+        }
+
     fun exerciseNameOf(exerciseId: Long): String =
         allExerciseNames[exerciseId] ?: "—"
 }
+
+private fun fmtW(v: Float) = if (v % 1f == 0f) "${v.toInt()}" else "%.1f".format(v)
 
 private data class InputBundle(
     val reps: Int,
@@ -86,7 +110,8 @@ private data class InputBundle(
     val intensity: Int,
     val setTimerMillis: Long,
     val timerPaused: Boolean,
-    val pausedElapsed: Long
+    val pausedElapsed: Long,
+    val prCelebrationText: String?
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -114,6 +139,8 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val setTimerStartMillis = MutableStateFlow(0L)
     private val timerPaused = MutableStateFlow(false)
     private val pausedElapsed = MutableStateFlow(0L)
+    private val _prCelebration = MutableStateFlow<String?>(null)
+    private val celebratedExercises = mutableSetOf<Long>()
 
     private val _finishedSessionId = MutableStateFlow<Long?>(null)
     val finishedSessionId: StateFlow<Long?> = _finishedSessionId
@@ -124,26 +151,19 @@ class ActiveWorkoutViewModel @Inject constructor(
     )
 
     private val today = LocalDate.now().toEpochDay()
-
     private val allExercises = exerciseRepository.getAll()
 
     private val exercises = combine(
-        searchQuery,
-        sessionRepository.getActiveSession()
+        searchQuery, sessionRepository.getActiveSession()
     ) { query, session -> query to WorkoutFocus.fromStored(session?.focus) }
         .flatMapLatest { (query, focuses) ->
-            val source = if (query.isBlank()) exerciseRepository.getAll()
-            else exerciseRepository.search(query)
+            val source = if (query.isBlank()) exerciseRepository.getAll() else exerciseRepository.search(query)
             source.map { list -> filterByFocus(list, focuses) }
         }
 
-    private fun filterByFocus(
-        list: List<Exercise>,
-        focuses: Set<WorkoutFocus>
-    ): List<Exercise> {
+    private fun filterByFocus(list: List<Exercise>, focuses: Set<WorkoutFocus>): List<Exercise> {
         val groups = focuses.flatMap { it.muscleGroups }.toSet()
-        if (groups.isEmpty()) return list
-        return list.filter { it.mainMuscleGroup in groups }
+        return if (groups.isEmpty()) list else list.filter { it.mainMuscleGroup in groups }
     }
 
     private val homeData = combine(
@@ -153,15 +173,12 @@ class ActiveWorkoutViewModel @Inject constructor(
         hydrationRepository.getTotalMlForDay(today),
         hydrationRepository.getDailyGoal(today)
     ) { last, trainedDays, weeklyGoal, totalMl, goal ->
-        val weekStart = LocalDate.now()
-            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            .toEpochDay()
+        val weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toEpochDay()
         HomeData(
             lastSession = last,
             streak = calculateWeeklyStreak(trainedDays, weeklyGoal),
-            hydrationProgress = goal?.totalGoalMl?.takeIf { it > 0 }
-                ?.let { (totalMl.toFloat() / it).coerceIn(0f, 1f) } ?: 0f,
-            trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet(),
+            hydrationProgress = goal?.totalGoalMl?.takeIf { it > 0 }?.let { (totalMl.toFloat() / it).coerceIn(0f, 1f) } ?: 0f,
+            trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet()
         )
     }
 
@@ -170,7 +187,7 @@ class ActiveWorkoutViewModel @Inject constructor(
         exercises,
         searchQuery,
         combine(selectedExercise, selectedFocuses, lastSets) { e, f, l -> Triple(e, f, l) },
-        combine(reps, weightKg, sessionStartMillis, durationSeconds, intensity, setTimerStartMillis, timerPaused, pausedElapsed) { args ->
+        combine(reps, weightKg, sessionStartMillis, durationSeconds, intensity, setTimerStartMillis, timerPaused, pausedElapsed, _prCelebration) { args ->
             InputBundle(
                 reps = args[0] as Int,
                 weightKg = args[1] as Float,
@@ -179,11 +196,12 @@ class ActiveWorkoutViewModel @Inject constructor(
                 intensity = args[4] as Int,
                 setTimerMillis = args[5] as Long,
                 timerPaused = args[6] as Boolean,
-                pausedElapsed = args[7] as Long
+                pausedElapsed = args[7] as Long,
+                prCelebrationText = args[8] as String?
             )
         },
         allExercises,
-        homeData,
+        homeData
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val selection = args[3] as Triple<Exercise?, Set<WorkoutFocus>, List<WorkoutSet>>
@@ -209,7 +227,8 @@ class ActiveWorkoutViewModel @Inject constructor(
             intensity = inputs.intensity,
             setTimerMillis = inputs.setTimerMillis,
             timerPaused = inputs.timerPaused,
-            pausedElapsed = inputs.pausedElapsed
+            pausedElapsed = inputs.pausedElapsed,
+            prCelebrationText = inputs.prCelebrationText
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
@@ -222,20 +241,37 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
-
-    fun onSearchQueryChange(query: String) {
-        searchQuery.value = query
-    }
+    fun onSearchQueryChange(query: String) { searchQuery.value = query }
 
     fun onExerciseSelected(exercise: Exercise) {
         selectedExercise.value = exercise
         searchQuery.value = ""
         viewModelScope.launch {
-            val previous = sessionRepository.getLastSetsForExercise(exercise.id)
+            val previous = sessionRepository.getLastSetsForExercise(exercise.id, 50)
             lastSets.value = previous
-            previous.firstOrNull()?.let { last ->
-                reps.value = last.reps
-                weightKg.value = last.weightAddedKg
+            val last = previous.firstOrNull() ?: return@launch
+
+            if (last.weightAddedKg > 0f) {
+                val sameWeight = previous.filter { it.weightAddedKg == last.weightAddedKg }
+                val perSession = sameWeight.groupBy { it.sessionId }
+                    .entries.sortedByDescending { it.key }
+                    .map { it.value.maxOf { s -> s.reps } }
+
+                val ceilingReached = perSession.size >= 3 && perSession.first() - perSession.last() >= 3
+
+                val lastSessionId = previous.first().sessionId
+                val lastSessionMax = previous.filter { it.sessionId == lastSessionId }.maxOf { it.reps }
+
+                if (ceilingReached) {
+                    weightKg.value = last.weightAddedKg + 2.5f
+                    reps.value = perSession.last()
+                } else {
+                    weightKg.value = last.weightAddedKg
+                    reps.value = lastSessionMax + 1
+                }
+            } else {
+                reps.value = last.reps + 1
+                weightKg.value = 0f
             }
         }
     }
@@ -243,8 +279,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun onToggleTimerPause() {
         if (setTimerStartMillis.value == 0L) return
         if (timerPaused.value) {
-            val now = System.currentTimeMillis()
-            setTimerStartMillis.value = now - pausedElapsed.value
+            setTimerStartMillis.value = System.currentTimeMillis() - pausedElapsed.value
             timerPaused.value = false
         } else {
             pausedElapsed.value = System.currentTimeMillis() - setTimerStartMillis.value
@@ -257,33 +292,21 @@ class ActiveWorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             val id = exerciseRepository.create(name, muscleGroup)
             searchQuery.value = ""
-            onExerciseSelected(
-                Exercise(id, name.trim(), "Personalizado", "Personalizado", muscleGroup)
-            )
+            onExerciseSelected(Exercise(id, name.trim(), "Personalizado", "Personalizado", muscleGroup))
         }
     }
 
-    fun onRepsDelta(delta: Int) {
-        reps.value = (reps.value + delta).coerceAtLeast(1)
-    }
-
-    fun onWeightDelta(delta: Float) {
-        weightKg.value = (weightKg.value + delta).coerceAtLeast(0f)
-    }
+    fun onRepsDelta(delta: Int) { reps.value = (reps.value + delta).coerceAtLeast(1) }
+    fun onWeightDelta(delta: Float) { weightKg.value = (weightKg.value + delta).coerceAtLeast(0f) }
 
     fun onStartSession() {
         viewModelScope.launch {
-            sessionRepository.startSession(
-                dateEpochDay = LocalDate.now().toEpochDay(),
-                focus = WorkoutFocus.toStored(selectedFocuses.value)
-            )
+            sessionRepository.startSession(LocalDate.now().toEpochDay(), WorkoutFocus.toStored(selectedFocuses.value))
             selectedFocuses.value = emptySet()
         }
     }
 
-    fun onStartTimer() {
-        sessionStartMillis.value = System.currentTimeMillis()
-    }
+    fun onStartTimer() { sessionStartMillis.value = System.currentTimeMillis() }
 
     fun onRegisterSet() {
         val now = System.currentTimeMillis()
@@ -303,22 +326,49 @@ class ActiveWorkoutViewModel @Inject constructor(
         timerPaused.value = false
         pausedElapsed.value = 0L
 
+        val currentReps = reps.value
+        val currentWeight = weightKg.value
+
         viewModelScope.launch {
+            var prText: String? = null
+            if (!isCardio && exercise.id !in celebratedExercises) {
+                val historicalSets = sessionRepository.getLastSetsForExercise(exercise.id, 100)
+                if (historicalSets.size >= 3) {
+                    if (currentWeight > 0f) {
+                        val maxW = sessionRepository.getMaxWeightForExercise(exercise.id) ?: 0f
+                        if (currentWeight > maxW && maxW > 0f) {
+                            val delta = currentWeight - maxW
+                            prText = "PR +${if (delta % 1f == 0f) "${delta.toInt()}" else "%.1f".format(delta)}kg"
+                        }
+                    } else {
+                        val maxR = sessionRepository.getMaxRepsBodyweight(exercise.id) ?: 0
+                        if (currentReps > maxR && maxR > 0) {
+                            prText = "PR +${currentReps - maxR} reps"
+                        }
+                    }
+                }
+            }
+
             sessionRepository.addSet(
                 sessionId = session.id,
                 exerciseId = exercise.id,
-                reps = if (isCardio) 0 else reps.value,
-                weightAddedKg = if (isCardio) 0f else weightKg.value,
+                reps = if (isCardio) 0 else currentReps,
+                weightAddedKg = if (isCardio) 0f else currentWeight,
                 durationSeconds = if (isCardio) durationSeconds.value else 0,
                 intensity = if (isCardio) intensity.value else 0,
                 restSeconds = restSeconds
             )
+
+            if (prText != null) {
+                celebratedExercises.add(exercise.id)
+                _prCelebration.value = prText
+                delay(2500)
+                _prCelebration.value = null
+            }
         }
     }
 
-    fun onDeleteSet(set: WorkoutSet) {
-        viewModelScope.launch { sessionRepository.deleteSet(set) }
-    }
+    fun onDeleteSet(set: WorkoutSet) { viewModelScope.launch { sessionRepository.deleteSet(set) } }
 
     fun onDiscardSession() {
         val session = uiState.value.session ?: return
@@ -326,6 +376,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             sessionRepository.deleteSession(session.id)
             sessionStartMillis.value = null
             selectedExercise.value = null
+            celebratedExercises.clear()
         }
     }
 
@@ -342,25 +393,14 @@ class ActiveWorkoutViewModel @Inject constructor(
             timerPaused.value = false
             pausedElapsed.value = 0L
             selectedExercise.value = null
-            if (session.sets.isNotEmpty()) {
-                _finishedSessionId.value = session.id
-            }
+            celebratedExercises.clear()
+            if (session.sets.isNotEmpty()) _finishedSessionId.value = session.id
         }
     }
 
-    fun onFinishedSessionConsumed() {
-        _finishedSessionId.value = null
-    }
+    fun onFinishedSessionConsumed() { _finishedSessionId.value = null }
+    fun onDurationDelta(delta: Int) { durationSeconds.value = (durationSeconds.value + delta).coerceAtLeast(0) }
+    fun onIntensityDelta(delta: Int) { intensity.value = (intensity.value + delta).coerceIn(1, 10) }
 
-    fun onDurationDelta(delta: Int) {
-        durationSeconds.value = (durationSeconds.value + delta).coerceAtLeast(0)
-    }
-
-    fun onIntensityDelta(delta: Int) {
-        intensity.value = (intensity.value + delta).coerceIn(1, 10)
-    }
-
-    private companion object {
-        const val REGISTER_DEBOUNCE_MS = 700L
-    }
+    private companion object { const val REGISTER_DEBOUNCE_MS = 700L }
 }

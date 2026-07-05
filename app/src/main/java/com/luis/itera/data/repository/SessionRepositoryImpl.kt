@@ -84,7 +84,18 @@ class SessionRepositoryImpl @Inject constructor(
 
     override suspend fun deleteSet(set: WorkoutSet) {
         setDao.delete(
-            SetEntity(set.id, set.sessionId, set.exerciseId, set.reps, set.weightAddedKg, set.order)
+            SetEntity(
+                id = set.id,
+                sessionId = set.sessionId,
+                exerciseId = set.exerciseId,
+                reps = set.reps,
+                weightAddedKg = set.weightAddedKg,
+                order = set.order,
+                durationSeconds = set.durationSeconds,
+                intensity = set.intensity,
+                workSeconds = set.workSeconds,
+                restSeconds = set.restSeconds
+            )
         )
     }
 
@@ -96,6 +107,12 @@ class SessionRepositoryImpl @Inject constructor(
 
     override fun getLastFinishedSession(): Flow<Session?> =
         sessionDao.getLastFinishedSession().map { it?.toDomain() }
+
+    override suspend fun getMaxWeightForExercise(exerciseId: Long): Float? =
+        setDao.getMaxWeightForExercise(exerciseId)
+
+    override suspend fun getMaxRepsBodyweight(exerciseId: Long): Int? =
+        setDao.getMaxRepsBodyweight(exerciseId)
 }
 
 private fun SessionEntity.toDomain(sets: List<WorkoutSet> = emptyList()) =

@@ -29,4 +29,10 @@ interface SetDao {
     LIMIT :limit
 """)
     suspend fun getLastSetsForExercise(exerciseId: Long, limit: Int): List<SetEntity>
+
+    @Query("SELECT MAX(weightAddedKg) FROM sets WHERE exerciseId = :exerciseId")
+    suspend fun getMaxWeightForExercise(exerciseId: Long): Float?
+
+    @Query("SELECT MAX(reps) FROM sets WHERE exerciseId = :exerciseId AND weightAddedKg = 0")
+    suspend fun getMaxRepsBodyweight(exerciseId: Long): Int?
 }

@@ -19,15 +19,22 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file("${System.getProperty("user.home")}/itera-release.jks")
-            storePassword = System.getenv("ITERA_STORE_PASSWORD") ?: ""
-            keyAlias = "itera"
-            keyPassword = System.getenv("ITERA_KEY_PASSWORD") ?: ""
+        val storePwd = System.getenv("ITERA_STORE_PASSWORD")
+        val keyPwd = System.getenv("ITERA_KEY_PASSWORD")
+        if (storePwd != null && keyPwd != null) {
+            create("release") {
+                storeFile = file("${System.getProperty("user.home")}/itera-release.jks")
+                storePassword = storePwd
+                keyAlias = "itera"
+                keyPassword = keyPwd
+            }
         }
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".dev"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -35,7 +42,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = try { signingConfigs.getByName("release") } catch (_: Exception) { null }
         }
     }
 
@@ -63,6 +70,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
+    testImplementation("junit:junit:4.13.2")
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
