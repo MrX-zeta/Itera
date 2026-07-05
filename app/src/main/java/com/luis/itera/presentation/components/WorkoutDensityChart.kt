@@ -59,11 +59,12 @@ fun WorkoutDensityChart(
 
     Canvas(modifier.fillMaxWidth().height(chartHeight.dp)) {
         val maxVolume = points.maxOf { it.volumeKg }.coerceAtLeast(1f)
-        val labelW = 96.dp.toPx()
-        val valueW = 76.dp.toPx()
-        val barArea = size.width - labelW - valueW - 8.dp.toPx()
+        val labelW = 92.dp.toPx()
+        val valueW = 48.dp.toPx()
+        val gap = 16.dp.toPx()
+        val barArea = size.width - labelW - valueW - gap
         val slot = size.height / points.size
-        val barH = (slot * 0.45f).coerceAtMost(16.dp.toPx())
+        val barH = (slot * 0.5f).coerceAtMost(20.dp.toPx())
         val r = CornerRadius(4.dp.toPx())
 
         points.forEachIndexed { i, pt ->
@@ -75,14 +76,14 @@ fun WorkoutDensityChart(
 
             drawRoundRect(
                 color = IteraColors.BorderStrong,
-                topLeft = Offset(labelW, cy - barH / 2f),
+                topLeft = Offset(labelW + gap, cy - barH / 2f),
                 size = Size(barArea, barH),
                 cornerRadius = r
             )
             if (barW > 0) {
                 drawRoundRect(
                     color = IteraColors.Accent,
-                    topLeft = Offset(labelW, cy - barH / 2f),
+                    topLeft = Offset(labelW + gap, cy - barH / 2f),
                     size = Size(barW, barH),
                     cornerRadius = r
                 )
@@ -91,7 +92,7 @@ fun WorkoutDensityChart(
             val volText = if (pt.volumeKg >= 1000f) "%.1f ton".format(pt.volumeKg / 1000f)
             else "${pt.volumeKg.toInt()} kg"
             val vm = textMeasurer.measure(volText, valueStyle)
-            drawText(vm, topLeft = Offset(labelW + barArea + 6.dp.toPx(), cy - vm.size.height / 2f))
+            drawText(vm, topLeft = Offset(labelW + gap + barArea + 6.dp.toPx(), cy - vm.size.height / 2f))
         }
     }
 }

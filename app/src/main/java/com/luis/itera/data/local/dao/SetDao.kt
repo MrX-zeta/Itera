@@ -35,4 +35,18 @@ interface SetDao {
 
     @Query("SELECT MAX(reps) FROM sets WHERE exerciseId = :exerciseId AND weightAddedKg = 0")
     suspend fun getMaxRepsBodyweight(exerciseId: Long): Int?
+
+    @Query("""
+SELECT MAX(s.weightAddedKg) FROM sets s
+INNER JOIN sessions ses ON ses.id = s.sessionId
+WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1
+""")
+    suspend fun getMaxWeightFinished(exerciseId: Long): Float?
+
+    @Query("""
+SELECT MAX(s.reps) FROM sets s
+INNER JOIN sessions ses ON ses.id = s.sessionId
+WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1 AND s.weightAddedKg = 0
+""")
+    suspend fun getMaxRepsBodyweightFinished(exerciseId: Long): Int?
 }

@@ -17,10 +17,11 @@ interface SessionRepository {
         exerciseId: Long,
         reps: Int,
         weightAddedKg: Float,
-        durationSeconds: Int = 0,
-        intensity: Int = 0,
+        durationSeconds: Int,
+        intensity: Int,
         workSeconds: Int = 0,
-        restSeconds: Int = 0
+        restSeconds: Int,
+        isPr: Boolean = false
     ): Long
     suspend fun deleteSet(set: WorkoutSet)
     suspend fun hasFinishedSession(dateEpochDay: Long): Boolean

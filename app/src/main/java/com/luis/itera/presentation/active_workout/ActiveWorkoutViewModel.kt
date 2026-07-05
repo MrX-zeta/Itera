@@ -356,7 +356,8 @@ class ActiveWorkoutViewModel @Inject constructor(
                 weightAddedKg = if (isCardio) 0f else currentWeight,
                 durationSeconds = if (isCardio) durationSeconds.value else 0,
                 intensity = if (isCardio) intensity.value else 0,
-                restSeconds = restSeconds
+                restSeconds = restSeconds,
+                isPr = prText != null
             )
 
             if (prText != null) {

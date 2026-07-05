@@ -185,14 +185,13 @@ class StatisticsViewModel @Inject constructor(
             }
         }
 
-    private val weekFmt = DateTimeFormatter.ofPattern("dd/MM", Locale("es"))
+    private val weekFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("es"))
 
     private val weeklyVolume = statisticsRepository.getWeeklyVolume().map { rows ->
         rows.map { row ->
             val start = LocalDate.ofEpochDay(row.weekStart)
-            val end = start.plusDays(6)
             DensityPoint(
-                label = "${start.format(weekFmt)}–${end.format(weekFmt)}",
+                label = "Sem ${start.format(weekFmt)}",
                 volumeKg = row.totalVolume
             )
         }

@@ -33,5 +33,6 @@ data class SetEntity(
     val durationSeconds: Int = 0,
     val intensity: Int = 0,
     val workSeconds: Int = 0,
-    val restSeconds: Int = 0
+    val restSeconds: Int = 0,
+    val isPr: Boolean = false
 )

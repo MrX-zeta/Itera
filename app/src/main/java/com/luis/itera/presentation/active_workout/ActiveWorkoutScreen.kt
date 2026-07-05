@@ -421,10 +421,15 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null)
     }
 
     val fireTransition = rememberInfiniteTransition(label = "fire")
-    val fireGlow by fireTransition.animateFloat(
-        initialValue = 0.5f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
-        label = "fire_glow"
+    val fireScaleY by fireTransition.animateFloat(
+        initialValue = 1f, targetValue = 1.18f,
+        animationSpec = infiniteRepeatable(tween(280), RepeatMode.Reverse),
+        label = "fire_scaleY"
+    )
+    val fireScaleX by fireTransition.animateFloat(
+        initialValue = 1f, targetValue = 0.9f,
+        animationSpec = infiniteRepeatable(tween(280), RepeatMode.Reverse),
+        label = "fire_scaleX"
     )
     val fireLift by fireTransition.animateFloat(
         initialValue = 0f, targetValue = -3f,
@@ -450,10 +455,14 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     ImageVector.vectorResource(R.drawable.ic_fire), null,
-                    tint = IteraColors.OnAccent.copy(alpha = fireGlow),
+                    tint = IteraColors.OnAccent,
                     modifier = Modifier
                         .size(22.dp)
-                        .graphicsLayer { translationY = fireLift }
+                        .graphicsLayer {
+                            scaleX = fireScaleX
+                            scaleY = fireScaleY
+                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+                        }
                 )
                 Spacer(Modifier.width(6.dp))
                 Text("NUEVO $prText", style = MaterialTheme.typography.titleMedium)

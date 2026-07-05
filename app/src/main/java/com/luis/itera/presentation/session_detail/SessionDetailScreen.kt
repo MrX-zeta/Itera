@@ -182,6 +182,8 @@ private fun ElongatedBackButton(onClick: () -> Unit) {
     }
 }
 
+private fun formatKg(value: Float): String = if (value % 1f == 0f) "${value.toInt()}" else "%.1f".format(value)
+
 @Composable
 private fun ExerciseDetailCard(
     name: String,
@@ -201,6 +203,24 @@ private fun ExerciseDetailCard(
             style = MaterialTheme.typography.titleMedium,
             color = IteraColors.TextPrimary
         )
+        sets.firstOrNull { it.isPr }?.let { prSet ->
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    ImageVector.vectorResource(R.drawable.ic_fire),
+                    contentDescription = null,
+                    tint = IteraColors.Accent,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = if (prSet.weightAddedKg > 0f) "Nuevo máximo · ${formatKg(prSet.weightAddedKg)} kg"
+                    else "Nuevo máximo · ${prSet.reps} reps",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.Accent
+                )
+            }
+        }
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 10.dp),
             thickness = 0.5.dp,
