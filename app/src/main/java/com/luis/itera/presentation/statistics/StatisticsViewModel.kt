@@ -9,6 +9,7 @@ import com.luis.itera.domain.model.TopMovementRecord
 import com.luis.itera.domain.model.WeeklyStreak
 import com.luis.itera.domain.model.WorkoutFocus
 import java.util.Locale
+import com.luis.itera.R
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.StatisticsRepository
 import com.luis.itera.domain.repository.UserPrefsRepository
@@ -42,6 +43,14 @@ private data class SeriesBundle(
     val isBodyweight: Boolean = false
 )
 
+enum class VolumeTrend(val label: String?, val iconRes: Int?) {
+    NONE(null, null),
+    RISING("progresando", R.drawable.ic_trend_up),
+    STABLE("estable", R.drawable.ic_trend_flat),
+    FALLING("bajando", R.drawable.ic_trend_down),
+    DELOAD("deload detectado", null)
+}
+
 data class StatisticsUiState(
     val sessionsThisMonth: Int = 0,
     val topFocus: String? = null,
@@ -60,6 +69,21 @@ data class StatisticsUiState(
         get() = maxWeightSeries.maxOfOrNull { it.value }
     val totalVolume: Float
         get() = volumeSeries.map { it.value }.sum()
+
+    val volumeTrend: VolumeTrend
+        get() {
+            if (densityPoints.size < 3) return VolumeTrend.NONE
+            val current = densityPoints.first().volumeKg
+            val previous = densityPoints.drop(1).map { it.volumeKg }.average().toFloat()
+            if (previous <= 0f) return VolumeTrend.NONE
+            val ratio = current / previous
+            return when {
+                ratio >= 1.1f -> VolumeTrend.RISING
+                ratio <= 0.6f -> VolumeTrend.DELOAD
+                ratio <= 0.8f -> VolumeTrend.FALLING
+                else -> VolumeTrend.STABLE
+            }
+        }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -160,17 +184,16 @@ class StatisticsViewModel @Inject constructor(
             }
         }
 
-    private val density = range.flatMapLatest { r ->
-        val from = LocalDate.now().minusDays(r.days).toEpochDay()
-        statisticsRepository.getWorkoutDensity(from).map { rows ->
-            rows.map { row ->
-                DensityPoint(
-                    label = LocalDate.ofEpochDay(row.dateEpochDay)
-                        .format(DateTimeFormatter.ofPattern("dd/MM", Locale("es"))),
-                    workSeconds = row.totalWork,
-                    restSeconds = row.totalRest
-                )
-            }
+    private val weekFmt = DateTimeFormatter.ofPattern("dd/MM", Locale("es"))
+
+    private val weeklyVolume = statisticsRepository.getWeeklyVolume().map { rows ->
+        rows.map { row ->
+            val start = LocalDate.ofEpochDay(row.weekStart)
+            val end = start.plusDays(6)
+            DensityPoint(
+                label = "${start.format(weekFmt)}–${end.format(weekFmt)}",
+                volumeKg = row.totalVolume
+            )
         }
     }
 
@@ -180,7 +203,7 @@ class StatisticsViewModel @Inject constructor(
         filteredExercises,
         combine(defaultExercise, selectedGroup, range) { e, g, r -> Triple(e, g, r) },
         series,
-        density
+        weeklyVolume
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val summaryData = args[0] as Triple<Int, String?, WeeklyStreak>

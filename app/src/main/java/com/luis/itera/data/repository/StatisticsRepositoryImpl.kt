@@ -1,8 +1,8 @@
 package com.luis.itera.data.repository
 
-import com.luis.itera.data.local.dao.DensityRow
 import com.luis.itera.data.local.dao.StatisticsDao
 import com.luis.itera.data.local.dao.TopExerciseRecord
+import com.luis.itera.data.local.dao.WeeklyVolumeRow
 import com.luis.itera.domain.model.ExerciseSeriesPoint
 import com.luis.itera.domain.repository.StatisticsRepository
 import kotlinx.coroutines.flow.Flow
@@ -69,8 +69,8 @@ class StatisticsRepositoryImpl @Inject constructor(
     override fun getTopExercises(limit: Int): Flow<List<TopExerciseRecord>> =
         statisticsDao.getTopExercises(limit)
 
-    override fun getWorkoutDensity(fromEpochDay: Long): Flow<List<DensityRow>> =
-        statisticsDao.getWorkoutDensity(fromEpochDay)
+    override fun getWeeklyVolume(): Flow<List<WeeklyVolumeRow>> =
+        statisticsDao.getWeeklyVolume()
 
     override fun getLastExercisedId(): Flow<Long?> =
         statisticsDao.getLastExercisedId()

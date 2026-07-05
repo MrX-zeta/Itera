@@ -220,7 +220,11 @@ private fun MiniHydrationRing(progress: Float, onClick: () -> Unit) {
 
 private fun relativeDay(epochDay: Long): String {
     val diff = LocalDate.now().toEpochDay() - epochDay
-    return when (diff) { 0L -> "hoy"; 1L -> "ayer"; else -> "hace $diff días" }
+    return when {
+        diff <= 0L -> "hoy"
+        diff == 1L -> "ayer"
+        else -> "hace $diff días"
+    }
 }
 
 @Composable

@@ -224,7 +224,32 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
             }
             item {
                 Spacer(Modifier.height(20.dp))
-                Text("DENSIDAD DE ENTRENAMIENTO", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                    Text("VOLUMEN SEMANAL", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
+                    state.volumeTrend.label?.let { label ->
+                        val trendColor = when (state.volumeTrend) {
+                            VolumeTrend.RISING -> IteraColors.Accent
+                            VolumeTrend.DELOAD -> IteraColors.Accent.copy(alpha = 0.7f)
+                            else -> IteraColors.TextSecondary
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            state.volumeTrend.iconRes?.let { icon ->
+                                Icon(
+                                    ImageVector.vectorResource(icon),
+                                    contentDescription = null,
+                                    tint = trendColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(3.dp))
+                            }
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = trendColor
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.height(10.dp))
                 WorkoutDensityChart(points = state.densityPoints, modifier = Modifier.fillMaxWidth())
             }
