@@ -51,7 +51,8 @@ private val Accent = Color(0xFF2DD4BF)
 private val ButtonFg = Color(0xFF0D0D11)
 private val TextPrimary = Color(0xFFE8E8EA)
 private val TextSecondary = Color(0xFF8A8A92)
-private val DotEmpty = Color(0xFF2E2E36)
+private val TitleColor = Color(0xFF9E9EA6)
+private val DotEmpty = Color(0xFF3E3E48)
 private val RingTrack = Color(0xFF33333B)
 
 private val SlimSize = DpSize(300.dp, 60.dp)
@@ -159,11 +160,11 @@ private fun DotsRow(trainedDays: Set<Int>, dotSize: Int, gap: Int) {
 }
 
 @Composable
-private fun PlayIcon(sizeDp: Int) {
+private fun PlayIcon(sizeDp: Int, modifier: GlanceModifier = GlanceModifier) {
     Image(
         provider = ImageProvider(R.drawable.ic_widget_play),
         contentDescription = null,
-        modifier = GlanceModifier.size(sizeDp.dp)
+        modifier = modifier.size(sizeDp.dp)
     )
 }
 
@@ -190,7 +191,7 @@ private fun WideLayout(data: WidgetData, ring: Bitmap) {
         Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
                 "ITERA",
-                style = TextStyle(color = cp(TextSecondary), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                style = TextStyle(color = cp(TitleColor), fontSize = 12.sp, fontWeight = FontWeight.Medium)
             )
             Spacer(GlanceModifier.height(6.dp))
             Text(
@@ -281,7 +282,7 @@ private fun CompactLayout(data: WidgetData, ring: Bitmap) {
         ) {
             Text(
                 "ITERA",
-                style = TextStyle(color = cp(TextSecondary), fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                style = TextStyle(color = cp(TitleColor), fontSize = 12.sp, fontWeight = FontWeight.Medium),
                 modifier = GlanceModifier.defaultWeight()
             )
             HydrationRing(ring, data.hydrationPercent, sizeDp = 34, textSp = 11)
@@ -307,11 +308,14 @@ private fun CompactLayout(data: WidgetData, ring: Bitmap) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            PlayIcon(sizeDp = 16)
+            // Sube el ícono ~1.5dp: el texto en mayúsculas queda ópticamente
+            // más arriba que el centro de su caja, así que centrarlos a secas
+            // deja el play visualmente por debajo del texto.
+            PlayIcon(sizeDp = 16, modifier = GlanceModifier.padding(bottom = 3.dp))
             Spacer(GlanceModifier.width(6.dp))
             Text(
                 "INICIAR",
-                style = TextStyle(color = cp(ButtonFg), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                style = TextStyle(color = cp(ButtonFg), fontSize = 14.sp, fontWeight = FontWeight.Bold)
             )
         }
     }
