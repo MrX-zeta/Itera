@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -178,53 +184,117 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                     }
                 } else {
                     val isCardio = state.selectedExercise?.mainMuscleGroup.equals("Cardio", ignoreCase = true)
-                    Spacer(Modifier.height(20.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            when { isCardio -> "DURACIÓN MÁXIMA"; state.isBodyweightMode -> "REPS MÁXIMAS"; else -> "PESO MÁXIMO" },
-                            style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary
-                        )
-                        state.personalRecord?.let {
-                            Text(
-                                when { isCardio -> "MÁX ${it.toInt()} min"; state.isBodyweightMode -> "MÁX ${it.toInt()} reps"; else -> "MÁX ${formatKg(it)} kg" },
-                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp), color = IteraColors.Accent
+                    AnimatedVisibility(
+                        visible = state.range != StatsRange.ALL,
+                        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                        exit = fadeOut(tween(300)) + shrinkVertically(tween(300))
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(20.dp))
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                Text(
+                                    when {
+                                        isCardio -> "DURACIÓN MÁXIMA"; state.isBodyweightMode -> "REPS MÁXIMAS"; else -> "PESO MÁXIMO"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = IteraColors.TextSecondary
+                                )
+                                state.personalRecord?.let {
+                                    Text(
+                                        when {
+                                            isCardio -> "MÁX ${it.toInt()} min"; state.isBodyweightMode -> "MÁX ${it.toInt()} reps"; else -> "MÁX ${
+                                            formatKg(
+                                                it
+                                            )
+                                        } kg"
+                                        },
+                                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 16.sp),
+                                        color = IteraColors.Accent
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            if (state.maxWeightSeries.size >= 2) {
+                                StatLineChart(points = state.maxWeightSeries)
+                            } else {
+                                Text(
+                                    if (state.maxWeightSeries.isEmpty()) "Sin datos en el rango" else "Necesita 2+ sesiones para graficar",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = IteraColors.TextSecondary
+                                )
+                            }
+                            Spacer(Modifier.height(18.dp))
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                Text(
+                                    when {
+                                        isCardio -> "MINUTOS TOTALES"; state.isBodyweightMode -> "REPS TOTALES"; else -> "VOLUMEN TOTAL"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = IteraColors.TextSecondary
+                                )
+                                if (state.totalVolume > 0f) {
+                                    Text(
+                                        when {
+                                            isCardio -> "Total: ${state.totalVolume.toInt()} min"
+                                            state.isBodyweightMode -> "Total: ${state.totalVolume.toInt()} reps"
+                                            state.totalVolume >= 1000f -> "Total: ${
+                                                "%.1f".format(
+                                                    state.totalVolume / 1000f
+                                                )
+                                            } ton"
+
+                                            else -> "Total: ${formatKg(state.totalVolume)} kg"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = IteraColors.TextSecondary.copy(alpha = 0.9f)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            StatBarChart(
+                                points = state.volumeSeries,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
-                    Spacer(Modifier.height(10.dp))
-                    if (state.maxWeightSeries.size >= 2) {
-                        StatLineChart(points = state.maxWeightSeries)
-                    } else {
-                        Text(
-                            if (state.maxWeightSeries.isEmpty()) "Sin datos en el rango" else "Necesita 2+ sesiones para graficar",
-                            style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary
-                        )
-                    }
-                    Spacer(Modifier.height(18.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            when { isCardio -> "MINUTOS TOTALES"; state.isBodyweightMode -> "REPS TOTALES"; else -> "VOLUMEN TOTAL" },
-                            style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary
-                        )
-                        if (state.totalVolume > 0f) {
-                            Text(
-                                when {
-                                    isCardio -> "Total: ${state.totalVolume.toInt()} min"
-                                    state.isBodyweightMode -> "Total: ${state.totalVolume.toInt()} reps"
-                                    state.totalVolume >= 1000f -> "Total: ${"%.1f".format(state.totalVolume / 1000f)} ton"
-                                    else -> "Total: ${formatKg(state.totalVolume)} kg"
-                                },
-                                style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary.copy(alpha = 0.9f)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    StatBarChart(points = state.volumeSeries, modifier = Modifier.fillMaxWidth())
                 }
             }
             item {
                 Spacer(Modifier.height(20.dp))
-                Text("DENSIDAD DE ENTRENAMIENTO", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                    Text("VOLUMEN SEMANAL", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
+                    state.volumeTrend.label?.let { label ->
+                        val trendColor = when (state.volumeTrend) {
+                            VolumeTrend.RISING -> IteraColors.Accent
+                            VolumeTrend.DELOAD -> IteraColors.Accent.copy(alpha = 0.7f)
+                            else -> IteraColors.TextSecondary
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            state.volumeTrend.iconRes?.let { icon ->
+                                Icon(
+                                    ImageVector.vectorResource(icon),
+                                    contentDescription = null,
+                                    tint = trendColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(3.dp))
+                            }
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = trendColor
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.height(10.dp))
                 WorkoutDensityChart(points = state.densityPoints, modifier = Modifier.fillMaxWidth())
             }

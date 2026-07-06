@@ -1,6 +1,8 @@
 package com.luis.itera.data.local
 
 import android.content.Context
+import androidx.datastore.dataStore
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -28,15 +30,35 @@ class UserPrefsDataStore @Inject constructor(
 
 
     suspend fun setUserWeightKg(weightKg: Float) {
-        context.dataStore.edit { it[weightKey] = weightKg }
+        context.dataStore.edit { it[weightKey] = weightKg.coerceIn(MIN_WEIGHT_KG, MAX_WEIGHT_KG) }
     }
 
     suspend fun setWeeklyGoal(goal: Int) {
         context.dataStore.edit { it[weeklyGoalKey] = goal.coerceIn(1, 7) }
     }
 
+    private val onboardingKey = booleanPreferencesKey("onboarding_completed")
+
+    fun getOnboardingCompleted(): Flow<Boolean> =
+        context.dataStore.data.map { it[onboardingKey] ?: false }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.dataStore.edit { it[onboardingKey] = completed }
+    }
+
+    private val widgetPinRequestedKey = booleanPreferencesKey("widget_pin_requested")
+
+    fun getWidgetPinRequested(): Flow<Boolean> =
+        context.dataStore.data.map { it[widgetPinRequestedKey] ?: false }
+
+    suspend fun setWidgetPinRequested(requested: Boolean) {
+        context.dataStore.edit { it[widgetPinRequestedKey] = requested }
+    }
+
     private companion object {
         const val DEFAULT_WEIGHT_KG = 70f
         const val DEFAULT_WEEKLY_GOAL = 3
+        const val MIN_WEIGHT_KG = 30f
+        const val MAX_WEIGHT_KG = 250f
     }
 }

@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import com.luis.itera.presentation.onboarding.OnboardingScreen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -59,73 +61,94 @@ private fun IteraDestination.ownsRoute(route: String?): Boolean = when (this) {
 }
 
 @Composable
-fun IteraNavHost() {
+fun IteraNavHost(
+    onboardingCompleted: Boolean,
+    onOnboardingDone: () -> Unit,
+    deepLinkRoute: String? = null,
+    onDeepLinkHandled: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
+    val showBottomBar = currentRoute != IteraDestination.Onboarding.route
+
+    // Navega al destino pedido por el widget (p. ej. hidratación) una vez que la
+    // app ya pasó el onboarding.
+    LaunchedEffect(deepLinkRoute, onboardingCompleted) {
+        if (deepLinkRoute != null && onboardingCompleted) {
+            navController.navigate(deepLinkRoute) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+            onDeepLinkHandled()
+        }
+    }
+
     Scaffold(
         containerColor = IteraColors.Background,
         bottomBar = {
-            NavigationBar(
-                containerColor = IteraColors.Background,
-                tonalElevation = 0.dp
-            ) {
-                navItems.forEach { item ->
-                    val selected = item.destination.ownsRoute(currentRoute)
-                    val iconScale by animateFloatAsState(
-                        targetValue = if (selected) 1.15f else 1f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMedium
-                        ),
-                        label = "tab_scale"
-                    )
-                    val iconAlpha by animateFloatAsState(
-                        targetValue = if (selected) 1f else 0.6f,
-                        label = "tab_alpha"
-                    )
-
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            if (currentRoute == IteraDestination.SessionDetail.route) {
-                                navController.popBackStack(
-                                    route = item.destination.route,
-                                    inclusive = false
-                                )
-                            }
-                            navController.navigate(item.destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = ImageVector.vectorResource(item.iconRes),
-                                contentDescription = item.destination.route,
-                                modifier = Modifier
-                                    .size(30.dp)
-                                    .scale(iconScale)
-                                    .graphicsLayer { alpha = iconAlpha }
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = IteraColors.Accent,
-                            unselectedIconColor = IteraColors.TextSecondary,
-                            indicatorColor = Color.Transparent
+            if (showBottomBar) {
+                NavigationBar(
+                    containerColor = IteraColors.Background,
+                    tonalElevation = 0.dp
+                ) {
+                    navItems.forEach { item ->
+                        val selected = item.destination.ownsRoute(currentRoute)
+                        val iconScale by animateFloatAsState(
+                            targetValue = if (selected) 1.15f else 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMedium
+                            ),
+                            label = "tab_scale"
                         )
-                    )
+                        val iconAlpha by animateFloatAsState(
+                            targetValue = if (selected) 1f else 0.6f,
+                            label = "tab_alpha"
+                        )
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                if (currentRoute == IteraDestination.SessionDetail.route) {
+                                    navController.popBackStack(
+                                        route = item.destination.route,
+                                        inclusive = false
+                                    )
+                                }
+                                navController.navigate(item.destination.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = ImageVector.vectorResource(item.iconRes),
+                                    contentDescription = item.destination.route,
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .scale(iconScale)
+                                        .graphicsLayer { alpha = iconAlpha }
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = IteraColors.Accent,
+                                unselectedIconColor = IteraColors.TextSecondary,
+                                indicatorColor = Color.Transparent
+                            )
+                        )
+                    }
                 }
             }
         }
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = IteraDestination.ActiveWorkout.route,
+            startDestination = if (onboardingCompleted) IteraDestination.ActiveWorkout.route else IteraDestination.Onboarding.route,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -133,6 +156,16 @@ fun IteraNavHost() {
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() }
         ) {
+            composable(IteraDestination.Onboarding.route) {
+                OnboardingScreen(
+                    onComplete = {
+                        onOnboardingDone()
+                        navController.navigate(IteraDestination.ActiveWorkout.route) {
+                            popUpTo(IteraDestination.Onboarding.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
             composable(IteraDestination.ActiveWorkout.route) {
                 ActiveWorkoutScreen(
                     onSessionFinished = { sessionId ->

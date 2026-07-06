@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Provider
 import javax.inject.Singleton
 import androidx.room.migration.Migration
+import com.luis.itera.data.local.dao.RoutineDao
 import com.luis.itera.data.local.dao.StatisticsDao
 
 @Module
@@ -35,7 +36,7 @@ object DatabaseModule {
         exerciseDaoProvider: Provider<ExerciseDao>
     ): IteraDatabase =
         Room.databaseBuilder(context, IteraDatabase::class.java, "itera.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
@@ -59,6 +60,9 @@ object DatabaseModule {
 
     @Provides
     fun provideStatisticsDao(db: IteraDatabase): StatisticsDao = db.statisticsDao()
+
+    @Provides
+    fun provideRoutineDao(db: IteraDatabase): RoutineDao = db.routineDao()
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -84,5 +88,20 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE sets ADD COLUMN workSeconds INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE sets ADD COLUMN restSeconds INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE sets ADD COLUMN isPr INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+private val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS routines (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, focus TEXT)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS routine_exercises (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, routineId INTEGER NOT NULL, exerciseId INTEGER NOT NULL, displayOrder INTEGER NOT NULL, FOREIGN KEY(routineId) REFERENCES routines(id) ON DELETE CASCADE, FOREIGN KEY(exerciseId) REFERENCES exercises(id) ON DELETE CASCADE)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_routine_exercises_routineId ON routine_exercises(routineId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_routine_exercises_exerciseId ON routine_exercises(exerciseId)")
     }
 }

@@ -1,9 +1,9 @@
 package com.luis.itera.domain.repository
 
-import com.luis.itera.data.local.dao.DensityRow
 import com.luis.itera.domain.model.ExerciseSeriesPoint
 import kotlinx.coroutines.flow.Flow
 import com.luis.itera.data.local.dao.TopExerciseRecord
+import com.luis.itera.data.local.dao.WeeklyVolumeRow
 
 interface StatisticsRepository {
     fun getMaxWeightSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<ExerciseSeriesPoint>>
@@ -19,7 +19,7 @@ interface StatisticsRepository {
 
     fun getTopExercises(limit: Int = 3): Flow<List<TopExerciseRecord>>
 
-    fun getWorkoutDensity(fromEpochDay: Long): Flow<List<DensityRow>>
+    fun getWeeklyVolume(): Flow<List<WeeklyVolumeRow>>
 
     fun getLastExercisedId(): Flow<Long?>
 }

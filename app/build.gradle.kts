@@ -14,20 +14,27 @@ android {
         applicationId = "com.luis.itera"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file("${System.getProperty("user.home")}/itera-release.jks")
-            storePassword = System.getenv("ITERA_STORE_PASSWORD") ?: ""
-            keyAlias = "itera"
-            keyPassword = System.getenv("ITERA_KEY_PASSWORD") ?: ""
+        val storePwd = System.getenv("ITERA_STORE_PASSWORD")
+        val keyPwd = System.getenv("ITERA_KEY_PASSWORD")
+        if (storePwd != null && keyPwd != null) {
+            create("release") {
+                storeFile = file("${System.getProperty("user.home")}/itera-release.jks")
+                storePassword = storePwd
+                keyAlias = "itera"
+                keyPassword = keyPwd
+            }
         }
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".dev"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -35,7 +42,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = try { signingConfigs.getByName("release") } catch (_: Exception) { null }
         }
     }
 
@@ -63,6 +70,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
+    testImplementation("junit:junit:4.13.2")
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -70,6 +78,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation("androidx.glance:glance-appwidget:1.1.1")
     debugImplementation(libs.androidx.ui.tooling)
 
     implementation(libs.room.runtime)

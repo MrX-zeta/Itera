@@ -10,6 +10,8 @@ import com.luis.itera.domain.repository.HydrationRepository
 import com.luis.itera.domain.repository.SessionRepository
 import com.luis.itera.domain.repository.StatisticsRepository
 import com.luis.itera.domain.repository.UserPrefsRepository
+import com.luis.itera.data.repository.RoutineRepositoryImpl
+import com.luis.itera.domain.repository.RoutineRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -39,4 +41,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindStatisticsRepository(impl: StatisticsRepositoryImpl): StatisticsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRoutineRepository(impl: RoutineRepositoryImpl): RoutineRepository
 }

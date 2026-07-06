@@ -23,6 +23,11 @@ data class PersonalRecord(
     val dateEpochDay: Long
 )
 
+data class WeeklyVolumeRow(
+    val weekStart: Long,
+    val totalVolume: Float
+)
+
 data class TopExerciseRecord(
     val exerciseId: Long,
     val setCount: Int,
@@ -34,11 +39,6 @@ data class TopExerciseRecord(
     val isCardio: Boolean
 )
 
-data class DensityRow(
-    val dateEpochDay: Long,
-    val totalWork: Int,
-    val totalRest: Int
-)
 
 @Dao
 interface StatisticsDao {
@@ -161,19 +161,18 @@ interface StatisticsDao {
 """)
     fun getTopExercises(limit: Int = 3): Flow<List<TopExerciseRecord>>
 
+
     @Query("""
-    SELECT ses.dateEpochDay,
-           COALESCE(SUM(s.workSeconds), 0) AS totalWork,
-           COALESCE(SUM(s.restSeconds), 0) AS totalRest
+    SELECT ((ses.dateEpochDay - 4) / 7) * 7 + 4 AS weekStart,
+           SUM(s.reps * s.weightAddedKg) AS totalVolume
     FROM sets s
     INNER JOIN sessions ses ON ses.id = s.sessionId
-    WHERE ses.isFinished = 1 AND ses.dateEpochDay >= :fromEpochDay
-    GROUP BY ses.dateEpochDay
-    HAVING totalWork > 0 OR totalRest > 0
-    ORDER BY ses.dateEpochDay DESC
-    LIMIT 10
+    WHERE ses.isFinished = 1 AND s.weightAddedKg > 0
+    GROUP BY weekStart
+    ORDER BY weekStart DESC
+    LIMIT 5
 """)
-    fun getWorkoutDensity(fromEpochDay: Long): Flow<List<DensityRow>>
+    fun getWeeklyVolume(): Flow<List<WeeklyVolumeRow>>
 
     @Query("""
     SELECT s.exerciseId FROM sets s

@@ -75,8 +75,10 @@ import java.util.Locale
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import com.luis.itera.domain.model.WorkoutFocus
+import java.time.LocalDate
 
 private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
+private val cardDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("es"))
 private const val MIN_REVEAL_MS = 125L
 
 @Composable
@@ -359,8 +361,12 @@ private fun SessionCard(
             .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (!session.isFinished || session.durationMinutes < 1) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 if (session.isFinished && session.durationMinutes < 1) {
                     Icon(
                         ImageVector.vectorResource(R.drawable.ic_flash),
@@ -370,16 +376,37 @@ private fun SessionCard(
                     )
                     Spacer(Modifier.width(2.dp))
                 }
+                Text(
+                    text = when {
+                        !session.isFinished -> "EN CURSO"
+                        session.durationMinutes < 1 -> "Rápida"
+                        else -> "${session.durationMinutes} min"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.Accent
+                )
+                Text(
+                    text = " · ${LocalDate.ofEpochDay(session.dateEpochDay).format(cardDateFormatter)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.TextSecondary
+                )
             }
-            Text(
-                text = when {
-                    !session.isFinished -> "EN CURSO"
-                    session.durationMinutes < 1 -> "Rápida"
-                    else -> "${session.durationMinutes} min"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = IteraColors.Accent
-            )
+            if (session.sets.any { it.isPr }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        ImageVector.vectorResource(R.drawable.ic_fire),
+                        contentDescription = null,
+                        tint = IteraColors.Accent,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(3.dp))
+                    Text(
+                        "PR",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                        color = IteraColors.Accent
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
         displayed.forEach { (exerciseId, sets) ->

@@ -64,7 +64,8 @@ class SessionRepositoryImpl @Inject constructor(
         durationSeconds: Int,
         intensity: Int,
         workSeconds: Int,
-        restSeconds: Int
+        restSeconds: Int,
+        isPr: Boolean
     ): Long {
         val nextOrder = setDao.getMaxOrder(sessionId) + 1
         return setDao.insert(
@@ -77,14 +78,20 @@ class SessionRepositoryImpl @Inject constructor(
                 durationSeconds = durationSeconds,
                 intensity = intensity,
                 workSeconds = workSeconds,
-                restSeconds = restSeconds
+                restSeconds = restSeconds,
+                isPr = isPr
             )
         )
     }
 
     override suspend fun deleteSet(set: WorkoutSet) {
         setDao.delete(
-            SetEntity(set.id, set.sessionId, set.exerciseId, set.reps, set.weightAddedKg, set.order)
+            SetEntity(
+                id = set.id, sessionId = set.sessionId, exerciseId = set.exerciseId,
+                reps = set.reps, weightAddedKg = set.weightAddedKg, order = set.order,
+                durationSeconds = set.durationSeconds, intensity = set.intensity,
+                workSeconds = set.workSeconds, restSeconds = set.restSeconds, isPr = set.isPr
+            )
         )
     }
 
@@ -96,13 +103,19 @@ class SessionRepositoryImpl @Inject constructor(
 
     override fun getLastFinishedSession(): Flow<Session?> =
         sessionDao.getLastFinishedSession().map { it?.toDomain() }
+
+    override suspend fun getMaxWeightForExercise(exerciseId: Long): Float? =
+        setDao.getMaxWeightFinished(exerciseId)
+
+    override suspend fun getMaxRepsBodyweight(exerciseId: Long): Int? =
+        setDao.getMaxRepsBodyweightFinished(exerciseId)
 }
 
 private fun SessionEntity.toDomain(sets: List<WorkoutSet> = emptyList()) =
     Session(id, dateEpochDay, durationMinutes, notes, isFinished, focus, startEpochMillis, sets)
 
 private fun SetEntity.toDomain() =
-    WorkoutSet(id, sessionId, exerciseId, reps, weightAddedKg, order, durationSeconds, intensity, workSeconds, restSeconds)
+    WorkoutSet(id, sessionId, exerciseId, reps, weightAddedKg, order, durationSeconds, intensity, workSeconds, restSeconds, isPr)
 
 private fun SessionWithSets.toDomain() =
     session.toDomain(sets.map { it.toDomain() })
