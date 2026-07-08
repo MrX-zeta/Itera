@@ -29,9 +29,6 @@ secrets.properties
 apikeys.properties
 env.properties
 
-# Documento de contexto para asistentes IA (local, NO se sube al repo)
-CONTEXT.md
-
 # Basura del sistema operativo (Windows/macOS)
 Thumbs.db
 ehthumbs.db
@@ -42,4 +39,5 @@ ehthumbs.db
 **/.idea/deploymentTargetSelector.xml
 .kotlin/
 *.jks
-*.keystore.idea/
+*.keystore
+*CONTEXT.md
