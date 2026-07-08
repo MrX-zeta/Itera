@@ -42,4 +42,4 @@ ehthumbs.db
 **/.idea/deploymentTargetSelector.xml
 .kotlin/
 *.jks
-*.keystore
+*.keystore.idea/
