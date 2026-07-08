@@ -40,3 +40,4 @@ ehthumbs.db
 .kotlin/
 *.jks
 *.keystore
+*CONTEXT.md
