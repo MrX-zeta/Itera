@@ -29,6 +29,9 @@ secrets.properties
 apikeys.properties
 env.properties
 
+# Documento de contexto para asistentes IA (local, NO se sube al repo)
+CONTEXT.md
+
 # Basura del sistema operativo (Windows/macOS)
 Thumbs.db
 ehthumbs.db

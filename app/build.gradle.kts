@@ -23,7 +23,7 @@ android {
         val keyPwd = System.getenv("ITERA_KEY_PASSWORD")
         if (storePwd != null && keyPwd != null) {
             create("release") {
-                storeFile = file("${System.getProperty("user.home")}/itera-release.jks")
+                storeFile = file("${System.getProperty("user.home")}/itera-release-new.jks")
                 storePassword = storePwd
                 keyAlias = "itera"
                 keyPassword = keyPwd
