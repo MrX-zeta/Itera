@@ -126,9 +126,16 @@ private fun HydrationRing(ring: Bitmap, percent: Int, sizeDp: Int, textSp: Int) 
             contentDescription = "Hidratación $percent%",
             modifier = GlanceModifier.fillMaxSize()
         )
+        // La fuente baja según el nº de dígitos, respecto a la base de cada layout:
+        // 1-2 dígitos no se encoge; 3 dígitos ("100%") baja 2sp; 4 dígitos ("1000%"), 4sp.
+        val percentSp = when {
+            percent >= 1000 -> textSp - 4
+            percent >= 100 -> textSp - 2
+            else -> textSp
+        }
         Text(
             "$percent%",
-            style = TextStyle(color = cp(TextPrimary), fontSize = textSp.sp, fontWeight = FontWeight.Bold)
+            style = TextStyle(color = cp(TextPrimary), fontSize = percentSp.sp, fontWeight = FontWeight.Bold)
         )
     }
 }
@@ -199,7 +206,7 @@ private fun WideLayout(data: WidgetData, ring: Bitmap) {
                 style = TextStyle(color = cp(TextPrimary), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             )
             Spacer(GlanceModifier.height(10.dp))
-            DotsRow(data.trainedDaysThisWeek, dotSize = 13, gap = 6)
+            DotsRow(data.trainedDaysThisWeek, dotSize = 11, gap = 4)
         }
 
         Spacer(GlanceModifier.width(14.dp))
@@ -294,7 +301,7 @@ private fun CompactLayout(data: WidgetData, ring: Bitmap) {
             style = TextStyle(color = cp(TextPrimary), fontSize = 15.sp, fontWeight = FontWeight.Bold)
         )
         Spacer(GlanceModifier.height(10.dp))
-        DotsRow(data.trainedDaysThisWeek, dotSize = 12, gap = 5)
+        DotsRow(data.trainedDaysThisWeek, dotSize = 11, gap = 4)
 
         Spacer(GlanceModifier.defaultWeight())
 

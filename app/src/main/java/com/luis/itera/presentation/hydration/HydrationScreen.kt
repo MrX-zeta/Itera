@@ -106,7 +106,7 @@ fun HydrationScreen(viewModel: HydrationViewModel = hiltViewModel()) {
             Spacer(Modifier.height(40.dp))
 
             DraggableProgressRing(
-                progress = state.progress,
+                rawProgress = state.rawProgress,
                 totalMl = state.displayTotalMl,
                 goalMl = state.goal?.totalGoalMl ?: 0,
                 isDragging = state.dragDeltaMl != 0,
@@ -296,7 +296,7 @@ private fun DismissableIntakeRow(
 
 @Composable
 private fun DraggableProgressRing(
-    progress: Float,
+    rawProgress: Float,
     totalMl: Int,
     goalMl: Int,
     isDragging: Boolean,
@@ -309,8 +309,8 @@ private fun DraggableProgressRing(
     LaunchedEffect(Unit) { triggerAnimation = true }
 
     val targetProgress = when {
-        isDragging -> progress
-        triggerAnimation -> progress
+        isDragging -> rawProgress
+        triggerAnimation -> rawProgress
         else -> 0f
     }
     val animatedProgress by animateFloatAsState(
@@ -318,6 +318,9 @@ private fun DraggableProgressRing(
         animationSpec = tween(if (isDragging) 0 else 1000, easing = FastOutSlowInEasing),
         label = "hydration_progress"
     )
+    val base = animatedProgress.coerceIn(0f, 1f)
+    val overflow = (animatedProgress - 1f).coerceIn(0f, 1f)
+    val percent = ((if (isDragging) rawProgress else animatedProgress) * 100).toInt()
 
     Box(
         modifier = modifier
@@ -356,18 +359,26 @@ private fun DraggableProgressRing(
             strokeWidth = 4.dp
         )
         CircularProgressIndicator(
-            progress = { animatedProgress },
+            progress = { base },
             modifier = Modifier.fillMaxSize(),
             color = IteraColors.Accent,
             strokeWidth = 4.dp
         )
+        if (animatedProgress > 1f) {
+            CircularProgressIndicator(
+                progress = { overflow },
+                modifier = Modifier.fillMaxSize(),
+                color = IteraColors.Accent.copy(alpha = 0.45f),
+                strokeWidth = 4.dp
+            )
+        }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("$totalMl", style = MaterialTheme.typography.titleLarge, color = if (isDragging) IteraColors.Accent else IteraColors.TextPrimary)
             Text("/ $goalMl ml", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
             Text(
-                if (isDragging) "${(progress * 100).toInt()}% · AJUSTANDO" else "${(animatedProgress * 100).toInt()}%",
+                if (isDragging) "$percent% · AJUSTANDO" else "$percent%",
                 style = MaterialTheme.typography.bodySmall,
-                color = IteraColors.Accent
+                color = IteraColors.TextPrimary
             )
         }
     }

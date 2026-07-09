@@ -5,24 +5,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.itera.domain.model.Exercise
 import com.luis.itera.domain.model.ExerciseSeriesPoint
-import com.luis.itera.domain.model.TopMovementRecord
-import com.luis.itera.domain.model.WeeklyStreak
 import com.luis.itera.domain.model.WorkoutFocus
-import java.util.Locale
 import com.luis.itera.R
+import com.luis.itera.data.local.dao.WeeklyVolumeRow
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.StatisticsRepository
-import com.luis.itera.domain.repository.UserPrefsRepository
-import com.luis.itera.domain.usecase.CalculateWeeklyStreakUseCase
 import com.luis.itera.presentation.components.DensityPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -37,6 +33,8 @@ enum class StatsRange(val label: String, val days: Long) {
     D90("90D", 90),
     ALL("TODO", 36500)
 }
+
+data class FocusCount(val focus: WorkoutFocus, val count: Int)
 
 private data class SeriesBundle(
     val maxSeries: List<ExerciseSeriesPoint> = emptyList(),
@@ -53,10 +51,7 @@ enum class VolumeTrend(val label: String?, val iconRes: Int?) {
 }
 
 data class StatisticsUiState(
-    val sessionsThisMonth: Int = 0,
-    val topFocus: String? = null,
-    val streak: WeeklyStreak = WeeklyStreak(0, 0, 3),
-    val topMovements: List<TopMovementRecord> = emptyList(),
+    val focusCounts: List<FocusCount> = emptyList(),
     val exercises: List<Exercise> = emptyList(),
     val selectedExercise: Exercise? = null,
     val selectedGroup: String? = null,
@@ -64,36 +59,23 @@ data class StatisticsUiState(
     val maxWeightSeries: List<ExerciseSeriesPoint> = emptyList(),
     val volumeSeries: List<ExerciseSeriesPoint> = emptyList(),
     val isBodyweightMode: Boolean = false,
-    val densityPoints: List<DensityPoint> = emptyList()
+    val densityPoints: List<DensityPoint> = emptyList(),
+    val maxWeeklyVolume: Float = 0f,
+    val volumeTrend: VolumeTrend = VolumeTrend.NONE,
+    val sessionsInRange: Int = 0,
+    val hasMultiFocusSessions: Boolean = false
 ) {
     val personalRecord: Float?
         get() = maxWeightSeries.maxOfOrNull { it.value }
     val totalVolume: Float
         get() = volumeSeries.map { it.value }.sum()
-
-    val volumeTrend: VolumeTrend
-        get() {
-            if (densityPoints.size < 3) return VolumeTrend.NONE
-            val current = densityPoints.first().volumeKg
-            val previous = densityPoints.drop(1).map { it.volumeKg }.average().toFloat()
-            if (previous <= 0f) return VolumeTrend.NONE
-            val ratio = current / previous
-            return when {
-                ratio >= 1.1f -> VolumeTrend.RISING
-                ratio <= 0.6f -> VolumeTrend.DELOAD
-                ratio <= 0.8f -> VolumeTrend.FALLING
-                else -> VolumeTrend.STABLE
-            }
-        }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class StatisticsViewModel @Inject constructor(
     private val statisticsRepository: StatisticsRepository,
-    private val exerciseRepository: ExerciseRepository,
-    private val userPrefsRepository: UserPrefsRepository,
-    private val calculateWeeklyStreak: CalculateWeeklyStreakUseCase
+    private val exerciseRepository: ExerciseRepository
 ) : ViewModel() {
 
     private val selectedExercise = MutableStateFlow<Exercise?>(null)
@@ -106,8 +88,6 @@ class StatisticsViewModel @Inject constructor(
         "Cardio"
     )
 
-    private val monthStart = LocalDate.now().withDayOfMonth(1).toEpochDay()
-
     init {
         viewModelScope.launch {
             statisticsRepository.getLastExercisedId()
@@ -116,37 +96,17 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    private val summary = combine(
-        statisticsRepository.getFinishedSessionCount(monthStart),
-        statisticsRepository.getFocusList(monthStart),
-        statisticsRepository.getAllTrainedDays(),
-        userPrefsRepository.getWeeklyGoal()
-    ) { count, focusList, trainedDays, weeklyGoal ->
-        Triple(count, topFocusOf(focusList), calculateWeeklyStreak(trainedDays, weeklyGoal))
-    }
+    private val focusCounts: Flow<List<FocusCount>> = range
+        .flatMapLatest { r -> statisticsRepository.getFocusList(fromEpochDay(r)) }
+        .map(::countFocuses)
 
-    private val topMovements = combine(
-        statisticsRepository.getTopExercises(3),
-        exerciseRepository.getAll()
-    ) { records, exercises ->
-        val nameMap = exercises.associate { it.id to it.name }
-        records.map { record ->
-            TopMovementRecord(
-                exerciseId = record.exerciseId,
-                exerciseName = nameMap[record.exerciseId] ?: "—",
-                displayValue = when {
-                    record.isCardio -> "${record.maxDurationSeconds / 60} min"
-                    record.hasWeight -> "${formatKg(record.estimated1RmKg)} kg"
-                    else -> "${record.maxReps} reps"
-                },
-                displayLabel = when {
-                    record.isCardio -> "MÁX DURACIÓN"
-                    record.hasWeight -> "1RM EST"
-                    else -> "MÁX REPS"
-                }
-            )
+    private val sessionsInRange: Flow<Int> = range
+        .flatMapLatest { r -> statisticsRepository.getFinishedSessionCount(fromEpochDay(r)) }
+
+    private val focusData: Flow<Triple<List<FocusCount>, Int, Boolean>> =
+        combine(focusCounts, sessionsInRange) { counts, total ->
+            Triple(counts, total, counts.sumOf { it.count } > total)
         }
-    }
 
     private val filteredExercises = combine(
         exerciseRepository.getAll(),
@@ -185,39 +145,31 @@ class StatisticsViewModel @Inject constructor(
             }
         }
 
-    private val weekFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("es"))
-
-    private val weeklyVolume = statisticsRepository.getWeeklyVolume().map { rows ->
-        rows.map { row ->
-            val start = LocalDate.ofEpochDay(row.weekStart)
-            DensityPoint(
-                label = "Sem ${start.format(weekFmt)}",
-                volumeKg = row.totalVolume
-            )
-        }
-    }
+    private val weeklyVolume = statisticsRepository.getWeeklyVolume()
+    private val maxWeeklyVolume = statisticsRepository.getMaxWeeklyVolume()
 
     val uiState: StateFlow<StatisticsUiState> = combine(
-        summary,
-        topMovements,
+        focusData,
         filteredExercises,
         combine(defaultExercise, selectedGroup, range) { e, g, r -> Triple(e, g, r) },
         series,
-        weeklyVolume
+        weeklyVolume,
+        maxWeeklyVolume
     ) { args ->
         @Suppress("UNCHECKED_CAST")
-        val summaryData = args[0] as Triple<Int, String?, WeeklyStreak>
-        val topMov = args[1] as List<TopMovementRecord>
-        val exercises = args[2] as List<Exercise>
-        val selection = args[3] as Triple<Exercise?, String?, StatsRange>
-        val seriesData = args[4] as SeriesBundle
-        val densityPts = args[5] as List<DensityPoint>
+        val focus = args[0] as Triple<List<FocusCount>, Int, Boolean>
+        val exercises = args[1] as List<Exercise>
+        val selection = args[2] as Triple<Exercise?, String?, StatsRange>
+        val seriesData = args[3] as SeriesBundle
+        val weekly = args[4] as List<WeeklyVolumeRow>
+        val maxWeekly = args[5] as Float
+
+        val density = weekly.mapIndexed { i, row ->
+            DensityPoint(labelFor(i, row.weekStart, selection.third), row.totalVolume)
+        }
 
         StatisticsUiState(
-            sessionsThisMonth = summaryData.first,
-            topFocus = summaryData.second,
-            streak = summaryData.third,
-            topMovements = topMov,
+            focusCounts = focus.first,
             exercises = exercises,
             selectedExercise = selection.first,
             selectedGroup = selection.second,
@@ -225,7 +177,11 @@ class StatisticsViewModel @Inject constructor(
             maxWeightSeries = seriesData.maxSeries,
             volumeSeries = seriesData.volumeSeries,
             isBodyweightMode = seriesData.isBodyweight,
-            densityPoints = densityPts
+            densityPoints = density,
+            maxWeeklyVolume = maxWeekly,
+            volumeTrend = computeVolumeTrend(density),
+            sessionsInRange = focus.second,
+            hasMultiFocusSessions = focus.third
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatisticsUiState())
 
@@ -233,18 +189,42 @@ class StatisticsViewModel @Inject constructor(
     fun onGroupSelected(group: String?) { selectedGroup.value = if (selectedGroup.value == group) null else group }
     fun onRangeSelected(newRange: StatsRange) { range.value = newRange }
 
-    fun onWeeklyGoalDelta(delta: Int) {
-        viewModelScope.launch {
-            val current = userPrefsRepository.getWeeklyGoal().first()
-            userPrefsRepository.setWeeklyGoal(current + delta)
+    private fun fromEpochDay(r: StatsRange): Long =
+        LocalDate.now().minusDays(r.days).toEpochDay()
+
+    private fun countFocuses(stored: List<String>): List<FocusCount> {
+        val counts = stored.flatMap { WorkoutFocus.fromStored(it) }
+            .groupingBy { it }
+            .eachCount()
+        return WorkoutFocus.entries
+            .map { FocusCount(it, counts[it] ?: 0) }
+            .sortedByDescending { it.count }
+    }
+
+    private fun labelFor(index: Int, weekStart: Long, range: StatsRange): String = when {
+        range == StatsRange.ALL && index > 8 -> LocalDate.ofEpochDay(weekStart).format(shortDateFmt)
+        index == 0 -> "Esta semana"
+        else -> "Hace $index sem"
+    }
+
+    private fun computeVolumeTrend(points: List<DensityPoint>): VolumeTrend {
+        if (points.size < 3) return VolumeTrend.NONE
+        val daysElapsed = LocalDate.now().dayOfWeek.value
+        if (daysElapsed <= 2) return VolumeTrend.NONE
+        val current = points.first().volumeKg
+        val projectedCurrent = if (daysElapsed >= 7) current else current / daysElapsed * 7f
+        val previous = points.drop(1).map { it.volumeKg }.average().toFloat()
+        if (previous <= 0f) return VolumeTrend.NONE
+        val ratio = projectedCurrent / previous
+        return when {
+            ratio >= 1.1f -> VolumeTrend.RISING
+            ratio <= 0.6f -> VolumeTrend.DELOAD
+            ratio <= 0.8f -> VolumeTrend.FALLING
+            else -> VolumeTrend.STABLE
         }
     }
 
-
-
-    private fun topFocusOf(focusList: List<String>): String? =
-        focusList.flatMap { WorkoutFocus.fromStored(it) }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key?.label
-
-    private fun formatKg(value: Float): String =
-        if (value % 1f == 0f) "%d".format(value.toInt()) else "%.1f".format(value)
+    private companion object {
+        val shortDateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM")
+    }
 }

@@ -62,12 +62,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
 import com.luis.itera.domain.model.Session
 import com.luis.itera.presentation.components.ActivityHeatmapCard
+import com.luis.itera.presentation.components.fmtWeight
 import com.luis.itera.presentation.theme.IteraColors
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
-import com.luis.itera.domain.model.WorkoutFocus
 import java.time.LocalDate
 
 private val cardDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("es"))
@@ -79,6 +79,7 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.pendingDeleteId) {
@@ -115,7 +116,8 @@ fun HistoryScreen(
 
             ActivityHeatmapCard(
                 data = state.activityByDay,
-                onDaySelected = viewModel::onDateSelected
+                selectedDate = selectedDay,
+                onDateSelected = viewModel::onDaySelected
             )
 
             Spacer(Modifier.height(16.dp))
@@ -338,6 +340,7 @@ private fun SessionCard(
         }
         Spacer(Modifier.height(8.dp))
         displayed.forEach { (exerciseId, sets) ->
+            val isCardio = sets.any { it.durationSeconds > 0 }
             Column(Modifier.padding(vertical = 8.dp)) {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -348,15 +351,18 @@ private fun SessionCard(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = "${sets.size} sets",
+                        text = "${sets.size} ${if (sets.size == 1) "set" else "sets"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = IteraColors.Accent
                     )
                 }
                 Text(
                     text = sets.joinToString(" · ") { set ->
-                        set.reps.toString() +
-                                if (set.weightAddedKg > 0f) "+${set.weightAddedKg}kg" else ""
+                        if (isCardio) "${set.durationSeconds / 60} min"
+                        else buildString {
+                            append("${set.reps}")
+                            if (set.weightAddedKg > 0f) append(" × ${fmtWeight(set.weightAddedKg)}kg")
+                        }
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = IteraColors.TextSecondary,

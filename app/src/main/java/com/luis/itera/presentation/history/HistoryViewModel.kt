@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -21,7 +22,6 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 data class HistoryUiState(
-    val selectedDate: LocalDate = LocalDate.now(),
     val activityByDay: Map<LocalDate, Int> = emptyMap(),
     val sessions: List<Session> = emptyList(),
     val exerciseNames: Map<Long, String> = emptyMap(),
@@ -36,23 +36,22 @@ class HistoryViewModel @Inject constructor(
     statisticsRepository: StatisticsRepository
 ) : ViewModel() {
 
-    private val selectedDate = MutableStateFlow(LocalDate.now())
+    private val _selectedDay = MutableStateFlow<LocalDate?>(null)
+    val selectedDay: StateFlow<LocalDate?> = _selectedDay.asStateFlow()
     private val pendingDeleteId = MutableStateFlow<Long?>(null)
     private var deleteJob: Job? = null
 
-    private val sessions = selectedDate.flatMapLatest { date ->
-        sessionRepository.getSessionsByDate(date.toEpochDay())
+    private val sessions = _selectedDay.flatMapLatest { day ->
+        sessionRepository.getSessionsByDate((day ?: LocalDate.now()).toEpochDay())
     }
 
     val uiState: StateFlow<HistoryUiState> = combine(
-        selectedDate,
         statisticsRepository.getDailyMuscleGroupCount(),
         sessions,
         exerciseRepository.getAll(),
         pendingDeleteId
-    ) { date, groupCountByDay, sessionList, exercises, pendingId ->
+    ) { groupCountByDay, sessionList, exercises, pendingId ->
         HistoryUiState(
-            selectedDate = date,
             activityByDay = groupCountByDay.mapKeys { (epochDay, _) -> LocalDate.ofEpochDay(epochDay) },
             sessions = sessionList.sortedByDescending { it.id },
             exerciseNames = exercises.associate { it.id to it.name },
@@ -60,8 +59,8 @@ class HistoryViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState())
 
-    fun onDateSelected(date: LocalDate) {
-        selectedDate.value = date
+    fun onDaySelected(date: LocalDate?) {
+        _selectedDay.value = date
     }
 
     fun onSwipeDelete(sessionId: Long) {

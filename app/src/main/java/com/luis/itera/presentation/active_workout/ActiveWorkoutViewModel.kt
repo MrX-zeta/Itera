@@ -12,6 +12,7 @@ import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.HydrationRepository
 import com.luis.itera.domain.repository.RoutineRepository
+import com.luis.itera.presentation.components.fmtWeight
 import com.luis.itera.presentation.widget.WidgetUpdater
 import com.luis.itera.domain.repository.SaveRoutineResult
 import com.luis.itera.domain.repository.SessionRepository
@@ -105,17 +106,15 @@ data class ActiveWorkoutUiState(
             val ceilingReached = perSession.size >= 3 && perSession.first() - perSession.last() >= 3
             return if (ceilingReached) {
                 val w = last.weightAddedKg + 2.5f
-                "${perSession.last()} reps +${fmtW(w)}kg ↑ peso"
+                "${perSession.last()} reps +${fmtWeight(w)}kg ↑ peso"
             } else {
-                "${perSession.first() + 1} reps +${fmtW(last.weightAddedKg)}kg"
+                "${perSession.first() + 1} reps +${fmtWeight(last.weightAddedKg)}kg"
             }
         }
 
     fun exerciseNameOf(exerciseId: Long): String =
         allExerciseNames[exerciseId] ?: "—"
 }
-
-private fun fmtW(v: Float) = if (v % 1f == 0f) "${v.toInt()}" else "%.1f".format(v)
 
 private data class InputBundle(
     val reps: Int,
@@ -214,7 +213,7 @@ class ActiveWorkoutViewModel @Inject constructor(
         HomeData(
             lastSession = last,
             streak = calculateWeeklyStreak(trainedDays, weeklyGoal),
-            hydrationProgress = goal?.totalGoalMl?.takeIf { it > 0 }?.let { (totalMl.toFloat() / it).coerceIn(0f, 1f) } ?: 0f,
+            hydrationProgress = goal?.totalGoalMl?.takeIf { it > 0 }?.let { (totalMl.toFloat() / it).coerceAtLeast(0f) } ?: 0f,
             trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet(),
             routines = routines
         )
@@ -473,6 +472,13 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun onFinishedSessionConsumed() { _finishedSessionId.value = null }
     fun onDurationDelta(delta: Int) { durationSeconds.value = (durationSeconds.value + delta).coerceAtLeast(0) }
     fun onIntensityDelta(delta: Int) { intensity.value = (intensity.value + delta).coerceIn(1, 10) }
+
+    fun onWeeklyGoalChange(goal: Int) {
+        viewModelScope.launch {
+            userPrefsRepository.setWeeklyGoal(goal.coerceIn(1, 7))
+            widgetUpdater.refresh()
+        }
+    }
 
     private companion object { const val REGISTER_DEBOUNCE_MS = 700L }
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.luis.itera.BuildConfig
+import com.luis.itera.data.local.DemoSeed
 import com.luis.itera.data.local.ExerciseSeed
 import com.luis.itera.data.local.IteraDatabase
 import com.luis.itera.data.local.dao.ExerciseDao
@@ -33,14 +35,28 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(
         @ApplicationContext context: Context,
-        exerciseDaoProvider: Provider<ExerciseDao>
+        exerciseDaoProvider: Provider<ExerciseDao>,
+        sessionDaoProvider: Provider<SessionDao>,
+        setDaoProvider: Provider<SetDao>,
+        routineDaoProvider: Provider<RoutineDao>,
+        hydrationDaoProvider: Provider<HydrationDao>
     ): IteraDatabase =
         Room.databaseBuilder(context, IteraDatabase::class.java, "itera.db")
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                        exerciseDaoProvider.get().insertAll(ExerciseSeed.exercises)
+                        val exerciseDao = exerciseDaoProvider.get()
+                        exerciseDao.insertAll(ExerciseSeed.exercises)
+                        if (BuildConfig.DEBUG) {
+                            DemoSeed.seed(
+                                exerciseDao = exerciseDao,
+                                sessionDao = sessionDaoProvider.get(),
+                                setDao = setDaoProvider.get(),
+                                routineDao = routineDaoProvider.get(),
+                                hydrationDao = hydrationDaoProvider.get()
+                            )
+                        }
                     }
                 }
             })

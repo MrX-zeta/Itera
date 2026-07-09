@@ -27,6 +27,13 @@ import java.util.Locale
 
 private val barDateFormatter = DateTimeFormatter.ofPattern("dd/MM", Locale("es"))
 
+fun niceYStep(maxValue: Float): Float {
+    if (maxValue <= 4f) return 1f
+    val target = maxValue / 4f
+    val candidates = floatArrayOf(1f, 2f, 5f, 10f, 20f, 25f, 50f, 100f, 200f, 250f, 500f, 1000f, 2000f, 5000f)
+    return candidates.firstOrNull { it >= target } ?: (kotlin.math.ceil(target / 1000f) * 1000f)
+}
+
 @Composable
 fun StatBarChart(
     points: List<ExerciseSeriesPoint>,
@@ -55,11 +62,15 @@ fun StatBarChart(
 
         if (points.isEmpty()) return@Canvas
         val maxV = points.maxOf { it.value }.takeIf { it > 0f } ?: 1f
+        val step = niceYStep(maxV)
+        val axisTop = (kotlin.math.ceil(maxV / step) * step).coerceAtLeast(step)
+        val lines = (axisTop / step).toInt()
 
-        listOf(0.25f, 0.5f, 0.75f, 1f).forEach { pct ->
-            val y = baseline - h * pct
-            drawLine(IteraColors.BorderStrong, Offset(0f, y), Offset(w, y), 0.5.dp.toPx(), pathEffect = dash)
-            val label = textMeasurer.measure((maxV * pct).toInt().toString(), yStyle)
+        for (k in 0..lines) {
+            val v = step * k
+            val y = baseline - h * (v / axisTop)
+            if (k > 0) drawLine(IteraColors.BorderStrong, Offset(0f, y), Offset(w, y), 0.5.dp.toPx(), pathEffect = dash)
+            val label = textMeasurer.measure(v.toInt().toString(), yStyle)
             drawText(label, topLeft = Offset(w + 4.dp.toPx(), y - label.size.height / 2f))
         }
 
@@ -67,7 +78,7 @@ fun StatBarChart(
         val barW = (slot * 0.6f).coerceAtMost(18.dp.toPx())
 
         points.forEachIndexed { i, pt ->
-            val bH = h * (pt.value / maxV) * progress.value
+            val bH = h * (pt.value / axisTop) * progress.value
             val cx = slot * i + slot / 2f
             val left = cx - barW / 2f
 

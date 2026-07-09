@@ -47,7 +47,7 @@ fun loadWidgetDataFlow(context: Context): Flow<WidgetData> {
         val goalMl = storedGoal?.totalGoalMl
             ?: ((weight * ML_PER_KG).toInt() + if (todayEpoch in trainedDays) ACTIVE_DAY_BONUS_ML else 0)
         val hydrationPercent = goalMl.takeIf { it > 0 }
-            ?.let { ((totalMl.toFloat() / it) * 100).toInt().coerceIn(0, 100) } ?: 0
+            ?.let { ((totalMl.toFloat() / it) * 100).toInt().coerceAtLeast(0) } ?: 0
 
         val trainedIndices = trainedDays
             .filter { it in weekStartEpoch..todayEpoch }
