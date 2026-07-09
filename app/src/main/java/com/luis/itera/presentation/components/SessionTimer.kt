@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,6 +78,7 @@ fun SessionTimer(
         Spacer(Modifier.width(4.dp))
         Text(
             text = if (state == TimerState.INACTIVE) "DESCANSO" else "%02d:%02d".format(secs / 60, secs % 60),
+            fontFamily = FontFamily.Monospace,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = color,

@@ -22,4 +22,7 @@ interface StatisticsRepository {
     fun getWeeklyVolume(): Flow<List<WeeklyVolumeRow>>
 
     fun getLastExercisedId(): Flow<Long?>
+
+    /** Grupos musculares distintos entrenados por día: epochDay -> nº de grupos. */
+    fun getDailyMuscleGroupCount(): Flow<Map<Long, Int>>
 }

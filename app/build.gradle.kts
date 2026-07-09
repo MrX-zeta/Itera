@@ -14,8 +14,8 @@ android {
         applicationId = "com.luis.itera"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     signingConfigs {
@@ -23,7 +23,7 @@ android {
         val keyPwd = System.getenv("ITERA_KEY_PASSWORD")
         if (storePwd != null && keyPwd != null) {
             create("release") {
-                storeFile = file("${System.getProperty("user.home")}/itera-release.jks")
+                storeFile = file("${System.getProperty("user.home")}/itera-release-new.jks")
                 storePassword = storePwd
                 keyAlias = "itera"
                 keyPassword = keyPwd
@@ -92,6 +92,4 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
 
     implementation(libs.kotlinx.coroutines.android)
-
-    implementation(libs.calendar.compose)
 }

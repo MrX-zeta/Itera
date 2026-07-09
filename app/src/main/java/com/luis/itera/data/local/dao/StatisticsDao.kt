@@ -28,6 +28,8 @@ data class WeeklyVolumeRow(
     val totalVolume: Float
 )
 
+data class DailyGroupCountRow(val day: Long, val groupCount: Int)
+
 data class TopExerciseRecord(
     val exerciseId: Long,
     val setCount: Int,
@@ -180,4 +182,14 @@ interface StatisticsDao {
     LIMIT 1
 """)
     fun getLastExercisedId(): Flow<Long?>
+
+    @Query("""
+        SELECT ses.dateEpochDay AS day, COUNT(DISTINCT e.mainMuscleGroup) AS groupCount
+        FROM sets s
+        JOIN sessions ses ON s.sessionId = ses.id
+        JOIN exercises e ON s.exerciseId = e.id
+        WHERE ses.isFinished = 1
+        GROUP BY ses.dateEpochDay
+    """)
+    fun getDailyMuscleGroupCount(): Flow<List<DailyGroupCountRow>>
 }

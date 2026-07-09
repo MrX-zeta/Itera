@@ -13,5 +13,6 @@ object IteraColors {
     val OnAccent = Color(0xFF04342C)
     val TextPrimary = Color(0xFFE8E8EA)
     val TextSecondary = Color(0xFF8A8A92)
+    val TextSecondaryStrong = Color(0xFFB0B0B8)
     val Error = Color(0xFFE24B4A)
 }

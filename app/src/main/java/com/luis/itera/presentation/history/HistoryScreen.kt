@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,7 +27,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.Icon
@@ -61,15 +59,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.kizitonwose.calendar.compose.HorizontalCalendar
-import com.kizitonwose.calendar.compose.rememberCalendarState
-import com.kizitonwose.calendar.core.CalendarDay
-import com.kizitonwose.calendar.core.DayPosition
-import com.kizitonwose.calendar.core.firstDayOfWeekFromLocale
 import com.luis.itera.R
 import com.luis.itera.domain.model.Session
+import com.luis.itera.presentation.components.ActivityHeatmapCard
 import com.luis.itera.presentation.theme.IteraColors
-import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.runtime.mutableLongStateOf
@@ -77,7 +70,6 @@ import androidx.compose.runtime.setValue
 import com.luis.itera.domain.model.WorkoutFocus
 import java.time.LocalDate
 
-private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("es"))
 private val cardDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("es"))
 private const val MIN_REVEAL_MS = 125L
 
@@ -101,14 +93,6 @@ fun HistoryScreen(
         }
     }
 
-    val currentMonth = remember { YearMonth.now() }
-    val calendarState = rememberCalendarState(
-        startMonth = currentMonth.minusMonths(12),
-        endMonth = currentMonth,
-        firstVisibleMonth = currentMonth,
-        firstDayOfWeek = firstDayOfWeekFromLocale()
-    )
-
     Scaffold(
         containerColor = IteraColors.Background,
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -129,23 +113,9 @@ fun HistoryScreen(
             )
             Spacer(Modifier.height(12.dp))
 
-            Text(
-                text = calendarState.firstVisibleMonth.yearMonth.format(monthFormatter)
-                    .replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(Modifier.height(8.dp))
-
-            HorizontalCalendar(
-                state = calendarState,
-                dayContent = { day ->
-                    DayCell(
-                        day = day,
-                        isSelected = day.date == state.selectedDate,
-                        isTrained = day.date in state.trainedDays,
-                        onClick = { viewModel.onDateSelected(day.date) }
-                    )
-                }
+            ActivityHeatmapCard(
+                data = state.activityByDay,
+                onDaySelected = viewModel::onDateSelected
             )
 
             Spacer(Modifier.height(16.dp))
@@ -156,7 +126,7 @@ fun HistoryScreen(
                 Text(
                     text = "Sin sesiones registradas",
                     style = MaterialTheme.typography.bodySmall,
-                    color = IteraColors.TextSecondary
+                    color = IteraColors.TextSecondaryStrong
                 )
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -297,48 +267,6 @@ private fun DismissableSessionCard(
             onClick = onClick,
             modifier = Modifier.scale(cardScale)
         )
-    }
-}
-
-@Composable
-private fun DayCell(
-    day: CalendarDay,
-    isSelected: Boolean,
-    isTrained: Boolean,
-    onClick: () -> Unit
-) {
-    val inMonth = day.position == DayPosition.MonthDate
-    Box(
-        modifier = Modifier
-            .aspectRatio(1f)
-            .padding(1.dp)
-            .then(
-                if (isSelected) Modifier.border(1.dp, IteraColors.Accent, CircleShape)
-                else Modifier
-            )
-            .clickable(enabled = inMonth, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = day.date.dayOfMonth.toString(),
-                style = MaterialTheme.typography.bodySmall,
-                color = when {
-                    !inMonth -> IteraColors.Border
-                    isSelected -> IteraColors.Accent
-                    else -> IteraColors.TextPrimary
-                }
-            )
-            if (isTrained && inMonth) {
-                Box(
-                    Modifier
-                        .size(3.dp)
-                        .background(IteraColors.Accent, CircleShape)
-                )
-            } else {
-                Spacer(Modifier.size(3.dp))
-            }
-        }
     }
 }
 
