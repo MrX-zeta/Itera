@@ -16,30 +16,12 @@ data class VolumePoint(
     val volumeKg: Float
 )
 
-data class PersonalRecord(
-    val exerciseId: Long,
-    val maxWeightKg: Float,
-    val estimated1RmKg: Float,
-    val dateEpochDay: Long
-)
-
 data class WeeklyVolumeRow(
     val weekStart: Long,
     val totalVolume: Float
 )
 
 data class DailyGroupCountRow(val day: Long, val groupCount: Int)
-
-data class TopExerciseRecord(
-    val exerciseId: Long,
-    val setCount: Int,
-    val maxWeightKg: Float,
-    val estimated1RmKg: Float,
-    val maxReps: Int,
-    val maxDurationSeconds: Int,
-    val hasWeight: Boolean,
-    val isCardio: Boolean
-)
 
 
 @Dao
@@ -70,18 +52,6 @@ interface StatisticsDao {
     fun getVolumeSeries(exerciseId: Long, fromEpochDay: Long): Flow<List<VolumePoint>>
 
     @Query("""
-    SELECT s.exerciseId AS exerciseId,
-           MAX(s.weightAddedKg) AS maxWeightKg,
-           MAX(s.weightAddedKg * (1.0 + s.reps / 30.0)) AS estimated1RmKg,
-           ses.dateEpochDay AS dateEpochDay
-    FROM sets s
-    INNER JOIN sessions ses ON ses.id = s.sessionId
-    WHERE s.exerciseId IN (:exerciseIds) AND ses.isFinished = 1 AND s.weightAddedKg > 0
-    GROUP BY s.exerciseId
-""")
-    fun getPersonalRecords(exerciseIds: List<Long>): Flow<List<PersonalRecord>>
-
-    @Query("""
         SELECT COUNT(*) FROM sessions
         WHERE isFinished = 1 AND dateEpochDay >= :fromEpochDay
     """)
@@ -99,16 +69,6 @@ interface StatisticsDao {
         ORDER BY dateEpochDay DESC
     """)
     fun getAllTrainedDays(): Flow<List<Long>>
-
-    @Query("""
-        SELECT s.exerciseId FROM sets s
-        INNER JOIN sessions ses ON ses.id = s.sessionId
-        WHERE ses.isFinished = 1
-        GROUP BY s.exerciseId
-        ORDER BY COUNT(s.id) DESC
-        LIMIT 1
-    """)
-    fun getMostTrainedExerciseId(): Flow<Long?>
 
     @Query("""
     SELECT s.sessionId AS sessionId, ses.dateEpochDay AS dateEpochDay,
@@ -147,24 +107,6 @@ interface StatisticsDao {
     fun hasWeightedSets(exerciseId: Long, fromEpochDay: Long): Flow<Boolean>
 
     @Query("""
-    SELECT s.exerciseId, COUNT(s.id) AS setCount,
-           MAX(s.weightAddedKg) AS maxWeightKg,
-           MAX(s.weightAddedKg * (1.0 + s.reps / 30.0)) AS estimated1RmKg,
-           MAX(s.reps) AS maxReps,
-           MAX(s.durationSeconds) AS maxDurationSeconds,
-           CASE WHEN MAX(s.weightAddedKg) > 0 THEN 1 ELSE 0 END AS hasWeight,
-           CASE WHEN MAX(s.durationSeconds) > 0 THEN 1 ELSE 0 END AS isCardio
-    FROM sets s
-    INNER JOIN sessions ses ON ses.id = s.sessionId
-    WHERE ses.isFinished = 1
-    GROUP BY s.exerciseId
-    ORDER BY setCount DESC
-    LIMIT :limit
-""")
-    fun getTopExercises(limit: Int = 3): Flow<List<TopExerciseRecord>>
-
-
-    @Query("""
     SELECT ((ses.dateEpochDay - 4) / 7) * 7 + 4 AS weekStart,
            SUM(s.reps * s.weightAddedKg) AS totalVolume
     FROM sets s
@@ -175,6 +117,17 @@ interface StatisticsDao {
     LIMIT 5
 """)
     fun getWeeklyVolume(): Flow<List<WeeklyVolumeRow>>
+
+    @Query("""
+    SELECT MAX(weekly) FROM (
+        SELECT SUM(s.reps * s.weightAddedKg) AS weekly
+        FROM sets s
+        INNER JOIN sessions ses ON ses.id = s.sessionId
+        WHERE ses.isFinished = 1 AND s.weightAddedKg > 0
+        GROUP BY (ses.dateEpochDay - 4) / 7
+    )
+""")
+    fun getMaxWeeklyVolume(): Flow<Float?>
 
     @Query("""
     SELECT s.exerciseId FROM sets s

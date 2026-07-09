@@ -26,13 +26,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
@@ -58,15 +59,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
 import com.luis.itera.domain.model.Exercise
-import com.luis.itera.domain.model.TopMovementRecord
 import com.luis.itera.presentation.components.StatBarChart
 import com.luis.itera.presentation.components.StatLineChart
 import com.luis.itera.presentation.components.WorkoutDensityChart
+import com.luis.itera.presentation.components.formatVolume
+import com.luis.itera.presentation.components.volumeUnitFor
 import com.luis.itera.presentation.theme.IteraColors
 
 @Composable
@@ -81,7 +82,7 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
                 .background(IteraColors.Background)
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp)
-                .padding(top = 8.dp, bottom = 12.dp)
+                .padding(top = 20.dp, bottom = 16.dp)
         ) {
             Text(
                 "ESTADÍSTICAS",
@@ -94,16 +95,22 @@ fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
             RangeChips(state.range, viewModel::onRangeSelected)
         }
 
+        HorizontalDivider(thickness = 1.dp, color = IteraColors.BorderStrong)
+
         LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item { HeroVolumeCard(state) }
-            item { SummaryCard(state, viewModel::onWeeklyGoalDelta) }
-            item { TopMovementsCard(state.topMovements) }
+            item {
+                RepartoPorFocoCard(
+                    focusCounts = state.focusCounts,
+                    sessionsInRange = state.sessionsInRange,
+                    rangeLabel = rangeWindowLabel(state.range),
+                    hasMultiFocus = state.hasMultiFocusSessions
+                )
+            }
             item {
                 AnimatedVisibility(
                     visible = state.range != StatsRange.ALL,
@@ -178,6 +185,8 @@ private fun HeroVolumeCard(state: StatisticsUiState) {
         }
     ) {
         SectionTitle("VOLUMEN SEMANAL")
+        Spacer(Modifier.height(2.dp))
+        Text("ÚLTIMAS 5 SEMANAS", style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
 
         val points = state.densityPoints
         if (points.isEmpty()) {
@@ -185,8 +194,9 @@ private fun HeroVolumeCard(state: StatisticsUiState) {
             return@IteraCard
         }
 
-        val volume = points.first().volumeKg
-        val heroText = if (volume >= 1000f) "%.1f ton".format(volume / 1000f) else "${volume.toInt()} kg"
+        val seriesMax = if (state.maxWeeklyVolume > 0f) state.maxWeeklyVolume else points.maxOf { it.volumeKg }
+        val unit = volumeUnitFor(seriesMax)
+        val heroText = formatVolume(points.first().volumeKg, unit)
 
         Spacer(Modifier.height(4.dp))
         Text(
@@ -222,42 +232,101 @@ private fun HeroVolumeCard(state: StatisticsUiState) {
         }
 
         Spacer(Modifier.height(16.dp))
-        WorkoutDensityChart(points = points, modifier = Modifier.fillMaxWidth())
+        WorkoutDensityChart(
+            points = points,
+            maxReference = state.maxWeeklyVolume,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        val bestIsVisible = points.any { kotlin.math.abs(it.volumeKg - state.maxWeeklyVolume) < 0.5f }
+        if (points.size >= 2 && state.maxWeeklyVolume > 0f && !bestIsVisible) {
+            Text(
+                "vs. tu mejor semana: ${formatVolume(state.maxWeeklyVolume, unit)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = IteraColors.TextSecondary,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+        }
     }
 }
 
 @Composable
-private fun SummaryCard(state: StatisticsUiState, onWeeklyGoalDelta: (Int) -> Unit) {
+private fun RepartoPorFocoCard(
+    focusCounts: List<FocusCount>,
+    sessionsInRange: Int,
+    rangeLabel: String,
+    hasMultiFocus: Boolean
+) {
     IteraCard {
-        SectionTitle("RESUMEN")
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatTile("${state.sessionsThisMonth}", "SESIONES/MES", Modifier.weight(1f))
-            StatTile(state.topFocus ?: "—", "FOCUS TOP", Modifier.weight(1f), accent = true)
-            StatTile("${state.streak.weeks}", "RACHA SEM", Modifier.weight(1f))
+        SectionTitle("REPARTO POR FOCO")
+        if (sessionsInRange > 0) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "${sessionCountLabel(sessionsInRange)} · $rangeLabel",
+                style = MaterialTheme.typography.bodySmall,
+                color = IteraColors.TextSecondary
+            )
         }
         Spacer(Modifier.height(12.dp))
-        WeeklyGoalRow(state.streak.sessionsThisWeek, state.streak.weeklyGoal, onWeeklyGoalDelta)
-    }
-}
-
-@Composable
-private fun TopMovementsCard(records: List<TopMovementRecord>) {
-    IteraCard {
-        SectionTitle("TOP MOVIMIENTOS")
-        Spacer(Modifier.height(12.dp))
-        if (records.isEmpty()) {
+        val active = focusCounts.filter { it.count > 0 }
+        val inactive = focusCounts.filter { it.count == 0 }
+        if (active.isEmpty()) {
             Text(
-                "Finaliza sesiones para ver tus top",
-                style = MaterialTheme.typography.bodyMedium,
+                "Finaliza sesiones para ver tu reparto",
+                style = MaterialTheme.typography.bodySmall,
                 color = IteraColors.TextSecondary
             )
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                records.forEach { TopMovementTile(it, Modifier.weight(1f)) }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                active.forEach { fc ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            fc.focus.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = IteraColors.TextPrimary,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            sessionCountLabel(fc.count),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = IteraColors.TextPrimary,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
+                }
+            }
+            if (inactive.isNotEmpty()) {
+                Text(
+                    "Sin actividad: ${inactive.joinToString(", ") { it.focus.label }}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = IteraColors.TextSecondary,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            }
+            if (hasMultiFocus) {
+                Text(
+                    "Una sesión puede tener varios focos",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = IteraColors.TextSecondary,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
             }
         }
     }
+}
+
+private fun sessionCountLabel(count: Int): String =
+    if (count == 1) "1 sesión" else "$count sesiones"
+
+private fun rangeWindowLabel(range: StatsRange): String = when (range) {
+    StatsRange.D30 -> "últimos 30 días"
+    StatsRange.D90 -> "últimos 90 días"
+    StatsRange.ALL -> "histórico completo"
 }
 
 @Composable
@@ -308,7 +377,8 @@ private fun ProgressionCard(state: StatisticsUiState, onOpenPicker: () -> Unit) 
                     state.isBodyweightMode -> "MÁX ${it.toInt()} reps"
                     else -> "MÁX ${formatKg(it)} kg"
                 }
-            }
+            },
+            valueColor = IteraColors.TextSecondary
         )
         Spacer(Modifier.height(8.dp))
         if (state.maxWeightSeries.size >= 2) {
@@ -322,14 +392,13 @@ private fun ProgressionCard(state: StatisticsUiState, onOpenPicker: () -> Unit) 
             title = when {
                 isCardio -> "MINUTOS TOTALES"
                 state.isBodyweightMode -> "REPS TOTALES"
-                else -> "VOLUMEN"
+                else -> "VOLUMEN (kg)"
             },
             value = state.totalVolume.takeIf { it > 0f }?.let {
                 when {
                     isCardio -> "${it.toInt()} min"
                     state.isBodyweightMode -> "${it.toInt()} reps"
-                    it >= 1000f -> "%.1f ton".format(it / 1000f)
-                    else -> "${formatKg(it)} kg"
+                    else -> formatVolume(it, volumeUnitFor(state.volumeSeries.maxOfOrNull { p -> p.value } ?: 0f))
                 }
             }
         )
@@ -484,7 +553,7 @@ private fun ExercisePickerSheet(
 }
 
 @Composable
-private fun ChartHeader(title: String, value: String?) {
+private fun ChartHeader(title: String, value: String?, valueColor: Color = IteraColors.TextPrimary) {
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -495,60 +564,8 @@ private fun ChartHeader(title: String, value: String?) {
             Text(
                 it,
                 style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                color = IteraColors.Accent
+                color = valueColor
             )
-        }
-    }
-}
-
-@Composable
-private fun StatTile(value: String, label: String, modifier: Modifier = Modifier, accent: Boolean = false) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            value,
-            style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp, fontFeatureSettings = "tnum"),
-            color = if (accent) IteraColors.Accent else IteraColors.TextPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
-    }
-}
-
-@Composable
-private fun WeeklyGoalRow(sessionsThisWeek: Int, weeklyGoal: Int, onDelta: (Int) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            "META SEMANAL · $sessionsThisWeek/$weeklyGoal",
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (sessionsThisWeek >= weeklyGoal) IteraColors.Accent else IteraColors.TextPrimary
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).clickable { onDelta(-1) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("−", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp), color = IteraColors.TextSecondary)
-            }
-            Text(
-                "$weeklyGoal",
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-                color = IteraColors.TextPrimary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(min = 32.dp)
-            )
-            Box(
-                Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).clickable { onDelta(1) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("+", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp), color = IteraColors.Accent)
-            }
         }
     }
 }
@@ -572,32 +589,6 @@ private fun RangeChips(selected: StatsRange, onSelect: (StatsRange) -> Unit) {
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             )
         }
-    }
-}
-
-@Composable
-private fun TopMovementTile(record: TopMovementRecord, modifier: Modifier = Modifier) {
-    Column(
-        modifier.height(80.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            record.displayValue,
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
-            color = IteraColors.Accent
-        )
-        Text(record.displayLabel, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = IteraColors.TextSecondary)
-        Spacer(Modifier.height(2.dp))
-        Text(
-            record.exerciseName.uppercase(),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
-            color = IteraColors.TextSecondary,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            minLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 

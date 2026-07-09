@@ -22,6 +22,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.itera.domain.model.ExerciseSeriesPoint
 import com.luis.itera.presentation.theme.IteraColors
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private val lineDateFormatter = DateTimeFormatter.ofPattern("dd/MM", Locale("es"))
 
 @Composable
 fun StatLineChart(
@@ -36,20 +41,24 @@ fun StatLineChart(
 
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 12.sp, color = IteraColors.TextSecondary.copy(alpha = 0.7f))
-    val prLabelStyle = TextStyle(fontSize = 12.sp, color = IteraColors.Accent.copy(alpha = 0.9f))
+    val dateStyle = TextStyle(fontSize = 9.sp, color = IteraColors.TextSecondary.copy(alpha = 0.6f))
 
-    Canvas(modifier.fillMaxWidth().height(80.dp)) {
+    Canvas(modifier.fillMaxWidth().height(92.dp)) {
         if (points.size < 2) return@Canvas
-        val maxV = points.maxOf { it.value }.takeIf { it > 0f } ?: 1f
-        val minV = points.minOf { it.value }
+        val dataMax = points.maxOf { it.value }
+        val dataMin = points.minOf { it.value }
+        val padAmount = if (dataMax > 0f && (dataMax - dataMin) / dataMax < 0.15f) dataMax * 0.1f else 0f
+        val minV = (dataMin - padAmount).coerceAtLeast(0f)
+        val maxV = (dataMax + padAmount).coerceAtLeast(1f)
         val range = (maxV - minV).takeIf { it > 0f } ?: 1f
         val pad = 6.dp.toPx()
         val topPad = 20.dp.toPx()
+        val labelZone = 14.dp.toPx()
         val w = size.width - pad * 2
-        val h = size.height - topPad - pad
+        val h = size.height - topPad - labelZone
         val dash = PathEffect.dashPathEffect(floatArrayOf(4f, 8f))
 
-        val prY = topPad + h * (1f - (maxV - minV) / range)
+        val prY = topPad + h * (1f - (dataMax - minV) / range)
         drawLine(IteraColors.Accent.copy(alpha = 0.2f), Offset(0f, prY), Offset(size.width, prY), 0.5.dp.toPx(), pathEffect = dash)
 
         val path = Path()
@@ -66,22 +75,30 @@ fun StatLineChart(
         }
 
         val maxIndex = points.indices.maxBy { points[it].value }
-        val lastIndex = points.lastIndex
+        val minIndex = points.indices.minBy { points[it].value }
 
         coords.forEachIndexed { i, (x, y, value) ->
             if (x > size.width * progress.value) return@forEachIndexed
 
             drawCircle(IteraColors.Accent, 3.dp.toPx(), Offset(x, y))
 
-            val isKey = i == 0 || i == lastIndex || i == maxIndex
-            if (isKey) {
+            if (i == maxIndex || i == minIndex) {
                 val label = if (value % 1f == 0f) value.toInt().toString() else "%.1f".format(value)
-                val style = if (i == maxIndex) prLabelStyle else labelStyle
-                val measured = textMeasurer.measure(label, style)
+                val measured = textMeasurer.measure(label, labelStyle)
                 val labelX = (x - measured.size.width / 2f).coerceIn(0f, size.width - measured.size.width)
                 val labelY = y - measured.size.height - 12.dp.toPx()
                 drawText(measured, topLeft = Offset(labelX, labelY.coerceAtLeast(0f)))
             }
+        }
+
+        val baseY = topPad + h + 2.dp.toPx()
+        val dateIdx = if (points.size <= 3) points.indices.toList() else listOf(0, points.size / 2, points.lastIndex)
+        dateIdx.forEach { idx ->
+            val x = pad + w * idx / (points.size - 1)
+            val dl = LocalDate.ofEpochDay(points[idx].dateEpochDay).format(lineDateFormatter)
+            val m = textMeasurer.measure(dl, dateStyle)
+            val lx = (x - m.size.width / 2f).coerceIn(0f, size.width - m.size.width)
+            drawText(m, topLeft = Offset(lx, baseY))
         }
     }
 }
