@@ -23,7 +23,7 @@ Itera elimina esa barrera: abres la app, seleccionas tu enfoque del día, regist
 
 - **Registro de sesiones** con soporte bifurcado para fuerza (reps + peso) y cardio (duración + intensidad)
 - **Catálogo de ejercicios** abierto con creación inline y clasificación por 10 grupos musculares
-- **Historial** con calendario mensual (kizitonwose/Calendar) y cards agrupadas por día
+- **Historial** con mapa de actividad (heatmap de 10 semanas, estilo GitHub) y cards agrupadas por día
 - **Estadísticas dinámicas** con gráficas Canvas (línea + barras), Top Movimientos por frecuencia y 1RM estimado (Epley)
 - **Hidratación** con anillo de progreso angular (arrastre por contorno), meta dinámica por peso corporal, Smart Merge por minuto y eliminación optimista con Snackbar Undo
 - **Progresión inline** mostrando los sets de la última sesión para cada ejercicio
@@ -51,7 +51,7 @@ Itera elimina esa barrera: abres la app, seleccionas tu enfoque del día, regist
         │
         ▼
 [ Historial ]                    [ Estadísticas ]
-  ├── Calendario mensual           ├── Métricas: sesiones/mes, focus top, racha
+  ├── Mapa de actividad (heatmap)  ├── Métricas: sesiones/mes, focus top, racha
   ├── Cards por día (.take(3))     ├── Top Movimientos (3 más frecuentes)
   └── Tap → SessionDetail          ├── Selector ejercicio + chips grupo muscular
                                    ├── StatLineChart (PR sólido, clipRect animado)
