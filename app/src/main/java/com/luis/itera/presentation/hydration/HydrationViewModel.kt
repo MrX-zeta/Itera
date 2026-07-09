@@ -34,9 +34,12 @@ data class HydrationUiState(
     val displayTotalMl: Int
         get() = (totalMl + dragDeltaMl).coerceAtLeast(0)
 
-    val progress: Float
+    val rawProgress: Float
         get() = goal?.totalGoalMl?.takeIf { it > 0 }
-            ?.let { (displayTotalMl.toFloat() / it).coerceIn(0f, 1f) } ?: 0f
+            ?.let { (displayTotalMl.toFloat() / it).coerceAtLeast(0f) } ?: 0f
+
+    val progress: Float
+        get() = rawProgress.coerceIn(0f, 1f)
 }
 
 @HiltViewModel
