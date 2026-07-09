@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
 import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.domain.model.WorkoutSet
+import com.luis.itera.presentation.components.fmtWeight
 import com.luis.itera.presentation.theme.IteraColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -182,8 +183,6 @@ private fun ElongatedBackButton(onClick: () -> Unit) {
     }
 }
 
-private fun formatKg(value: Float): String = if (value % 1f == 0f) "${value.toInt()}" else "%.1f".format(value)
-
 @Composable
 private fun ExerciseDetailCard(
     name: String,
@@ -214,7 +213,7 @@ private fun ExerciseDetailCard(
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = if (prSet.weightAddedKg > 0f) "Nuevo máximo · ${formatKg(prSet.weightAddedKg)} kg"
+                    text = if (prSet.weightAddedKg > 0f) "Nuevo máximo · ${fmtWeight(prSet.weightAddedKg)} kg"
                     else "Nuevo máximo · ${prSet.reps} reps",
                     style = MaterialTheme.typography.bodySmall,
                     color = IteraColors.Accent
@@ -226,7 +225,7 @@ private fun ExerciseDetailCard(
             thickness = 0.5.dp,
             color = IteraColors.Border
         )
-        sets.sortedBy { it.order }.forEach { set ->
+        sets.sortedBy { it.order }.forEachIndexed { index, set ->
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -235,7 +234,7 @@ private fun ExerciseDetailCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "SET ${set.order}",
+                    text = "SET ${index + 1}",
                     style = MaterialTheme.typography.bodySmall,
                     color = IteraColors.TextSecondary,
                     modifier = Modifier.weight(0.2f)
@@ -246,18 +245,18 @@ private fun ExerciseDetailCard(
                         else -> "${set.reps} reps"
                     },
                     style = MaterialTheme.typography.bodyMedium,
+                    color = IteraColors.TextPrimary,
                     modifier = Modifier.weight(0.3f)
                 )
                 Text(
                     text = when {
                         set.durationSeconds > 0 && set.intensity > 0 -> "nivel ${set.intensity}"
-                        set.weightAddedKg > 0f -> "+${set.weightAddedKg} kg"
+                        set.weightAddedKg > 0f -> "+${fmtWeight(set.weightAddedKg)} kg"
                         else -> "corporal"
                     },
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
                     color = when {
-                        set.durationSeconds > 0 -> IteraColors.Accent
-                        set.weightAddedKg > 0f -> IteraColors.Accent
+                        set.weightAddedKg > 0f || (set.durationSeconds > 0 && set.intensity > 0) -> IteraColors.TextPrimary
                         else -> IteraColors.TextSecondary
                     },
                     modifier = Modifier.weight(0.3f)
