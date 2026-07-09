@@ -26,11 +26,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,6 +70,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
@@ -114,7 +117,8 @@ fun ActiveWorkoutScreen(
                 viewModel::onStartSession,
                 onLastSessionClick,
                 onHydrationClick,
-                viewModel::onStartRoutine
+                viewModel::onStartRoutine,
+                viewModel::onWeeklyGoalChange
             )
         } else {
             ActiveSessionContent(
@@ -148,89 +152,152 @@ private fun HomeContent(
     onStart: () -> Unit,
     onLastSessionClick: (Long) -> Unit,
     onHydrationClick: () -> Unit,
-    onStartRoutine: (Routine) -> Unit
+    onStartRoutine: (Routine) -> Unit,
+    onWeeklyGoalChange: (Int) -> Unit
 ) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 32.dp, bottom = 16.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    var showGoalDialog by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().padding(top = 32.dp, bottom = 16.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
                 Text(LocalDate.now().format(homeDateFormatter).uppercase(), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "META ${state.streak.sessionsThisWeek}/${state.streak.weeklyGoal}" + if (state.streak.weeks > 0) " · RACHA ${state.streak.weeks} SEM" else "",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                    color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal) IteraColors.Accent else IteraColors.TextPrimary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "META ${state.streak.sessionsThisWeek}/${state.streak.weeklyGoal}",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal) IteraColors.Accent else IteraColors.TextPrimary,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(6.dp))
+                            .clickable { showGoalDialog = true }
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                    if (state.streak.weeks > 0) {
+                        Text(
+                            "· RACHA ${state.streak.weeks} SEM",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal) IteraColors.Accent else IteraColors.TextPrimary,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
                 Spacer(Modifier.height(14.dp))
                 WeekActivityRow(state.trainedDaysThisWeek)
             }
             MiniHydrationRing(state.hydrationProgress, onHydrationClick)
         }
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(24.dp))
         state.lastFinishedSession?.let { last ->
-            Text("ÚLTIMA SESIÓN", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
-            Spacer(Modifier.height(8.dp))
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(IteraColors.SurfaceElevated).border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(12.dp)).clickable { onLastSessionClick(last.id) }.padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(WorkoutFocus.fromStored(last.focus).takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.label } ?: "SESIÓN ${last.id}", style = MaterialTheme.typography.titleMedium, color = IteraColors.Accent)
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${relativeDay(last.dateEpochDay)} · ", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
-                        if (last.durationMinutes < 1) {
-                            Icon(ImageVector.vectorResource(R.drawable.ic_flash), null, tint = IteraColors.Accent, modifier = Modifier.size(12.dp))
-                            Text(" Rápida", style = MaterialTheme.typography.bodySmall, color = IteraColors.Accent)
-                        } else {
-                            Text("${last.durationMinutes} min", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Text("ÚLTIMA SESIÓN", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(IteraColors.SurfaceElevated).border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(12.dp)).clickable { onLastSessionClick(last.id) }.padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(WorkoutFocus.fromStored(last.focus).takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.label } ?: "SESIÓN ${last.id}", style = MaterialTheme.typography.titleMedium, color = IteraColors.TextPrimary)
+                        Spacer(Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("${relativeDay(last.dateEpochDay)} · ", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
+                            if (last.durationMinutes < 1) {
+                                Icon(ImageVector.vectorResource(R.drawable.ic_flash), null, tint = IteraColors.TextSecondary, modifier = Modifier.size(12.dp))
+                                Text(" Rápida", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
+                            } else {
+                                Text("${last.durationMinutes} min", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
+                            }
+                            Text(" · ${last.sets.size} sets", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
                         }
-                        Text(" · ${last.sets.size} sets", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
                     }
+                    Icon(ImageVector.vectorResource(R.drawable.ic_chevron_right), contentDescription = null, tint = IteraColors.TextSecondary, modifier = Modifier.size(16.dp))
                 }
-                Text("›", style = MaterialTheme.typography.titleLarge, color = IteraColors.TextSecondary)
             }
+            Spacer(Modifier.height(24.dp))
         }
-        Spacer(Modifier.weight(1f))
         if (state.routines.isNotEmpty()) {
-            Text("MIS RUTINAS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
+            Text("MIS RUTINAS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary, modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(10.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.routines.forEach { routine ->
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(state.routines, key = { it.id }) { routine ->
                     Text(
                         routine.name,
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = IteraColors.OnAccent,
+                        color = IteraColors.Accent,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(IteraColors.Accent)
+                            .background(IteraColors.Surface)
+                            .border(1.dp, IteraColors.Accent, RoundedCornerShape(8.dp))
                             .clickable { onStartRoutine(routine) }
                             .padding(horizontal = 14.dp, vertical = 10.dp)
                     )
                 }
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
         }
-        Text("¿QUÉ TOCA HOY?", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
-        Spacer(Modifier.height(12.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            WorkoutFocus.entries.forEach { focus ->
-                val selected = focus in state.selectedFocuses
-                val blocked = focus in state.blockedFocuses
-                Text(
-                    focus.label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                    color = when { selected -> IteraColors.OnAccent; blocked -> IteraColors.Border; else -> IteraColors.TextPrimary },
-                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (selected) IteraColors.Accent else IteraColors.Surface).border(1.dp, if (selected) IteraColors.Accent else IteraColors.BorderStrong, RoundedCornerShape(8.dp)).clickable(enabled = !blocked) { onFocusToggle(focus) }.padding(horizontal = 14.dp, vertical = 10.dp)
-                )
+        Column(Modifier.padding(horizontal = 16.dp)) {
+            Text("¿QUÉ TOCA HOY?", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
+            Spacer(Modifier.height(12.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                WorkoutFocus.entries.forEach { focus ->
+                    val selected = focus in state.selectedFocuses
+                    val blocked = focus in state.blockedFocuses
+                    Text(
+                        focus.label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = when { selected -> IteraColors.OnAccent; blocked -> IteraColors.Border; else -> IteraColors.TextPrimary },
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (selected) IteraColors.Accent else IteraColors.Surface).border(1.dp, if (selected) IteraColors.Accent else IteraColors.BorderStrong, RoundedCornerShape(8.dp)).clickable(enabled = !blocked) { onFocusToggle(focus) }.padding(horizontal = 14.dp, vertical = 10.dp)
+                    )
+                }
             }
         }
         Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.weight(1f))
         Button(
-            onClick = onStart, enabled = state.selectedFocuses.isNotEmpty(), modifier = Modifier.fillMaxWidth(),
+            onClick = onStart, enabled = state.selectedFocuses.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = IteraColors.Accent, contentColor = IteraColors.OnAccent, disabledContainerColor = IteraColors.Border, disabledContentColor = IteraColors.TextSecondary),
             shape = RoundedCornerShape(8.dp)
         ) { Text("INICIAR ENTRENAMIENTO", style = MaterialTheme.typography.titleMedium) }
-        Spacer(Modifier.height(8.dp))
     }
+
+    if (showGoalDialog) {
+        WeeklyGoalDialog(
+            current = state.streak.weeklyGoal,
+            onDismiss = { showGoalDialog = false },
+            onConfirm = { onWeeklyGoalChange(it); showGoalDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun WeeklyGoalDialog(current: Int, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
+    var goal by remember { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IteraColors.Surface,
+        title = { Text("Meta semanal", color = IteraColors.TextPrimary) },
+        text = {
+            FastStepper(
+                label = "SESIONES",
+                value = goal.toFloat(),
+                onDelta = { delta -> goal = (goal + delta.toInt()).coerceIn(1, 7) },
+                onValueSet = { v -> goal = v.toInt().coerceIn(1, 7) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            Text(
+                "GUARDAR",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = IteraColors.Accent,
+                modifier = Modifier.clickable { onConfirm(goal) }.padding(8.dp)
+            )
+        },
+        dismissButton = {
+            Text("CANCELAR", style = MaterialTheme.typography.labelMedium, color = IteraColors.TextSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
+        }
+    )
 }
 
 @Composable
@@ -256,11 +323,21 @@ private fun WeekActivityRow(trainedDays: Set<Long>) {
 }
 
 @Composable
-private fun MiniHydrationRing(progress: Float, onClick: () -> Unit) {
+private fun MiniHydrationRing(rawProgress: Float, onClick: () -> Unit) {
+    val base = rawProgress.coerceIn(0f, 1f)
+    val overflow = (rawProgress - 1f).coerceIn(0f, 1f)
+    val percent = (rawProgress * 100).toInt()
     Box(Modifier.size(52.dp).clip(CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxSize().padding(4.dp), color = IteraColors.BorderStrong, strokeWidth = 3.dp)
-        CircularProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxSize().padding(4.dp), color = IteraColors.Accent, strokeWidth = 3.dp)
-        Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextPrimary)
+        CircularProgressIndicator(progress = { base }, modifier = Modifier.fillMaxSize().padding(4.dp), color = if (rawProgress > 0f) IteraColors.Accent else IteraColors.Border, strokeWidth = 3.dp)
+        if (rawProgress > 1f) {
+            CircularProgressIndicator(progress = { overflow }, modifier = Modifier.fillMaxSize().padding(4.dp), color = IteraColors.Accent.copy(alpha = 0.45f), strokeWidth = 3.dp)
+        }
+        Text(
+            "$percent%",
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium).let { if (percent >= 100) it.copy(fontSize = 9.sp) else it },
+            color = if (rawProgress > 0f) IteraColors.TextPrimary else IteraColors.TextSecondary
+        )
     }
 }
 
@@ -415,7 +492,7 @@ private fun ActiveSessionContent(
                                     }
                                 }
                                 Text(buildString {
-                                    append("SET ${set.order} · ")
+                                    append("SET ${sets.filter { it.exerciseId == set.exerciseId }.indexOf(set) + 1} · ")
                                     if (set.durationSeconds > 0) { append("${set.durationSeconds / 60} min"); if (set.intensity > 0) append(" · nivel ${set.intensity}") }
                                     else { append("${set.reps} reps"); if (set.weightAddedKg > 0f) append(" +${set.weightAddedKg}kg") }
                                 }, style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
