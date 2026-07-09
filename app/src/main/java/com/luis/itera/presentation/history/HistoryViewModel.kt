@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.luis.itera.domain.model.Session
 import com.luis.itera.domain.repository.ExerciseRepository
 import com.luis.itera.domain.repository.SessionRepository
+import com.luis.itera.domain.repository.StatisticsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -21,7 +22,7 @@ import javax.inject.Inject
 
 data class HistoryUiState(
     val selectedDate: LocalDate = LocalDate.now(),
-    val trainedDays: Set<LocalDate> = emptySet(),
+    val activityByDay: Map<LocalDate, Int> = emptyMap(),
     val sessions: List<Session> = emptyList(),
     val exerciseNames: Map<Long, String> = emptyMap(),
     val pendingDeleteId: Long? = null
@@ -31,7 +32,8 @@ data class HistoryUiState(
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
-    exerciseRepository: ExerciseRepository
+    exerciseRepository: ExerciseRepository,
+    statisticsRepository: StatisticsRepository
 ) : ViewModel() {
 
     private val selectedDate = MutableStateFlow(LocalDate.now())
@@ -44,14 +46,14 @@ class HistoryViewModel @Inject constructor(
 
     val uiState: StateFlow<HistoryUiState> = combine(
         selectedDate,
-        sessionRepository.getTrainedDays(),
+        statisticsRepository.getDailyMuscleGroupCount(),
         sessions,
         exerciseRepository.getAll(),
         pendingDeleteId
-    ) { date, trainedDays, sessionList, exercises, pendingId ->
+    ) { date, groupCountByDay, sessionList, exercises, pendingId ->
         HistoryUiState(
             selectedDate = date,
-            trainedDays = trainedDays.map(LocalDate::ofEpochDay).toSet(),
+            activityByDay = groupCountByDay.mapKeys { (epochDay, _) -> LocalDate.ofEpochDay(epochDay) },
             sessions = sessionList.sortedByDescending { it.id },
             exerciseNames = exercises.associate { it.id to it.name },
             pendingDeleteId = pendingId

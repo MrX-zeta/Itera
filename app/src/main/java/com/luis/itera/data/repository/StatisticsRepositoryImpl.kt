@@ -74,4 +74,8 @@ class StatisticsRepositoryImpl @Inject constructor(
 
     override fun getLastExercisedId(): Flow<Long?> =
         statisticsDao.getLastExercisedId()
+
+    override fun getDailyMuscleGroupCount(): Flow<Map<Long, Int>> =
+        statisticsDao.getDailyMuscleGroupCount()
+            .map { list -> list.associate { it.day to it.groupCount } }
 }
