@@ -6,6 +6,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+// Convención tipográfica de Itera:
+//  - Sans-serif (familia por defecto) como fuente PRINCIPAL de toda la prosa y etiquetas.
+//  - Monospace como ACENTO reservado a lecturas numéricas prominentes; vive en `titleLarge`,
+//    que en la app solo se usa para números grandes (totales, valores de stats, stepper, etc.).
+//  Regla: elegir la familia según el CONTENIDO (dato vs prosa), no según el tamaño del slot.
 val IteraTypography = Typography(
     headlineSmall = TextStyle(
         fontWeight = FontWeight.Medium,
@@ -25,7 +30,6 @@ val IteraTypography = Typography(
         fontSize = 14.sp
     ),
     bodySmall = TextStyle(
-        fontFamily = FontFamily.Monospace,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp
     ),
