@@ -11,6 +11,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises ORDER BY name ASC")
     fun getAll(): Flow<List<ExerciseEntity>>
 
+    @Query("SELECT * FROM exercises")
+    suspend fun getAllOnce(): List<ExerciseEntity>
+
     @Query("SELECT * FROM exercises WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
     fun search(query: String): Flow<List<ExerciseEntity>>
 
