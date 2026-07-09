@@ -28,10 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -138,13 +135,15 @@ fun buildMonthLabels(startMonday: LocalDate, locale: Locale = esLocale): List<St
  * Tarjeta con el mapa de actividad de las últimas 10 semanas.
  *
  * @param data eventos completados por día (días ausentes = 0). No accede a BD ni red.
- * @param onDaySelected callback opcional invocado al tocar una celda (fecha de esa celda).
+ * @param selectedDate fecha seleccionada (estado elevado); null = sin selección.
+ * @param onDateSelected callback al tocar una celda; pasa null al deseleccionar.
  */
 @Composable
 fun ActivityHeatmapCard(
     data: Map<LocalDate, Int>,
-    modifier: Modifier = Modifier,
-    onDaySelected: ((LocalDate) -> Unit)? = null
+    selectedDate: LocalDate?,
+    onDateSelected: (LocalDate?) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Column(
         modifier
@@ -154,15 +153,16 @@ fun ActivityHeatmapCard(
             .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(12.dp))
             .padding(16.dp)
     ) {
-        ActivityHeatmap(data = data, onDaySelected = onDaySelected)
+        ActivityHeatmap(data = data, selectedDate = selectedDate, onDateSelected = onDateSelected)
     }
 }
 
 @Composable
 fun ActivityHeatmap(
     data: Map<LocalDate, Int>,
-    modifier: Modifier = Modifier,
-    onDaySelected: ((LocalDate) -> Unit)? = null
+    selectedDate: LocalDate?,
+    onDateSelected: (LocalDate?) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val today = remember { LocalDate.now() }
     val startMonday = remember(today) { heatmapStartMonday(today) }
@@ -171,9 +171,8 @@ fun ActivityHeatmap(
     val monthLabels = remember(startMonday) { buildMonthLabels(startMonday) }
     val allEmpty = remember(cells) { cells.all { it.count == 0 } }
 
-    // Se guarda la FECHA seleccionada; la celda se deriva de los datos actuales para que el
-    // conteo nunca quede obsoleto tras borrar/añadir sesiones.
-    var selectedDate: LocalDate? by remember { mutableStateOf(null) }
+    // La FECHA seleccionada es estado elevado (ViewModel); la celda se deriva de los datos
+    // actuales para que el conteo nunca quede obsoleto tras borrar/añadir sesiones.
     val selectedCell = selectedDate?.let { d -> cells.firstOrNull { it.date == d } }
 
     Column(modifier.fillMaxWidth()) {
@@ -272,8 +271,7 @@ fun ActivityHeatmap(
                                 isSelected = selectedDate == cellData.date,
                                 sweep = sweep,
                                 onClick = {
-                                    selectedDate = cellData.date
-                                    onDaySelected?.invoke(cellData.date)
+                                    onDateSelected(if (selectedDate == cellData.date) null else cellData.date)
                                 }
                             )
                         }
