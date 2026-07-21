@@ -23,4 +23,12 @@ object IteraColors {
     // Ámbar de LOGRO: exclusivo para logros (PR, récord, mejora vs antes). Nunca como
     // marca, relleno de botón ni acento primario (regla estricta de la skill).
     val Achievement = Color(0xFFE8B75D)
+
+    // Azul-agua: EXCLUSIVO del heatmap/histórico de hidratación (nunca el acento de la
+    // app). Distingue el hábito de agua del de entrenamiento (que va en el acento/teal).
+    val HydrationAccent = Color(0xFF5FC5DB)
+    val HydrationAccentMedium = Color(0xFF3F9BB8)
+    val HydrationAccentDim = Color(0xFF26525E)
+    // Contraste oscuro para texto/contorno sobre relleno azul-agua (análogo a onAccent).
+    val HydrationOnAccent = Color(0xFF04242C)
 }
