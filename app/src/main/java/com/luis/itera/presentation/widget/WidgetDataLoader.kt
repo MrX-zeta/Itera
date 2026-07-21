@@ -1,6 +1,7 @@
 package com.luis.itera.presentation.widget
 
 import android.content.Context
+import com.luis.itera.domain.model.HydrationGoalFormula
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -8,9 +9,6 @@ import kotlinx.coroutines.flow.combine
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
-
-private const val ML_PER_KG = 35
-private const val ACTIVE_DAY_BONUS_ML = 1000
 
 /**
  * Datos del widget como [Flow] REACTIVO. Es imprescindible que sea un flujo: con
@@ -45,7 +43,7 @@ fun loadWidgetDataFlow(context: Context): Flow<WidgetData> {
         // Meta del día: la guardada, o una calculada al vuelo (sin escribir en BD)
         // para que el anillo refleje el agua aunque no exista fila de meta hoy.
         val goalMl = storedGoal?.totalGoalMl
-            ?: ((weight * ML_PER_KG).toInt() + if (todayEpoch in trainedDays) ACTIVE_DAY_BONUS_ML else 0)
+            ?: HydrationGoalFormula.totalGoalMl(weight, isActiveDay = todayEpoch in trainedDays)
         val hydrationPercent = goalMl.takeIf { it > 0 }
             ?.let { ((totalMl.toFloat() / it) * 100).toInt().coerceAtLeast(0) } ?: 0
 

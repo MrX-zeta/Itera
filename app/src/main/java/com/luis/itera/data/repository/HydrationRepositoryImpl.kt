@@ -40,6 +40,10 @@ class HydrationRepositoryImpl @Inject constructor(
     override fun getDailyGoal(dateEpochDay: Long): Flow<DailyHydrationGoal?> =
         hydrationDao.getDailyGoal(dateEpochDay).map { it?.toDomain() }
 
+    override fun getDailyGoalsBetween(fromEpochDay: Long, toEpochDay: Long): Flow<Map<Long, DailyHydrationGoal>> =
+        hydrationDao.getDailyGoalsBetween(fromEpochDay, toEpochDay)
+            .map { list -> list.associate { it.dateEpochDay to it.toDomain() } }
+
     override suspend fun addIntake(amountMl: Int) {
         hydrationDao.insertIntake(
             HydrationIntakeEntity(
