@@ -11,4 +11,5 @@ sealed class IteraDestination(val route: String) {
     }
     data object Statistics : IteraDestination("statistics")
     data object Settings : IteraDestination("settings")
+    data object RoutinesList : IteraDestination("routines_list")
 }
