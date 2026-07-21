@@ -44,7 +44,10 @@ repartido, todo compitiendo con el mismo peso). El refactor QUITA, no añade:
   neutro; el acento se reserva para lo activo/seleccionado y lo interactivo primario.
 - AIRE: espaciado generoso entre secciones. Nada pegado a los bordes.
 - JERARQUÍA tipográfica: el dato importante grande, lo secundario pequeño y gris. Encabezados de sección
-  en mayúsculas pequeñas y color tenue.
+  en mayúsculas pequeñas, pero en color SECUNDARIO (#8A8D94), NO terciario — el terciario (#6E7178) sobre
+  el fondo oscuro queda demasiado opaco y cuesta leerlo. El terciario resérvalo solo para micro-hints muy
+  puntuales. Los encabezados de sección ("ÚLTIMA SESIÓN", "TUS RUTINAS", etc.) deben distinguirse con
+  claridad.
 - LEGIBILIDAD DE FUENTE (regla explícita): NO tengas miedo de aumentar el tamaño de los textos. El error
   típico es dejar los textos SECUNDARIOS (subtítulos, metadatos, descripciones, valores bajo una etiqueta,
   texto de apoyo) demasiado pequeños. La jerarquía se logra con el CONTRASTE entre tamaños y con el color
