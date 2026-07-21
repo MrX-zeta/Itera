@@ -9,7 +9,8 @@ import androidx.room.PrimaryKey
 data class RoutineEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val focus: String? = null
+    val focus: String? = null,
+    val color: Int = 0
 )
 
 @Entity(

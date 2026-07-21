@@ -42,7 +42,7 @@ object DatabaseModule {
         hydrationDaoProvider: Provider<HydrationDao>
     ): IteraDatabase =
         Room.databaseBuilder(context, IteraDatabase::class.java, "itera.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
@@ -119,5 +119,12 @@ private val MIGRATION_6_7 = object : Migration(6, 7) {
         db.execSQL("CREATE TABLE IF NOT EXISTS routine_exercises (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, routineId INTEGER NOT NULL, exerciseId INTEGER NOT NULL, displayOrder INTEGER NOT NULL, FOREIGN KEY(routineId) REFERENCES routines(id) ON DELETE CASCADE, FOREIGN KEY(exerciseId) REFERENCES exercises(id) ON DELETE CASCADE)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_routine_exercises_routineId ON routine_exercises(routineId)")
         db.execSQL("CREATE INDEX IF NOT EXISTS index_routine_exercises_exerciseId ON routine_exercises(exerciseId)")
+    }
+}
+
+// Color descriptivo por rutina (ordinal de RoutineColor). Rutinas existentes → 0 (teal).
+private val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE routines ADD COLUMN color INTEGER NOT NULL DEFAULT 0")
     }
 }
