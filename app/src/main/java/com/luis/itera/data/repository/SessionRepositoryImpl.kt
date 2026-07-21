@@ -109,6 +109,9 @@ class SessionRepositoryImpl @Inject constructor(
 
     override suspend fun getMaxRepsBodyweight(exerciseId: Long): Int? =
         setDao.getMaxRepsBodyweightFinished(exerciseId)
+
+    override fun getSetCountsByExercise(): Flow<Map<Long, Int>> =
+        setDao.getSetCountsByExercise().map { rows -> rows.associate { it.exerciseId to it.setCount } }
 }
 
 private fun SessionEntity.toDomain(sets: List<WorkoutSet> = emptyList()) =
