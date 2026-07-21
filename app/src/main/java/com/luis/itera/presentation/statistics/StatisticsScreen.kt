@@ -69,6 +69,7 @@ import com.luis.itera.presentation.components.WorkoutDensityChart
 import com.luis.itera.presentation.components.formatVolume
 import com.luis.itera.presentation.components.volumeUnitFor
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 
 @Composable
 fun StatisticsScreen(viewModel: StatisticsViewModel = hiltViewModel()) {
@@ -205,7 +206,7 @@ private fun HeroVolumeCard(state: StatisticsUiState) {
                 fontWeight = FontWeight.Bold,
                 fontFeatureSettings = "tnum"
             ),
-            color = IteraColors.Accent,
+            color = LocalAccent.current.color,
             maxLines = 1
         )
 
@@ -216,7 +217,7 @@ private fun HeroVolumeCard(state: StatisticsUiState) {
                     Icon(
                         ImageVector.vectorResource(icon),
                         contentDescription = null,
-                        tint = IteraColors.Accent,
+                        tint = LocalAccent.current.color,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(6.dp))
@@ -452,11 +453,11 @@ private fun ExercisePickerSheet(
                 placeholder = { Text("Buscar ejercicio") },
                 shape = RoundedCornerShape(8.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = IteraColors.Accent,
+                    focusedBorderColor = LocalAccent.current.color,
                     unfocusedBorderColor = IteraColors.Border,
                     focusedTextColor = IteraColors.TextPrimary,
                     unfocusedTextColor = IteraColors.TextPrimary,
-                    cursorColor = IteraColors.Accent,
+                    cursorColor = LocalAccent.current.color,
                     focusedContainerColor = IteraColors.Surface,
                     unfocusedContainerColor = IteraColors.Surface,
                     focusedPlaceholderColor = IteraColors.TextSecondary,
@@ -478,13 +479,13 @@ private fun ExercisePickerSheet(
                     Text(
                         group,
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = if (active) IteraColors.OnAccent else IteraColors.TextPrimary,
+                        color = if (active) LocalAccent.current.onAccent else IteraColors.TextPrimary,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (active) IteraColors.Accent else IteraColors.Surface)
+                            .background(if (active) LocalAccent.current.color else IteraColors.Surface)
                             .border(
                                 1.dp,
-                                if (active) IteraColors.Accent else IteraColors.BorderStrong,
+                                if (active) LocalAccent.current.color else IteraColors.BorderStrong,
                                 RoundedCornerShape(8.dp)
                             )
                             .clickable { onGroupSelected(group) }
@@ -519,7 +520,7 @@ private fun ExercisePickerSheet(
                                 .clip(RoundedCornerShape(8.dp))
                                 .border(
                                     1.dp,
-                                    if (isSelected) IteraColors.Accent else IteraColors.Border,
+                                    if (isSelected) LocalAccent.current.color else IteraColors.Border,
                                     RoundedCornerShape(8.dp)
                                 )
                                 .clickable {
@@ -533,7 +534,7 @@ private fun ExercisePickerSheet(
                             Text(
                                 exercise.name,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (isSelected) IteraColors.Accent else IteraColors.TextPrimary,
+                                color = if (isSelected) LocalAccent.current.color else IteraColors.TextPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
@@ -582,9 +583,9 @@ private fun RangeChips(selected: StatsRange, onSelect: (StatsRange) -> Unit) {
             Text(
                 range.label,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (active) IteraColors.OnAccent else IteraColors.TextSecondary,
+                color = if (active) LocalAccent.current.onAccent else IteraColors.TextSecondary,
                 modifier = Modifier
-                    .background(if (active) IteraColors.Accent else IteraColors.Background)
+                    .background(if (active) LocalAccent.current.color else IteraColors.Background)
                     .clickable { onSelect(range) }
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             )

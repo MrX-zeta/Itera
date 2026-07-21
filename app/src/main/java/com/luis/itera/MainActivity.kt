@@ -26,8 +26,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         deepLinkRoute.value = intent?.getStringExtra(EXTRA_DESTINATION)
         setContent {
-            IteraTheme {
-                val viewModel: MainViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val viewModel: MainViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val accent by viewModel.accentColor.collectAsStateWithLifecycle()
+            IteraTheme(accent = accent) {
                 val onboardingState by viewModel.onboardingCompleted.collectAsStateWithLifecycle()
 
                 onboardingState?.let { completed ->

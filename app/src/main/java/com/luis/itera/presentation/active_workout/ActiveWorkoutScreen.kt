@@ -82,6 +82,7 @@ import com.luis.itera.presentation.components.ConfettiOverlay
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.components.SessionTimer
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -165,7 +166,7 @@ private fun HomeContent(
                     Text(
                         "META ${state.streak.sessionsThisWeek}/${state.streak.weeklyGoal}",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal) IteraColors.Accent else IteraColors.TextPrimary,
+                        color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal) LocalAccent.current.color else IteraColors.TextPrimary,
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .border(1.dp, IteraColors.BorderStrong, RoundedCornerShape(6.dp))
@@ -176,7 +177,7 @@ private fun HomeContent(
                         Text(
                             "· RACHA ${state.streak.weeks} SEM",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                            color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal) IteraColors.Accent else IteraColors.TextPrimary,
+                            color = if (state.streak.sessionsThisWeek >= state.streak.weeklyGoal) LocalAccent.current.color else IteraColors.TextPrimary,
                             modifier = Modifier.padding(start = 8.dp)
                         )
                     }
@@ -225,11 +226,11 @@ private fun HomeContent(
                     Text(
                         routine.name,
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = IteraColors.Accent,
+                        color = LocalAccent.current.color,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .background(IteraColors.Surface)
-                            .border(1.dp, IteraColors.Accent, RoundedCornerShape(8.dp))
+                            .border(1.dp, LocalAccent.current.color, RoundedCornerShape(8.dp))
                             .clickable { onStartRoutine(routine) }
                             .padding(horizontal = 14.dp, vertical = 10.dp)
                     )
@@ -246,8 +247,8 @@ private fun HomeContent(
                     val blocked = focus in state.blockedFocuses
                     Text(
                         focus.label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = when { selected -> IteraColors.OnAccent; blocked -> IteraColors.Border; else -> IteraColors.TextPrimary },
-                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (selected) IteraColors.Accent else IteraColors.Surface).border(1.dp, if (selected) IteraColors.Accent else IteraColors.BorderStrong, RoundedCornerShape(8.dp)).clickable(enabled = !blocked) { onFocusToggle(focus) }.padding(horizontal = 14.dp, vertical = 10.dp)
+                        color = when { selected -> LocalAccent.current.onAccent; blocked -> IteraColors.Border; else -> IteraColors.TextPrimary },
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (selected) LocalAccent.current.color else IteraColors.Surface).border(1.dp, if (selected) LocalAccent.current.color else IteraColors.BorderStrong, RoundedCornerShape(8.dp)).clickable(enabled = !blocked) { onFocusToggle(focus) }.padding(horizontal = 14.dp, vertical = 10.dp)
                     )
                 }
             }
@@ -256,7 +257,7 @@ private fun HomeContent(
         Spacer(Modifier.weight(1f))
         Button(
             onClick = onStart, enabled = state.selectedFocuses.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = IteraColors.Accent, contentColor = IteraColors.OnAccent, disabledContainerColor = IteraColors.Border, disabledContentColor = IteraColors.TextSecondary),
+            colors = ButtonDefaults.buttonColors(containerColor = LocalAccent.current.color, contentColor = LocalAccent.current.onAccent, disabledContainerColor = IteraColors.Border, disabledContentColor = IteraColors.TextSecondary),
             shape = RoundedCornerShape(8.dp)
         ) { Text("INICIAR ENTRENAMIENTO", style = MaterialTheme.typography.titleMedium) }
     }
@@ -290,7 +291,7 @@ private fun WeeklyGoalDialog(current: Int, onDismiss: () -> Unit, onConfirm: (In
             Text(
                 "GUARDAR",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = IteraColors.Accent,
+                color = LocalAccent.current.color,
                 modifier = Modifier.clickable { onConfirm(goal) }.padding(8.dp)
             )
         },
@@ -312,11 +313,11 @@ private fun WeekActivityRow(trainedDays: Set<Long>) {
             val isToday = day == today
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
-                    Modifier.size(20.dp).then(if (isToday) Modifier.border(1.5.dp, IteraColors.Accent, CircleShape) else Modifier).padding(if (isToday) 4.dp else 0.dp).clip(CircleShape)
-                        .then(if (trained) Modifier.background(IteraColors.Accent) else Modifier.background(IteraColors.SurfaceElevated).border(1.dp, IteraColors.BorderStrong, CircleShape))
+                    Modifier.size(20.dp).then(if (isToday) Modifier.border(1.5.dp, LocalAccent.current.color, CircleShape) else Modifier).padding(if (isToday) 4.dp else 0.dp).clip(CircleShape)
+                        .then(if (trained) Modifier.background(LocalAccent.current.color) else Modifier.background(IteraColors.SurfaceElevated).border(1.dp, IteraColors.BorderStrong, CircleShape))
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(labels[offset], style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = if (isToday) IteraColors.Accent else IteraColors.TextSecondary)
+                Text(labels[offset], style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = if (isToday) LocalAccent.current.color else IteraColors.TextSecondary)
             }
         }
     }
@@ -329,9 +330,9 @@ private fun MiniHydrationRing(rawProgress: Float, onClick: () -> Unit) {
     val percent = (rawProgress * 100).toInt()
     Box(Modifier.size(52.dp).clip(CircleShape).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(progress = { 1f }, modifier = Modifier.fillMaxSize().padding(4.dp), color = IteraColors.BorderStrong, strokeWidth = 3.dp)
-        CircularProgressIndicator(progress = { base }, modifier = Modifier.fillMaxSize().padding(4.dp), color = if (rawProgress > 0f) IteraColors.Accent else IteraColors.Border, strokeWidth = 3.dp)
+        CircularProgressIndicator(progress = { base }, modifier = Modifier.fillMaxSize().padding(4.dp), color = if (rawProgress > 0f) LocalAccent.current.color else IteraColors.Border, strokeWidth = 3.dp)
         if (rawProgress > 1f) {
-            CircularProgressIndicator(progress = { overflow }, modifier = Modifier.fillMaxSize().padding(4.dp), color = IteraColors.Accent.copy(alpha = 0.45f), strokeWidth = 3.dp)
+            CircularProgressIndicator(progress = { overflow }, modifier = Modifier.fillMaxSize().padding(4.dp), color = LocalAccent.current.color.copy(alpha = 0.45f), strokeWidth = 3.dp)
         }
         Text(
             "$percent%",
@@ -388,16 +389,16 @@ private fun ActiveSessionContent(
                         Text("ENTRENAMIENTO ACTIVO", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
                         if (state.sessionFocuses.isNotEmpty()) {
                             Spacer(Modifier.height(4.dp))
-                            Text(state.sessionFocuses.joinToString(" · ") { it.label }, style = MaterialTheme.typography.bodySmall, color = IteraColors.Accent)
+                            Text(state.sessionFocuses.joinToString(" · ") { it.label }, style = MaterialTheme.typography.bodySmall, color = LocalAccent.current.color)
                         }
                     }
                 }
-                Icon(ImageVector.vectorResource(R.drawable.ic_search), null, tint = if (searchExpanded) IteraColors.Accent else IteraColors.TextSecondary,
+                Icon(ImageVector.vectorResource(R.drawable.ic_search), null, tint = if (searchExpanded) LocalAccent.current.color else IteraColors.TextSecondary,
                     modifier = Modifier.clickable { searchExpanded = !searchExpanded; if (!searchExpanded) onSearchChange("") }.padding(horizontal = 10.dp))
                 if (state.setTimerMillis > 0L) {
                     SessionTimer(state.setTimerMillis, state.pausedElapsed, state.timerState, onToggleTimerPause)
                 } else {
-                    OutlinedButton(onClick = onStartTimer, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, IteraColors.Border), colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.Accent)) {
+                    OutlinedButton(onClick = onStartTimer, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, IteraColors.Border), colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAccent.current.color)) {
                         Text("DESCANSO", style = MaterialTheme.typography.labelSmall)
                     }
                 }
@@ -406,7 +407,7 @@ private fun ActiveSessionContent(
                 Column {
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(state.searchQuery, onSearchChange, Modifier.fillMaxWidth().focusRequester(focusRequester), placeholder = { Text("Buscar ejercicio", color = IteraColors.TextSecondary) }, singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = IteraColors.Accent, unfocusedBorderColor = IteraColors.Border, focusedTextColor = IteraColors.TextPrimary, unfocusedTextColor = IteraColors.TextPrimary), shape = RoundedCornerShape(8.dp))
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = LocalAccent.current.color, unfocusedBorderColor = IteraColors.Border, focusedTextColor = IteraColors.TextPrimary, unfocusedTextColor = IteraColors.TextPrimary), shape = RoundedCornerShape(8.dp))
                     LaunchedEffect(Unit) { focusRequester.requestFocus() }
                 }
             }
@@ -435,10 +436,10 @@ private fun ActiveSessionContent(
                     if (suggestion != null) {
                         val isWeightUp = suggestion.contains("↑")
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Sugerido: ${suggestion.replace(" ↑ peso", "")}", style = MaterialTheme.typography.bodySmall, color = IteraColors.Accent.copy(alpha = 0.85f))
+                            Text("Sugerido: ${suggestion.replace(" ↑ peso", "")}", style = MaterialTheme.typography.bodySmall, color = LocalAccent.current.color.copy(alpha = 0.85f))
                             if (isWeightUp) {
                                 Spacer(Modifier.width(4.dp))
-                                Icon(ImageVector.vectorResource(R.drawable.ic_weight_up), null, tint = IteraColors.Accent, modifier = Modifier.size(14.dp))
+                                Icon(ImageVector.vectorResource(R.drawable.ic_weight_up), null, tint = LocalAccent.current.color, modifier = Modifier.size(14.dp))
                             }
                         }
                     }
@@ -461,9 +462,9 @@ private fun ActiveSessionContent(
                 item { Text("EJERCICIOS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary, modifier = Modifier.padding(bottom = 8.dp)) }
                 items(state.exercises, key = { "ex_${it.id}" }) { exercise ->
                     val sel = exercise.id == state.selectedExercise?.id
-                    Row(Modifier.fillMaxWidth().clickable { onExerciseSelected(exercise) }.border(1.dp, if (sel) IteraColors.Accent else IteraColors.Border, RoundedCornerShape(8.dp)).padding(12.dp),
+                    Row(Modifier.fillMaxWidth().clickable { onExerciseSelected(exercise) }.border(1.dp, if (sel) LocalAccent.current.color else IteraColors.Border, RoundedCornerShape(8.dp)).padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(exercise.name, style = MaterialTheme.typography.bodyMedium, color = if (sel) IteraColors.Accent else IteraColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text(exercise.name, style = MaterialTheme.typography.bodyMedium, color = if (sel) LocalAccent.current.color else IteraColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         Text(exercise.mainMuscleGroup, style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary, modifier = Modifier.padding(start = 8.dp))
                     }
                     Spacer(Modifier.height(6.dp))
@@ -487,7 +488,7 @@ private fun ActiveSessionContent(
                                         } ?: false
                                         if (isPRSet && (state.session?.sets?.count { it.exerciseId == set.exerciseId } ?: 0) > 1) {
                                             Spacer(Modifier.width(4.dp))
-                                            Box(Modifier.size(6.dp).background(IteraColors.Accent, CircleShape))
+                                            Box(Modifier.size(6.dp).background(LocalAccent.current.color, CircleShape))
                                         }
                                     }
                                 }
@@ -514,7 +515,7 @@ private fun ActiveSessionContent(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, IteraColors.Border),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.Accent)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAccent.current.color)
                     ) { Text("GUARDAR RUTINA", style = MaterialTheme.typography.labelSmall) }
                     OutlinedButton(
                         onClick = onFinishSession,
@@ -551,7 +552,7 @@ private fun CreateExercisePrompt(query: String, muscleGroups: List<String>, onCr
         Spacer(Modifier.height(8.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             muscleGroups.forEach { group ->
-                Text(group, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.Accent,
+                Text(group, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = LocalAccent.current.color,
                     modifier = Modifier.border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp)).clickable { onCreate(query, group) }.padding(horizontal = 12.dp, vertical = 8.dp))
             }
         }
@@ -572,7 +573,7 @@ private fun SaveRoutineDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
                 placeholder = { Text("Ej. Push Day", color = IteraColors.TextSecondary) },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = IteraColors.Accent,
+                    focusedBorderColor = LocalAccent.current.color,
                     unfocusedBorderColor = IteraColors.Border,
                     focusedTextColor = IteraColors.TextPrimary,
                     unfocusedTextColor = IteraColors.TextPrimary
@@ -584,7 +585,7 @@ private fun SaveRoutineDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
             Text(
                 "GUARDAR",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = if (name.isBlank()) IteraColors.TextSecondary else IteraColors.Accent,
+                color = if (name.isBlank()) IteraColors.TextSecondary else LocalAccent.current.color,
                 modifier = Modifier.clickable(enabled = name.isNotBlank()) { onSave(name) }.padding(8.dp)
             )
         },
@@ -616,8 +617,8 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null)
         animationSpec = infiniteRepeatable(tween(280), RepeatMode.Reverse),
         label = "fire_scaleX"
     )
-    val container = when { prText != null -> IteraColors.Accent; registered -> IteraColors.Surface; else -> IteraColors.Accent }
-    val content = when { prText != null -> IteraColors.OnAccent; registered -> IteraColors.Accent; else -> IteraColors.OnAccent }
+    val container = when { prText != null -> LocalAccent.current.color; registered -> IteraColors.Surface; else -> LocalAccent.current.color }
+    val content = when { prText != null -> LocalAccent.current.onAccent; registered -> LocalAccent.current.color; else -> LocalAccent.current.onAccent }
     Button(
         onClick = {
             focusManager.clearFocus()
@@ -633,7 +634,7 @@ private fun RegisterSetButton(onRegisterSet: () -> Unit, prText: String? = null)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     ImageVector.vectorResource(R.drawable.ic_fire), null,
-                    tint = IteraColors.OnAccent,
+                    tint = LocalAccent.current.onAccent,
                     modifier = Modifier
                         .size(22.dp)
                         .graphicsLayer {

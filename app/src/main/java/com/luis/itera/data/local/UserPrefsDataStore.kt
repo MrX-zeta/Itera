@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.luis.itera.presentation.theme.AccentColor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -53,6 +54,15 @@ class UserPrefsDataStore @Inject constructor(
 
     suspend fun setWidgetPinRequested(requested: Boolean) {
         context.dataStore.edit { it[widgetPinRequestedKey] = requested }
+    }
+
+    private val accentColorKey = intPreferencesKey("accent_color")
+
+    fun getAccentColor(): Flow<AccentColor> =
+        context.dataStore.data.map { AccentColor.fromOrdinal(it[accentColorKey] ?: AccentColor.Default.ordinal) }
+
+    suspend fun setAccentColor(accent: AccentColor) {
+        context.dataStore.edit { it[accentColorKey] = accent.ordinal }
     }
 
     private companion object {

@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 
 @Composable
 fun FastStepper(
@@ -147,9 +148,9 @@ fun FastStepper(
                         textStyle = TextStyle(
                             fontSize = 22.sp,
                             textAlign = TextAlign.Center,
-                            color = IteraColors.Accent
+                            color = LocalAccent.current.color
                         ),
-                        cursorBrush = SolidColor(IteraColors.Accent),
+                        cursorBrush = SolidColor(LocalAccent.current.color),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = if (label == "REPS") KeyboardType.Number else KeyboardType.Decimal,
@@ -193,7 +194,7 @@ fun FastStepper(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Text("+", style = MaterialTheme.typography.titleLarge, color = IteraColors.Accent)
+                Text("+", style = MaterialTheme.typography.titleLarge, color = LocalAccent.current.color)
             }
         }
     }

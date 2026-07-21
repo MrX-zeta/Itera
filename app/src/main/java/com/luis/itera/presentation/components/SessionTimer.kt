@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.itera.R
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 import kotlinx.coroutines.delay
 
 enum class TimerState { INACTIVE, RUNNING, PAUSED }
@@ -63,7 +64,7 @@ fun SessionTimer(
         a
     } else 1f
 
-    val color = if (state == TimerState.INACTIVE) IteraColors.TextSecondary else IteraColors.Accent
+    val color = if (state == TimerState.INACTIVE) IteraColors.TextSecondary else LocalAccent.current.color
 
     Row(
         Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onTogglePause).padding(horizontal = 8.dp, vertical = 4.dp),

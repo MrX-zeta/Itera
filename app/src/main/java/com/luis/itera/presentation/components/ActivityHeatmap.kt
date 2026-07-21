@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -314,14 +315,15 @@ private fun HeatmapCellBox(
     sweep: Animatable<Float, AnimationVector1D>,
     onClick: () -> Unit
 ) {
+    val accent = LocalAccent.current
     val background = if (cell.level <= 0) {
         IteraColors.BorderStrong
     } else {
-        IteraColors.Accent.copy(alpha = ALPHA_BY_LEVEL[cell.level])
+        accent.color.copy(alpha = ALPHA_BY_LEVEL[cell.level])
     }
     val isToday = cell.date == today
-    // En niveles altos el relleno ya es Accent; el borde Accent se perdería, usa OnAccent.
-    val todayBorderColor = if (cell.level >= 3) IteraColors.OnAccent else IteraColors.Accent
+    // En niveles altos el relleno ya es el acento; el borde con el acento se perdería, usa onAccent.
+    val todayBorderColor = if (cell.level >= 3) accent.onAccent else accent.color
 
     Box(
         modifier = Modifier

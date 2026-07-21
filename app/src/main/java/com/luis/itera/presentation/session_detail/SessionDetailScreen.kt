@@ -44,6 +44,7 @@ import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.presentation.components.fmtWeight
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -83,7 +84,7 @@ fun SessionDetailScreen(
                     Icon(
                         ImageVector.vectorResource(R.drawable.ic_flash),
                         contentDescription = null,
-                        tint = IteraColors.Accent,
+                        tint = LocalAccent.current.color,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(Modifier.width(2.dp))
@@ -95,7 +96,7 @@ fun SessionDetailScreen(
                         else -> "${session.durationMinutes} min"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = IteraColors.Accent
+                    color = LocalAccent.current.color
                 )
                 IconButton(onClick = viewModel::onDeleteSession) {
                     Icon(
@@ -117,7 +118,7 @@ fun SessionDetailScreen(
             Text(
                 text = focuses.joinToString(" · ") { it.label },
                 style = MaterialTheme.typography.bodyMedium,
-                color = IteraColors.Accent
+                color = LocalAccent.current.color
             )
         }
         Spacer(Modifier.height(6.dp))
@@ -152,6 +153,7 @@ private fun ElongatedBackButton(onClick: () -> Unit) {
             .clickable(onClick = onClick),
         contentAlignment = Alignment.CenterStart
     ) {
+        val accent = LocalAccent.current.color
         Canvas(Modifier.size(width = 28.dp, height = 14.dp)) {
             val stroke = 1.8.dp.toPx()
             val tipY = size.height / 2f
@@ -159,21 +161,21 @@ private fun ElongatedBackButton(onClick: () -> Unit) {
             val armLen = 7.dp.toPx()
 
             drawLine(
-                color = IteraColors.Accent,
+                color = accent,
                 start = Offset(tipX, tipY),
                 end = Offset(size.width, tipY),
                 strokeWidth = stroke,
                 cap = StrokeCap.Round
             )
             drawLine(
-                color = IteraColors.Accent,
+                color = accent,
                 start = Offset(tipX, tipY),
                 end = Offset(tipX + armLen, tipY - armLen),
                 strokeWidth = stroke,
                 cap = StrokeCap.Round
             )
             drawLine(
-                color = IteraColors.Accent,
+                color = accent,
                 start = Offset(tipX, tipY),
                 end = Offset(tipX + armLen, tipY + armLen),
                 strokeWidth = stroke,
@@ -208,7 +210,7 @@ private fun ExerciseDetailCard(
                 Icon(
                     ImageVector.vectorResource(R.drawable.ic_fire),
                     contentDescription = null,
-                    tint = IteraColors.Accent,
+                    tint = LocalAccent.current.color,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(Modifier.width(4.dp))
@@ -216,7 +218,7 @@ private fun ExerciseDetailCard(
                     text = if (prSet.weightAddedKg > 0f) "Nuevo máximo · ${fmtWeight(prSet.weightAddedKg)} kg"
                     else "Nuevo máximo · ${prSet.reps} reps",
                     style = MaterialTheme.typography.bodySmall,
-                    color = IteraColors.Accent
+                    color = LocalAccent.current.color
                 )
             }
         }

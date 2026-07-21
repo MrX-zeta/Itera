@@ -64,6 +64,7 @@ import com.luis.itera.domain.model.Session
 import com.luis.itera.presentation.components.ActivityHeatmapCard
 import com.luis.itera.presentation.components.fmtWeight
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.runtime.mutableLongStateOf
@@ -301,7 +302,7 @@ private fun SessionCard(
                     Icon(
                         ImageVector.vectorResource(R.drawable.ic_flash),
                         contentDescription = null,
-                        tint = IteraColors.Accent,
+                        tint = LocalAccent.current.color,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(Modifier.width(2.dp))
@@ -313,7 +314,7 @@ private fun SessionCard(
                         else -> "${session.durationMinutes} min"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = IteraColors.Accent
+                    color = LocalAccent.current.color
                 )
                 Text(
                     text = " · ${LocalDate.ofEpochDay(session.dateEpochDay).format(cardDateFormatter)}",
@@ -326,14 +327,14 @@ private fun SessionCard(
                     Icon(
                         ImageVector.vectorResource(R.drawable.ic_fire),
                         contentDescription = null,
-                        tint = IteraColors.Accent,
+                        tint = LocalAccent.current.color,
                         modifier = Modifier.size(13.dp)
                     )
                     Spacer(Modifier.width(3.dp))
                     Text(
                         "PR",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                        color = IteraColors.Accent
+                        color = LocalAccent.current.color
                     )
                 }
             }
@@ -353,7 +354,7 @@ private fun SessionCard(
                     Text(
                         text = "${sets.size} ${if (sets.size == 1) "set" else "sets"}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = IteraColors.Accent
+                        color = LocalAccent.current.color
                     )
                 }
                 Text(

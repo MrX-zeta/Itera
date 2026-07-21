@@ -2,6 +2,7 @@ package com.luis.itera.data.repository
 
 import com.luis.itera.data.local.UserPrefsDataStore
 import com.luis.itera.domain.repository.UserPrefsRepository
+import com.luis.itera.presentation.theme.AccentColor
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
@@ -16,4 +17,6 @@ class UserPrefsRepositoryImpl @Inject constructor(
     override suspend fun setOnboardingCompleted(completed: Boolean) = dataStore.setOnboardingCompleted(completed)
     override fun getWidgetPinRequested(): Flow<Boolean> = dataStore.getWidgetPinRequested()
     override suspend fun setWidgetPinRequested(requested: Boolean) = dataStore.setWidgetPinRequested(requested)
+    override fun getAccentColor(): Flow<AccentColor> = dataStore.getAccentColor()
+    override suspend fun setAccentColor(accent: AccentColor) = dataStore.setAccentColor(accent)
 }

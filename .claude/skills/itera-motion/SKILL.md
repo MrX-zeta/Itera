@@ -45,6 +45,14 @@ repartido, todo compitiendo con el mismo peso). El refactor QUITA, no añade:
 - AIRE: espaciado generoso entre secciones. Nada pegado a los bordes.
 - JERARQUÍA tipográfica: el dato importante grande, lo secundario pequeño y gris. Encabezados de sección
   en mayúsculas pequeñas y color tenue.
+- LEGIBILIDAD DE FUENTE (regla explícita): NO tengas miedo de aumentar el tamaño de los textos. El error
+  típico es dejar los textos SECUNDARIOS (subtítulos, metadatos, descripciones, valores bajo una etiqueta,
+  texto de apoyo) demasiado pequeños. La jerarquía se logra con el CONTRASTE entre tamaños y con el color
+  (secundario/terciario), NO haciendo diminuto el texto secundario. Un subtítulo o metadato debe leerse
+  cómodamente en el dispositivo: parte de ~13-14sp para secundarios y ~15-16sp para cuerpo, y súbelo si
+  queda justo, en vez de encogerlo. Solo los encabezados de sección tipo etiqueta (mayúsculas) y micro-
+  leyendas pueden ir pequeños (~11-12sp). Ante la duda entre "un poco más grande" y "un poco más pequeño",
+  elige MÁS GRANDE. La legibilidad manda sobre la compacidad.
 - Oscuro CON claridad: fondo no-negro-puro, superficies elevadas perceptibles, sin bordes decorativos.
 
 ## PALETA — Teal maduro (fuente de verdad, no inventar colores)

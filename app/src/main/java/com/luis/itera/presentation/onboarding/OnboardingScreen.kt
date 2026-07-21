@@ -34,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 
 @Composable
 fun OnboardingScreen(
@@ -72,7 +73,7 @@ fun OnboardingScreen(
             Button(
                 onClick = { if (state.step == 0) viewModel.onNext() else viewModel.onFinish(onComplete) },
                 modifier = Modifier.weight(if (state.step == 1) 2f else 1f),
-                colors = ButtonDefaults.buttonColors(containerColor = IteraColors.Accent, contentColor = IteraColors.OnAccent),
+                colors = ButtonDefaults.buttonColors(containerColor = LocalAccent.current.color, contentColor = LocalAccent.current.onAccent),
                 shape = RoundedCornerShape(8.dp)
             ) { Text(if (state.step == 0) "CONTINUAR" else "EMPEZAR", style = MaterialTheme.typography.titleMedium) }
         }
@@ -105,13 +106,13 @@ private fun GoalStep(weeklyGoal: Int, onSelect: (Int) -> Unit) {
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(if (selected) IteraColors.Accent else IteraColors.Surface)
-                        .border(1.dp, if (selected) IteraColors.Accent else IteraColors.BorderStrong, RoundedCornerShape(10.dp))
+                        .background(if (selected) LocalAccent.current.color else IteraColors.Surface)
+                        .border(1.dp, if (selected) LocalAccent.current.color else IteraColors.BorderStrong, RoundedCornerShape(10.dp))
                         .clickable { onSelect(day) }
                         .padding(vertical = 20.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("$day", style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold), color = if (selected) IteraColors.OnAccent else IteraColors.TextPrimary)
+                    Text("$day", style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold), color = if (selected) LocalAccent.current.onAccent else IteraColors.TextPrimary)
                 }
             }
         }

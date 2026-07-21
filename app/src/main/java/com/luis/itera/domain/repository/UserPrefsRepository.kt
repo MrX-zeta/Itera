@@ -1,5 +1,6 @@
 package com.luis.itera.domain.repository
 
+import com.luis.itera.presentation.theme.AccentColor
 import kotlinx.coroutines.flow.Flow
 
 interface UserPrefsRepository {
@@ -13,4 +14,7 @@ interface UserPrefsRepository {
 
     fun getWidgetPinRequested(): Flow<Boolean>
     suspend fun setWidgetPinRequested(requested: Boolean)
+
+    fun getAccentColor(): Flow<AccentColor>
+    suspend fun setAccentColor(accent: AccentColor)
 }

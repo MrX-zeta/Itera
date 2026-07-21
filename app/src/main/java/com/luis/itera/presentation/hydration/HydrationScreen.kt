@@ -63,6 +63,7 @@ import com.luis.itera.R
 import com.luis.itera.domain.model.HydrationIntake
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -211,7 +212,7 @@ private fun DayIntakeCard(
             Text(
                 "$dayTotal ml",
                 style = MaterialTheme.typography.bodySmall,
-                color = IteraColors.Accent
+                color = LocalAccent.current.color
             )
         }
         HorizontalDivider(
@@ -361,19 +362,19 @@ private fun DraggableProgressRing(
         CircularProgressIndicator(
             progress = { base },
             modifier = Modifier.fillMaxSize(),
-            color = IteraColors.Accent,
+            color = LocalAccent.current.color,
             strokeWidth = 4.dp
         )
         if (animatedProgress > 1f) {
             CircularProgressIndicator(
                 progress = { overflow },
                 modifier = Modifier.fillMaxSize(),
-                color = IteraColors.Accent.copy(alpha = 0.45f),
+                color = LocalAccent.current.color.copy(alpha = 0.45f),
                 strokeWidth = 4.dp
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("$totalMl", style = MaterialTheme.typography.titleLarge, color = if (isDragging) IteraColors.Accent else IteraColors.TextPrimary)
+            Text("$totalMl", style = MaterialTheme.typography.titleLarge, color = if (isDragging) LocalAccent.current.color else IteraColors.TextPrimary)
             Text("/ $goalMl ml", style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
             Text(
                 if (isDragging) "$percent% · AJUSTANDO" else "$percent%",
@@ -399,7 +400,7 @@ private fun QuickAmountButton(amountMl: Int, label: String, onClick: () -> Unit,
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("+$amountMl", style = MaterialTheme.typography.titleLarge, color = IteraColors.Accent, textAlign = TextAlign.Center)
+        Text("+$amountMl", style = MaterialTheme.typography.titleLarge, color = LocalAccent.current.color, textAlign = TextAlign.Center)
         Text(label, style = MaterialTheme.typography.labelSmall, color = IteraColors.TextSecondary)
     }
 }

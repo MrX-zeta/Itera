@@ -41,6 +41,7 @@ import com.luis.itera.presentation.hydration.HydrationScreen
 import com.luis.itera.presentation.session_detail.SessionDetailScreen
 import com.luis.itera.presentation.statistics.StatisticsScreen
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 
 private data class NavItem(
     val destination: IteraDestination,
@@ -140,7 +141,7 @@ fun IteraNavHost(
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = IteraColors.Accent,
+                                selectedIconColor = LocalAccent.current.color,
                                 unselectedIconColor = IteraColors.TextSecondary,
                                 indicatorColor = Color.Transparent
                             )
