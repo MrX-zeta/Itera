@@ -65,11 +65,11 @@ fun RoutineEditorScreen(
             .statusBarsPadding()
             .imePadding()
     ) {
-        Row(
+        Box(
             Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            contentAlignment = Alignment.Center
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
                 Icon(ImageVector.vectorResource(R.drawable.ic_back), contentDescription = "Volver", tint = IteraColors.TextPrimary)
             }
             Text(
@@ -127,9 +127,10 @@ fun RoutineEditorScreen(
                     SectionLabel("EJERCICIOS")
                     Row(
                         Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(LocalAccent.current.color.copy(alpha = 0.15f))
                             .clickable { showPicker = true }
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -138,10 +139,10 @@ fun RoutineEditorScreen(
                             tint = LocalAccent.current.color,
                             modifier = Modifier.size(16.dp)
                         )
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(6.dp))
                         Text(
                             "Añadir",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = LocalAccent.current.color
                         )
                     }
@@ -253,9 +254,13 @@ private fun SectionLabel(text: String) {
 @Composable
 private fun ColorPicker(selected: Int, onSelect: (Int) -> Unit) {
     val colors = RoutineColor.entries
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         for (rowStart in colors.indices step 5) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Dispersos a todo el ancho (SpaceBetween): sin hueco a la derecha.
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 for (i in rowStart until minOf(rowStart + 5, colors.size)) {
                     val isSelected = i == selected
                     Box(
