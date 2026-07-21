@@ -66,8 +66,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
 import com.luis.itera.domain.model.Exercise
 import com.luis.itera.domain.model.Session
+import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.presentation.components.ActivityHeatmapCard
+import com.luis.itera.presentation.components.HEATMAP_EMPTY_CELL_COLOR
+import com.luis.itera.presentation.components.TrainingHeatmapLegend
 import com.luis.itera.presentation.components.fmtWeight
+import com.luis.itera.presentation.components.heatmapDateFormatter
 import com.luis.itera.presentation.theme.IteraColors
 import com.luis.itera.presentation.theme.LocalAccent
 import java.time.format.DateTimeFormatter
@@ -134,11 +138,32 @@ fun HistoryScreen(
             }
             Spacer(Modifier.height(12.dp))
 
+            val accent = LocalAccent.current
             ActivityHeatmapCard(
-                data = state.trainedDays,
-                prDays = state.prDays,
+                levelForDate = { date ->
+                    when {
+                        date in state.trainedDays && date in state.prDays -> 2
+                        date in state.trainedDays -> 1
+                        else -> 0
+                    }
+                },
+                colorForLevel = { level ->
+                    when (level) {
+                        2 -> accent.color
+                        1 -> accent.color.copy(alpha = 0.7f)
+                        else -> HEATMAP_EMPTY_CELL_COLOR
+                    }
+                },
+                emptyBorderColor = accent.color,
+                filledBorderColor = accent.onAccent,
+                highlightDays = state.prDays,
                 selectedDate = selectedDay,
-                onDateSelected = viewModel::onDaySelected
+                onDateSelected = viewModel::onDaySelected,
+                selectionLabel = { cell, isToday ->
+                    val datePart = if (isToday) "Hoy" else cell.date.format(heatmapDateFormatter)
+                    if (cell.level > 0) "$datePart · Entrenaste" else datePart
+                },
+                legend = { TrainingHeatmapLegend() }
             )
 
             Spacer(Modifier.height(16.dp))
@@ -406,6 +431,36 @@ private fun DismissableSessionCard(
     }
 }
 
+/**
+ * Resumen COMPACTO de sets para la tarjeta de la lista de Historial (no el detalle de
+ * sesión, que sigue mostrando cada set individual con su papelera). Colapsa reps/peso
+ * repetidos en un solo rango en vez de listar set por set.
+ */
+private fun summarizeSets(sets: List<WorkoutSet>, isCardio: Boolean): String {
+    val setsLabel = if (sets.size == 1) "1 set" else "${sets.size} sets"
+    return if (isCardio) {
+        val minutesLabel = formatIntRange(sets.map { it.durationSeconds / 60 }) + " min"
+        val intensities = sets.map { it.intensity }.filter { it > 0 }
+        val intensityLabel = if (intensities.isNotEmpty()) " · nivel ${formatIntRange(intensities)}" else ""
+        "$setsLabel · $minutesLabel$intensityLabel"
+    } else {
+        val repsLabel = formatIntRange(sets.map { it.reps }) + " reps"
+        val weights = sets.map { it.weightAddedKg }
+        val weightLabel = when {
+            weights.all { it <= 0f } -> "corporal"
+            weights.distinct().size == 1 -> "${fmtWeight(weights.first())}kg"
+            else -> "${fmtWeight(weights.min())}-${fmtWeight(weights.max())}kg"
+        }
+        "$setsLabel · $repsLabel · $weightLabel"
+    }
+}
+
+private fun formatIntRange(values: List<Int>): String {
+    val min = values.min()
+    val max = values.max()
+    return if (min == max) "$min" else "$min-$max"
+}
+
 @Composable
 private fun SessionCard(
     session: Session,
@@ -493,13 +548,7 @@ private fun SessionCard(
                     )
                 }
                 Text(
-                    text = sets.joinToString(" · ") { set ->
-                        if (isCardio) "${set.durationSeconds / 60} min"
-                        else buildString {
-                            append("${set.reps}")
-                            if (set.weightAddedKg > 0f) append(" × ${fmtWeight(set.weightAddedKg)}kg")
-                        }
-                    },
+                    text = summarizeSets(sets, isCardio),
                     style = MaterialTheme.typography.bodyMedium,
                     color = IteraColors.TextSecondary,
                     maxLines = 2,
