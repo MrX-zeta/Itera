@@ -14,18 +14,10 @@ enum class WidgetPinResult { ALREADY_PINNED, REQUESTED, UNSUPPORTED }
 class WidgetPinner @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    fun requestPin(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
-        val manager = AppWidgetManager.getInstance(context)
-        val provider = ComponentName(context, IteraWidgetReceiver::class.java)
-        if (!manager.isRequestPinAppWidgetSupported) return false
-        return manager.requestPinAppWidget(provider, null, null)
-    }
-
     /**
-     * Variante con idempotencia real (getAppWidgetIds), para el botón de Ajustes:
-     * a diferencia de [requestPin] (que usa el flag de DataStore del auto-anclado),
-     * aquí se comprueba si el widget YA está anclado antes de pedir el diálogo.
+     * Anclado con idempotencia real (getAppWidgetIds): comprueba si el widget YA está
+     * anclado antes de pedir el diálogo. Única vía de anclaje (botón de Ajustes); ya
+     * no hay disparo automático tras el onboarding.
      */
     fun requestPinWithStatus(): WidgetPinResult {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return WidgetPinResult.UNSUPPORTED

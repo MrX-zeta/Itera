@@ -15,8 +15,6 @@ class UserPrefsRepositoryImpl @Inject constructor(
     override suspend fun setWeeklyGoal(goal: Int) = dataStore.setWeeklyGoal(goal)
     override fun getOnboardingCompleted(): Flow<Boolean> = dataStore.getOnboardingCompleted()
     override suspend fun setOnboardingCompleted(completed: Boolean) = dataStore.setOnboardingCompleted(completed)
-    override fun getWidgetPinRequested(): Flow<Boolean> = dataStore.getWidgetPinRequested()
-    override suspend fun setWidgetPinRequested(requested: Boolean) = dataStore.setWidgetPinRequested(requested)
     override fun getAccentColor(): Flow<AccentColor> = dataStore.getAccentColor()
     override suspend fun setAccentColor(accent: AccentColor) = dataStore.setAccentColor(accent)
     override fun getRestGoalSeconds(): Flow<Int> = dataStore.getRestGoalSeconds()

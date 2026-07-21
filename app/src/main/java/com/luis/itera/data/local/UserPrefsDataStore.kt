@@ -47,15 +47,6 @@ class UserPrefsDataStore @Inject constructor(
         context.dataStore.edit { it[onboardingKey] = completed }
     }
 
-    private val widgetPinRequestedKey = booleanPreferencesKey("widget_pin_requested")
-
-    fun getWidgetPinRequested(): Flow<Boolean> =
-        context.dataStore.data.map { it[widgetPinRequestedKey] ?: false }
-
-    suspend fun setWidgetPinRequested(requested: Boolean) {
-        context.dataStore.edit { it[widgetPinRequestedKey] = requested }
-    }
-
     private val accentColorKey = intPreferencesKey("accent_color")
 
     fun getAccentColor(): Flow<AccentColor> =

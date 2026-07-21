@@ -12,9 +12,6 @@ interface UserPrefsRepository {
     fun getOnboardingCompleted(): Flow<Boolean>
     suspend fun setOnboardingCompleted(completed: Boolean)
 
-    fun getWidgetPinRequested(): Flow<Boolean>
-    suspend fun setWidgetPinRequested(requested: Boolean)
-
     fun getAccentColor(): Flow<AccentColor>
     suspend fun setAccentColor(accent: AccentColor)
 
