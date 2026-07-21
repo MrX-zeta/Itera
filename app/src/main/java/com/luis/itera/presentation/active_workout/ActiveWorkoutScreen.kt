@@ -1,6 +1,5 @@
 package com.luis.itera.presentation.active_workout
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -10,7 +9,6 @@ import com.luis.itera.domain.repository.SaveRoutineResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,8 +33,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,7 +46,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarHost
@@ -61,10 +60,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -85,7 +84,7 @@ import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.presentation.components.ConfettiOverlay
 import com.luis.itera.presentation.components.FastStepper
-import com.luis.itera.presentation.components.SessionTimer
+import com.luis.itera.presentation.components.RestTimerOverlay
 import com.luis.itera.presentation.theme.IteraColors
 import com.luis.itera.presentation.theme.LocalAccent
 import kotlinx.coroutines.delay
@@ -97,6 +96,7 @@ import java.util.Locale
 
 private val homeDateFormatter = DateTimeFormatter.ofPattern("EEEE dd MMMM", Locale("es"))
 private const val MAX_HOME_ROUTINES = 4
+private const val FREQUENT_EXERCISES_COUNT = 5
 
 // Orden de RENDERIZADO de los chips de foco (2 filas, 4+3), distinto del orden del enum.
 // No afecta selección/conflictos: esos operan sobre Set<WorkoutFocus>, sin importar el orden.
@@ -123,6 +123,21 @@ fun ActiveWorkoutScreen(
             snackbarHostState.showSnackbar(msg)
         }
     }
+    LaunchedEffect(Unit) {
+        viewModel.setBlockedMessage.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+    val restGoalSeconds by viewModel.restGoalSeconds.collectAsStateWithLifecycle()
+    val setCounts by viewModel.setCountsByExercise.collectAsStateWithLifecycle()
+    val routineLoaded by viewModel.routineLoaded.collectAsStateWithLifecycle()
+    val pendingZeroWeight by viewModel.pendingZeroWeightConfirm.collectAsStateWithLifecycle()
+    if (pendingZeroWeight) {
+        ZeroWeightDialog(
+            onDismiss = viewModel::onDismissZeroWeight,
+            onConfirm = viewModel::onConfirmZeroWeight
+        )
+    }
     Box(Modifier.fillMaxSize()) {
         if (state.session == null) {
             HomeContent(
@@ -140,6 +155,11 @@ fun ActiveWorkoutScreen(
             ActiveSessionContent(
                 state = state,
                 muscleGroups = viewModel.muscleGroups,
+                restGoalSeconds = restGoalSeconds,
+                setCounts = setCounts,
+                routineLoaded = routineLoaded,
+                onLoadRoutine = viewModel::onLoadRoutine,
+                onClearRoutine = viewModel::onClearRoutine,
                 onCreateExercise = viewModel::onCreateExercise,
                 onSearchChange = viewModel::onSearchQueryChange,
                 onExerciseSelected = viewModel::onExerciseSelected,
@@ -147,7 +167,6 @@ fun ActiveWorkoutScreen(
                 onWeightDelta = viewModel::onWeightDelta,
                 onRegisterSet = viewModel::onRegisterSet,
                 onDeleteSet = viewModel::onDeleteSet,
-                onStartTimer = viewModel::onStartTimer,
                 onDiscardSession = viewModel::onDiscardSession,
                 onFinishSession = viewModel::onFinishSession,
                 onDurationDelta = viewModel::onDurationDelta,
@@ -477,6 +496,11 @@ private fun relativeDay(epochDay: Long): String {
 private fun ActiveSessionContent(
     state: ActiveWorkoutUiState,
     muscleGroups: List<String>,
+    restGoalSeconds: Int,
+    setCounts: Map<Long, Int>,
+    routineLoaded: Boolean,
+    onLoadRoutine: (Routine) -> Unit,
+    onClearRoutine: () -> Unit,
     onCreateExercise: (String, String) -> Unit,
     onSearchChange: (String) -> Unit,
     onExerciseSelected: (Exercise) -> Unit,
@@ -484,7 +508,6 @@ private fun ActiveSessionContent(
     onWeightDelta: (Float) -> Unit,
     onRegisterSet: () -> Unit,
     onDeleteSet: (WorkoutSet) -> Unit,
-    onStartTimer: () -> Unit,
     onDiscardSession: () -> Unit,
     onFinishSession: () -> Unit,
     onDurationDelta: (Int) -> Unit,
@@ -492,9 +515,14 @@ private fun ActiveSessionContent(
     onToggleTimerPause: () -> Unit,
     onSaveRoutine: (String) -> Unit
 ) {
-    var searchExpanded by remember { mutableStateOf(false) }
-    val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    // Estado LOCAL del descanso: se re-crea al empezar un descanso nuevo (cambia
+    // setTimerMillis). No toca el ViewModel: el restSeconds persistido sigue siendo el real.
+    var restSkipped by remember(state.setTimerMillis) { mutableStateOf(false) }
+    var restExtraSeconds by remember(state.setTimerMillis) { mutableStateOf(0) }
+    // Selector de ejercicios contenido: por defecto solo FRECUENTES; la lista completa a un toque.
+    var allExpanded by remember { mutableStateOf(false) }
+    var showRoutinePicker by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -504,41 +532,26 @@ private fun ActiveSessionContent(
                 .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
                 .padding(16.dp)
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Icon(ImageVector.vectorResource(R.drawable.ic_back), null, tint = IteraColors.TextSecondary, modifier = Modifier.clickable(onClick = onDiscardSession).padding(end = 16.dp))
-                    Column {
-                        Text("ENTRENAMIENTO ACTIVO", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
-                        if (state.sessionFocuses.isNotEmpty()) {
-                            Spacer(Modifier.height(4.dp))
-                            Text(state.sessionFocuses.joinToString(" · ") { it.label }, style = MaterialTheme.typography.bodySmall, color = LocalAccent.current.color)
-                        }
+            Box(Modifier.fillMaxWidth()) {
+                Icon(
+                    ImageVector.vectorResource(R.drawable.ic_back), null,
+                    tint = IteraColors.TextSecondary,
+                    modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onDiscardSession).padding(end = 16.dp)
+                )
+                Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("ENTRENAMIENTO ACTIVO", style = MaterialTheme.typography.titleMedium, color = IteraColors.TextSecondary)
+                    if (state.sessionFocuses.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(state.sessionFocuses.joinToString(" · ") { it.label }, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = LocalAccent.current.color)
                     }
-                }
-                Icon(ImageVector.vectorResource(R.drawable.ic_search), null, tint = if (searchExpanded) LocalAccent.current.color else IteraColors.TextSecondary,
-                    modifier = Modifier.clickable { searchExpanded = !searchExpanded; if (!searchExpanded) onSearchChange("") }.padding(horizontal = 10.dp))
-                if (state.setTimerMillis > 0L) {
-                    SessionTimer(state.setTimerMillis, state.pausedElapsed, state.timerState, onToggleTimerPause)
-                } else {
-                    OutlinedButton(onClick = onStartTimer, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, IteraColors.Border), colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAccent.current.color)) {
-                        Text("DESCANSO", style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
-            AnimatedVisibility(visible = searchExpanded) {
-                Column {
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(state.searchQuery, onSearchChange, Modifier.fillMaxWidth().focusRequester(focusRequester), placeholder = { Text("Buscar ejercicio", color = IteraColors.TextSecondary) }, singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = LocalAccent.current.color, unfocusedBorderColor = IteraColors.Border, focusedTextColor = IteraColors.TextPrimary, unfocusedTextColor = IteraColors.TextPrimary), shape = RoundedCornerShape(8.dp))
-                    LaunchedEffect(Unit) { focusRequester.requestFocus() }
                 }
             }
             state.selectedExercise?.let { exercise ->
                 val isCardio = exercise.mainMuscleGroup.equals("Cardio", ignoreCase = true)
-                Spacer(Modifier.height(12.dp))
-                Text(exercise.name, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(16.dp))
+                Text(exercise.name, style = MaterialTheme.typography.headlineSmall, color = IteraColors.TextPrimary)
                 if (!isCardio && state.lastSets.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
                     val lastSessionId = state.lastSets.first().sessionId
                     val lastSessionSets = state.lastSets.filter { it.sessionId == lastSessionId }
                     val first = lastSessionSets.first()
@@ -550,24 +563,24 @@ private fun ActiveSessionContent(
                             append("Última vez: ${count}×${repsVal}")
                             if (weight > 0f) append(" +${if (weight % 1f == 0f) "${weight.toInt()}" else "%.1f".format(weight)}kg")
                         },
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = IteraColors.TextSecondary
                     )
-                    Spacer(Modifier.height(4.dp))
                     val suggestion = state.suggestion
                     if (suggestion != null) {
+                        Spacer(Modifier.height(4.dp))
                         val isWeightUp = suggestion.contains("↑")
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Sugerido: ${suggestion.replace(" ↑ peso", "")}", style = MaterialTheme.typography.bodySmall, color = LocalAccent.current.color.copy(alpha = 0.85f))
+                            Text("Sugerido: ${suggestion.replace(" ↑ peso", "")}", style = MaterialTheme.typography.bodyMedium, color = LocalAccent.current.color)
                             if (isWeightUp) {
                                 Spacer(Modifier.width(4.dp))
-                                Icon(ImageVector.vectorResource(R.drawable.ic_weight_up), null, tint = LocalAccent.current.color, modifier = Modifier.size(14.dp))
+                                Icon(ImageVector.vectorResource(R.drawable.ic_weight_up), null, tint = LocalAccent.current.color, modifier = Modifier.size(15.dp))
                             }
                         }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.height(18.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (isCardio) {
                         FastStepper("MINUTOS", state.durationSeconds / 60f, { onDurationDelta((it * 60).toInt()) }, modifier = Modifier.weight(1f))
                         FastStepper("NIVEL", state.intensity.toFloat(), { onIntensityDelta(it.toInt()) }, modifier = Modifier.weight(1f))
@@ -576,53 +589,165 @@ private fun ActiveSessionContent(
                         FastStepper("+KG", state.weightKg, onWeightDelta, modifier = Modifier.weight(1f))
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
                 RegisterSetButton(onRegisterSet, state.prCelebrationText)
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
             LazyColumn(Modifier.weight(1f)) {
-                item { Text("EJERCICIOS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary, modifier = Modifier.padding(bottom = 8.dp)) }
-                items(state.exercises, key = { "ex_${it.id}" }) { exercise ->
-                    val sel = exercise.id == state.selectedExercise?.id
-                    Row(Modifier.fillMaxWidth().clickable { onExerciseSelected(exercise) }.border(1.dp, if (sel) LocalAccent.current.color else IteraColors.Border, RoundedCornerShape(8.dp)).padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(exercise.name, style = MaterialTheme.typography.bodyMedium, color = if (sel) LocalAccent.current.color else IteraColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        Text(exercise.mainMuscleGroup, style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary, modifier = Modifier.padding(start = 8.dp))
+                // SETS DE HOY del ejercicio seleccionado (numerados, con logro ámbar vía set.isPr)
+                val selected = state.selectedExercise
+                val todaySets = if (selected != null) state.session?.sets.orEmpty().filter { it.exerciseId == selected.id } else emptyList()
+                if (todaySets.isNotEmpty()) {
+                    item(key = "sets_header") {
+                        Text("SETS DE HOY · ${todaySets.size}", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.sp), color = IteraColors.TextSecondary, modifier = Modifier.padding(bottom = 8.dp))
                     }
-                    Spacer(Modifier.height(6.dp))
-                }
-                if (state.searchQuery.isNotBlank() && state.exercises.isEmpty()) {
-                    item { CreateExercisePrompt(state.searchQuery, muscleGroups, onCreateExercise) }
-                }
-                val sets = state.session?.sets.orEmpty()
-                if (sets.isNotEmpty()) {
-                    item { Text("SETS DE HOY", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) }
-                    items(sets, key = { "set_${it.id}" }) { set ->
-                        Row(Modifier.fillMaxWidth().border(1.dp, IteraColors.Border, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(state.exerciseNameOf(set.exerciseId), style = MaterialTheme.typography.bodyMedium)
-                                    if (set.weightAddedKg > 0f || set.reps > 0) {
-                                        val isPRSet = state.session?.sets?.filter { it.exerciseId == set.exerciseId }?.let { exSets ->
-                                            if (set.weightAddedKg > 0f) set.weightAddedKg >= (exSets.maxOfOrNull { it.weightAddedKg } ?: 0f)
-                                            else set.reps >= (exSets.maxOfOrNull { it.reps } ?: 0)
-                                        } ?: false
-                                        if (isPRSet && (state.session?.sets?.count { it.exerciseId == set.exerciseId } ?: 0) > 1) {
-                                            Spacer(Modifier.width(4.dp))
-                                            Box(Modifier.size(6.dp).background(LocalAccent.current.color, CircleShape))
-                                        }
-                                    }
-                                }
-                                Text(buildString {
-                                    append("SET ${sets.filter { it.exerciseId == set.exerciseId }.indexOf(set) + 1} · ")
+                    itemsIndexed(todaySets, key = { _, s -> "set_${s.id}" }) { index, set ->
+                        // Fila COMPACTA: "SET n · 10 reps · +12 kg" en una línea, borrar discreto.
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(IteraColors.SurfaceElevated).padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("SET ${index + 1}", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextPrimary)
+                            Text(
+                                buildString {
+                                    append(" · ")
                                     if (set.durationSeconds > 0) { append("${set.durationSeconds / 60} min"); if (set.intensity > 0) append(" · nivel ${set.intensity}") }
-                                    else { append("${set.reps} reps"); if (set.weightAddedKg > 0f) append(" +${set.weightAddedKg}kg") }
-                                }, style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary)
+                                    else { append("${set.reps} reps"); if (set.weightAddedKg > 0f) append(" · +${if (set.weightAddedKg % 1f == 0f) "${set.weightAddedKg.toInt()}" else "%.1f".format(set.weightAddedKg)} kg") }
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = IteraColors.TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (set.isPr) {
+                                Text(
+                                    "PR",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = IteraColors.Achievement,
+                                    modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(IteraColors.Achievement.copy(alpha = 0.16f)).padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
                             }
-                            Icon(ImageVector.vectorResource(R.drawable.ic_trash), null, tint = IteraColors.TextSecondary, modifier = Modifier.clickable { onDeleteSet(set) }.padding(4.dp))
+                            Icon(ImageVector.vectorResource(R.drawable.ic_trash), contentDescription = "Borrar set", tint = IteraColors.TextTertiary, modifier = Modifier.size(22.dp).clickable { onDeleteSet(set) }.padding(3.dp))
                         }
                         Spacer(Modifier.height(6.dp))
+                    }
+                    item(key = "sets_gap") { Spacer(Modifier.height(10.dp)) }
+                }
+                // Selector CONTENIDO sobre superficie diferenciada (separa visualmente de los
+                // steppers de arriba). Por defecto solo los frecuentes (los de esta sesión
+                // primero, luego los más usados históricamente en el grupo); buscar, cargar
+                // rutina o "Ver todos" dan acceso al resto sin lista infinita por defecto.
+                item(key = "selector_block") {
+                    val query = state.searchQuery
+                    val showAll = query.isNotBlank() || routineLoaded || allExpanded
+                    val sessionUsedIds = state.session?.sets?.map { it.exerciseId }?.distinct().orEmpty()
+                    val visibleExercises = if (showAll) state.exercises else {
+                        val inSession = state.exercises.filter { it.id in sessionUsedIds }.sortedBy { sessionUsedIds.indexOf(it.id) }
+                        val byUsage = state.exercises.filterNot { it.id in sessionUsedIds }.sortedByDescending { setCounts[it.id] ?: 0 }
+                        (inSession + byUsage).take(FREQUENT_EXERCISES_COUNT)
+                    }
+                    val listHeader = when {
+                        routineLoaded -> "RUTINA"
+                        query.isNotBlank() -> "RESULTADOS"
+                        allExpanded -> "EJERCICIOS"
+                        else -> "FRECUENTES"
+                    }
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                            .background(IteraColors.SurfaceSubtle)
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(IteraColors.SurfaceElevated)
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(ImageVector.vectorResource(R.drawable.ic_search), contentDescription = null, tint = IteraColors.TextSecondary, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Box(Modifier.weight(1f)) {
+                                    if (query.isEmpty()) {
+                                        Text("Buscar ejercicio", style = MaterialTheme.typography.bodyMedium, color = IteraColors.TextSecondary)
+                                    }
+                                    BasicTextField(
+                                        value = query,
+                                        onValueChange = onSearchChange,
+                                        singleLine = true,
+                                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = IteraColors.TextPrimary),
+                                        cursorBrush = SolidColor(LocalAccent.current.color),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                if (query.isNotEmpty()) {
+                                    Icon(
+                                        ImageVector.vectorResource(R.drawable.ic_close),
+                                        contentDescription = "Limpiar búsqueda",
+                                        tint = IteraColors.TextSecondary,
+                                        modifier = Modifier.size(16.dp).clickable { onSearchChange("") }
+                                    )
+                                }
+                            }
+                            if (state.routines.isNotEmpty()) {
+                                // Siempre tocable: con rutina cargada, permite cargar OTRA o
+                                // soltarla (opción "Sesión libre" dentro del propio picker).
+                                val routineColor = if (routineLoaded) LocalAccent.current.color else IteraColors.TextPrimary
+                                Row(
+                                    Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(IteraColors.SurfaceElevated)
+                                        .clickable { showRoutinePicker = true }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(ImageVector.vectorResource(R.drawable.ic_list), contentDescription = null, tint = routineColor, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Rutina", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = routineColor)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(listHeader, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.sp), color = IteraColors.TextSecondary)
+                        Spacer(Modifier.height(8.dp))
+                        visibleExercises.forEach { exercise ->
+                            val sel = exercise.id == state.selectedExercise?.id
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).then(if (sel) Modifier.background(IteraColors.SurfaceElevated) else Modifier).clickable { onExerciseSelected(exercise) }.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(exercise.name, style = MaterialTheme.typography.bodyMedium, color = if (sel) LocalAccent.current.color else IteraColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                Text(exercise.mainMuscleGroup, style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary, modifier = Modifier.padding(start = 8.dp))
+                            }
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        if (!showAll && state.exercises.size > visibleExercises.size) {
+                            val focusLabel = state.sessionFocuses.joinToString(" · ") { it.label }.ifEmpty { "la sesión" }
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { allExpanded = true }.padding(vertical = 10.dp, horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Ver todos los de $focusLabel (${state.exercises.size})", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
+                                Icon(ImageVector.vectorResource(R.drawable.ic_chevron_right), contentDescription = null, tint = IteraColors.TextSecondary, modifier = Modifier.size(14.dp))
+                            }
+                        }
+                        if (allExpanded && query.isBlank() && !routineLoaded) {
+                            Text(
+                                "Mostrar menos",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = IteraColors.TextSecondary,
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { allExpanded = false }.padding(vertical = 10.dp, horizontal = 12.dp)
+                            )
+                        }
+                        if (query.isNotBlank() && state.exercises.isEmpty()) {
+                            CreateExercisePrompt(query, muscleGroups, onCreateExercise)
+                        }
                     }
                 }
             }
@@ -632,20 +757,8 @@ private fun ActiveSessionContent(
             if (hasSets && !alreadyRoutine) {
                 var showDialog by remember { mutableStateOf(false) }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { showDialog = true },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, IteraColors.Border),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = LocalAccent.current.color)
-                    ) { Text("GUARDAR RUTINA", style = MaterialTheme.typography.labelSmall) }
-                    OutlinedButton(
-                        onClick = onFinishSession,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, IteraColors.Border),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.TextSecondary)
-                    ) { Text("FINALIZAR", style = MaterialTheme.typography.labelSmall) }
+                    DiscreetAction("Guardar rutina", R.drawable.ic_bookmark, IteraColors.TextPrimary, Modifier.weight(1f)) { showDialog = true }
+                    DiscreetAction("Finalizar", R.drawable.ic_check, IteraColors.TextPrimary, Modifier.weight(1f), onClick = onFinishSession)
                 }
                 if (showDialog) {
                     SaveRoutineDialog(
@@ -654,14 +767,105 @@ private fun ActiveSessionContent(
                     )
                 }
             } else {
-                OutlinedButton(onFinishSession, Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, IteraColors.Border),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = IteraColors.TextSecondary)) {
-                    Text("FINALIZAR SESIÓN", style = MaterialTheme.typography.titleMedium)
-                }
+                DiscreetAction("Finalizar sesión", R.drawable.ic_check, IteraColors.TextPrimary, Modifier.fillMaxWidth(), onClick = onFinishSession)
             }
+        }
+        if (showRoutinePicker) {
+            RoutinePickerDialog(
+                routines = state.routines,
+                routineLoaded = routineLoaded,
+                onDismiss = { showRoutinePicker = false },
+                onPick = { routine ->
+                    showRoutinePicker = false
+                    onLoadRoutine(routine)
+                },
+                onClear = {
+                    showRoutinePicker = false
+                    onClearRoutine()
+                }
+            )
+        }
+        if (state.setTimerMillis > 0L && !restSkipped) {
+            RestTimerOverlay(
+                startMillis = state.setTimerMillis,
+                pausedElapsed = state.pausedElapsed,
+                state = state.timerState,
+                goalSeconds = restGoalSeconds,
+                extraSeconds = restExtraSeconds,
+                nextHint = state.suggestion?.replace(" ↑ peso", ""),
+                onTogglePause = onToggleTimerPause,
+                onAddThirty = { restExtraSeconds += 30 },
+                onSkip = { restSkipped = true },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+            )
         }
         ConfettiOverlay(trigger = state.prCelebrationText != null)
     }
+}
+
+@Composable
+private fun DiscreetAction(text: String, iconRes: Int, contentColor: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(IteraColors.SurfaceElevated)
+            .clickable(onClick = onClick)
+            .padding(vertical = 13.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(ImageVector.vectorResource(iconRes), contentDescription = null, tint = contentColor, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(7.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            color = contentColor
+        )
+    }
+}
+
+@Composable
+private fun RoutinePickerDialog(routines: List<Routine>, routineLoaded: Boolean, onDismiss: () -> Unit, onPick: (Routine) -> Unit, onClear: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IteraColors.Surface,
+        title = { Text("Cargar rutina", color = IteraColors.TextPrimary) },
+        text = {
+            Column {
+                if (routineLoaded) {
+                    // Vía de escape: soltar la rutina cargada y volver a sesión libre.
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onClear)
+                            .padding(horizontal = 8.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Sesión libre (sin rutina)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = LocalAccent.current.color)
+                    }
+                }
+                routines.forEach { routine ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onPick(routine) }
+                            .padding(horizontal = 8.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(routine.name, style = MaterialTheme.typography.bodyMedium, color = IteraColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text("${routine.exerciseIds.size} ej.", style = MaterialTheme.typography.bodyMedium, color = IteraColors.TextSecondary, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            Text("CANCELAR", style = MaterialTheme.typography.labelMedium, color = IteraColors.TextSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
+        }
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -713,6 +917,33 @@ private fun SaveRoutineDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
         },
         dismissButton = {
             Text("CANCELAR", style = MaterialTheme.typography.labelMedium, color = IteraColors.TextSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
+        }
+    )
+}
+
+@Composable
+private fun ZeroWeightDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IteraColors.Surface,
+        title = { Text("¿Registrar sin peso?", color = IteraColors.TextPrimary) },
+        text = {
+            Text(
+                "Este ejercicio suele llevar carga y el peso está en 0 kg.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = IteraColors.TextSecondary
+            )
+        },
+        confirmButton = {
+            Text(
+                "REGISTRAR A 0 KG",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = LocalAccent.current.color,
+                modifier = Modifier.clickable { onConfirm() }.padding(8.dp)
+            )
+        },
+        dismissButton = {
+            Text("AÑADIR PESO", style = MaterialTheme.typography.labelMedium, color = IteraColors.TextSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
         }
     )
 }

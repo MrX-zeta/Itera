@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
  */
 object IteraColors {
     val Background = Color(0xFF0F1113)
+    val SurfaceSubtle = Color(0xFF131519)
     val Surface = Color(0xFF16191D)
     val SurfaceElevated = Color(0xFF1E2229)
     val Border = Color(0xFF1F1F24)
@@ -18,4 +19,8 @@ object IteraColors {
     val TextSecondaryStrong = Color(0xFFB0B0B8)
     val TextTertiary = Color(0xFF6E7178)
     val Error = Color(0xFFE24B4A)
+
+    // Ámbar de LOGRO: exclusivo para logros (PR, récord, mejora vs antes). Nunca como
+    // marca, relleno de botón ni acento primario (regla estricta de la skill).
+    val Achievement = Color(0xFFE8B75D)
 }
