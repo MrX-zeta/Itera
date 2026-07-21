@@ -70,6 +70,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -134,6 +135,7 @@ fun ActiveWorkoutScreen(
     val pendingZeroWeight by viewModel.pendingZeroWeightConfirm.collectAsStateWithLifecycle()
     if (pendingZeroWeight) {
         ZeroWeightDialog(
+            exerciseName = state.selectedExercise?.name,
             onDismiss = viewModel::onDismissZeroWeight,
             onConfirm = viewModel::onConfirmZeroWeight
         )
@@ -922,30 +924,74 @@ private fun SaveRoutineDialog(onDismiss: () -> Unit, onSave: (String) -> Unit) {
 }
 
 @Composable
-private fun ZeroWeightDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = IteraColors.Surface,
-        title = { Text("¿Registrar sin peso?", color = IteraColors.TextPrimary) },
-        text = {
+private fun ZeroWeightDialog(exerciseName: String?, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(IteraColors.Surface)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Icono ámbar de advertencia (aviso de atención, no de logro) sobre fondo tenue.
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(IteraColors.Achievement.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    ImageVector.vectorResource(R.drawable.ic_warning),
+                    contentDescription = null,
+                    tint = IteraColors.Achievement,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(Modifier.height(16.dp))
             Text(
-                "Este ejercicio suele llevar carga y el peso está en 0 kg.",
+                "¿Registrar sin peso?",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = IteraColors.TextPrimary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "${exerciseName ?: "Este ejercicio"} suele llevar peso. Registrar a 0 kg contará como sin carga.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = IteraColors.TextSecondary
+                color = IteraColors.TextSecondary,
+                textAlign = TextAlign.Center
             )
-        },
-        confirmButton = {
+            Spacer(Modifier.height(20.dp))
+            // Primario (enfatizado): añadir peso = volver al registro. Es la opción segura.
             Text(
-                "REGISTRAR A 0 KG",
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = LocalAccent.current.color,
-                modifier = Modifier.clickable { onConfirm() }.padding(8.dp)
+                "Añadir peso",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = LocalAccent.current.onAccent,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(LocalAccent.current.color)
+                    .clickable { onDismiss() }
+                    .padding(vertical = 14.dp)
             )
-        },
-        dismissButton = {
-            Text("AÑADIR PESO", style = MaterialTheme.typography.labelMedium, color = IteraColors.TextSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
+            Spacer(Modifier.height(10.dp))
+            // Secundario (de-enfatizado): registrar a 0 kg de todos modos.
+            Text(
+                "Registrar a 0 kg de todos modos",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = IteraColors.TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(IteraColors.SurfaceElevated)
+                    .clickable { onConfirm() }
+                    .padding(vertical = 14.dp)
+            )
         }
-    )
+    }
 }
 
 @Composable
