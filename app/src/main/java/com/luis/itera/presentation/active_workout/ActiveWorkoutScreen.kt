@@ -39,8 +39,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -97,6 +100,7 @@ fun ActiveWorkoutScreen(
     onSessionFinished: (Long) -> Unit,
     onLastSessionClick: (Long) -> Unit,
     onHydrationClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     viewModel: ActiveWorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -118,6 +122,7 @@ fun ActiveWorkoutScreen(
                 viewModel::onStartSession,
                 onLastSessionClick,
                 onHydrationClick,
+                onSettingsClick,
                 viewModel::onStartRoutine,
                 viewModel::onWeeklyGoalChange
             )
@@ -153,6 +158,7 @@ private fun HomeContent(
     onStart: () -> Unit,
     onLastSessionClick: (Long) -> Unit,
     onHydrationClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onStartRoutine: (Routine) -> Unit,
     onWeeklyGoalChange: (Int) -> Unit
 ) {
@@ -185,7 +191,21 @@ private fun HomeContent(
                 Spacer(Modifier.height(14.dp))
                 WeekActivityRow(state.trainedDaysThisWeek)
             }
-            MiniHydrationRing(state.hydrationProgress, onHydrationClick)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.align(Alignment.Top)
+            ) {
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        Icons.Rounded.Settings,
+                        contentDescription = "Ajustes",
+                        tint = IteraColors.TextPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(Modifier.height(18.dp))
+                MiniHydrationRing(state.hydrationProgress, onHydrationClick)
+            }
         }
         Spacer(Modifier.height(24.dp))
         state.lastFinishedSession?.let { last ->

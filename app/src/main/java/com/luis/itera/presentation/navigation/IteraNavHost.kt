@@ -39,6 +39,7 @@ import com.luis.itera.presentation.active_workout.ActiveWorkoutScreen
 import com.luis.itera.presentation.history.HistoryScreen
 import com.luis.itera.presentation.hydration.HydrationScreen
 import com.luis.itera.presentation.session_detail.SessionDetailScreen
+import com.luis.itera.presentation.settings.SettingsScreen
 import com.luis.itera.presentation.statistics.StatisticsScreen
 import com.luis.itera.presentation.theme.IteraColors
 import com.luis.itera.presentation.theme.LocalAccent
@@ -74,7 +75,8 @@ fun IteraNavHost(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    val showBottomBar = currentRoute != IteraDestination.Onboarding.route
+    val showBottomBar = currentRoute != IteraDestination.Onboarding.route &&
+        currentRoute != IteraDestination.Settings.route
 
     // Navega al destino pedido por el widget (p. ej. hidratación) una vez que la
     // app ya pasó el onboarding.
@@ -186,6 +188,9 @@ fun IteraNavHost(
                             launchSingleTop = true
                             restoreState = true
                         }
+                    },
+                    onSettingsClick = {
+                        navController.navigate(IteraDestination.Settings.route)
                     }
                 )
             }
@@ -198,6 +203,9 @@ fun IteraNavHost(
             }
             composable(IteraDestination.Statistics.route) { StatisticsScreen() }
             composable(IteraDestination.Hydration.route) { HydrationScreen() }
+            composable(IteraDestination.Settings.route) {
+                SettingsScreen(onBack = { navController.popBackStack() })
+            }
             composable(
                 route = IteraDestination.SessionDetail.route,
                 arguments = listOf(

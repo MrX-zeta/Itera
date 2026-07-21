@@ -10,4 +10,5 @@ sealed class IteraDestination(val route: String) {
         fun buildRoute(sessionId: Long) = "session_detail/$sessionId"
     }
     data object Statistics : IteraDestination("statistics")
+    data object Settings : IteraDestination("settings")
 }
