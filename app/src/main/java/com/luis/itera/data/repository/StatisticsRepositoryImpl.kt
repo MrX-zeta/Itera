@@ -63,4 +63,8 @@ class StatisticsRepositoryImpl @Inject constructor(
 
     override fun getDaysWithPr(): Flow<List<Long>> =
         statisticsDao.getDaysWithPr()
+
+    override fun getLastTrainedDayByMuscleGroup(): Flow<Map<String, Long>> =
+        statisticsDao.getLastTrainedDayByMuscleGroup()
+            .map { rows -> rows.associate { it.mainMuscleGroup to it.lastEpochDay } }
 }

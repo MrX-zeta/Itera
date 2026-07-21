@@ -21,6 +21,11 @@ data class WeeklyVolumeRow(
     val totalVolume: Float
 )
 
+data class MuscleGroupLastTrainedRow(
+    val mainMuscleGroup: String,
+    val lastEpochDay: Long
+)
+
 @Dao
 interface StatisticsDao {
 
@@ -139,4 +144,14 @@ interface StatisticsDao {
         WHERE s.isPr = 1 AND ses.isFinished = 1
     """)
     fun getDaysWithPr(): Flow<List<Long>>
+
+    @Query("""
+        SELECT e.mainMuscleGroup AS mainMuscleGroup, MAX(ses.dateEpochDay) AS lastEpochDay
+        FROM sets s
+        INNER JOIN sessions ses ON ses.id = s.sessionId
+        INNER JOIN exercises e ON e.id = s.exerciseId
+        WHERE ses.isFinished = 1
+        GROUP BY e.mainMuscleGroup
+    """)
+    fun getLastTrainedDayByMuscleGroup(): Flow<List<MuscleGroupLastTrainedRow>>
 }
