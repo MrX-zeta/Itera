@@ -104,6 +104,9 @@ class SessionRepositoryImpl @Inject constructor(
     override fun getLastFinishedSession(): Flow<Session?> =
         sessionDao.getLastFinishedSession().map { it?.toDomain() }
 
+    override fun getFinishedSessionsSince(fromEpochDay: Long): Flow<List<Session>> =
+        sessionDao.getFinishedSessionsWithSetsSince(fromEpochDay).map { list -> list.map { it.toDomain() } }
+
     override suspend fun getMaxWeightForExercise(exerciseId: Long): Float? =
         setDao.getMaxWeightFinished(exerciseId)
 

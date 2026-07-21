@@ -52,4 +52,8 @@ interface SessionDao {
     @Transaction
     @Query("SELECT * FROM sessions WHERE isFinished = 1 ORDER BY dateEpochDay DESC, id DESC LIMIT 1")
     fun getLastFinishedSession(): Flow<SessionWithSets?>
+
+    @Transaction
+    @Query("SELECT * FROM sessions WHERE isFinished = 1 AND dateEpochDay >= :fromEpochDay ORDER BY dateEpochDay DESC, id DESC")
+    fun getFinishedSessionsWithSetsSince(fromEpochDay: Long): Flow<List<SessionWithSets>>
 }

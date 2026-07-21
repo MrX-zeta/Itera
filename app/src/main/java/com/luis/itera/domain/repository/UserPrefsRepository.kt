@@ -17,4 +17,10 @@ interface UserPrefsRepository {
 
     fun getRestGoalSeconds(): Flow<Int>
     suspend fun setRestGoalSeconds(seconds: Int)
+
+    /** Umbrales de pestañas dinámicas de Estadísticas. La UI en Ajustes los conecta luego. */
+    fun getStatsRecentWeeks(): Flow<Int>
+    suspend fun setStatsRecentWeeks(weeks: Int)
+    fun getStatsMinSessions(): Flow<Int>
+    suspend fun setStatsMinSessions(sessions: Int)
 }

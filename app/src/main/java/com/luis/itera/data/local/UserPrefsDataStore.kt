@@ -65,6 +65,25 @@ class UserPrefsDataStore @Inject constructor(
         context.dataStore.edit { it[restGoalSecondsKey] = seconds.coerceIn(MIN_REST_GOAL_SECONDS, MAX_REST_GOAL_SECONDS) }
     }
 
+    // Umbrales de las pestañas dinámicas de Estadísticas. Solo LECTURA por ahora (su UI en
+    // Ajustes se conecta luego); con fallback a los defaults 4 semanas / 3 sesiones.
+    private val statsRecentWeeksKey = intPreferencesKey("stats_recent_weeks")
+    private val statsMinSessionsKey = intPreferencesKey("stats_min_sessions")
+
+    fun getStatsRecentWeeks(): Flow<Int> =
+        context.dataStore.data.map { it[statsRecentWeeksKey] ?: DEFAULT_STATS_RECENT_WEEKS }
+
+    fun getStatsMinSessions(): Flow<Int> =
+        context.dataStore.data.map { it[statsMinSessionsKey] ?: DEFAULT_STATS_MIN_SESSIONS }
+
+    suspend fun setStatsRecentWeeks(weeks: Int) {
+        context.dataStore.edit { it[statsRecentWeeksKey] = weeks.coerceIn(MIN_STATS_RECENT_WEEKS, MAX_STATS_RECENT_WEEKS) }
+    }
+
+    suspend fun setStatsMinSessions(sessions: Int) {
+        context.dataStore.edit { it[statsMinSessionsKey] = sessions.coerceIn(MIN_STATS_MIN_SESSIONS, MAX_STATS_MIN_SESSIONS) }
+    }
+
     private companion object {
         const val DEFAULT_WEIGHT_KG = 70f
         const val DEFAULT_WEEKLY_GOAL = 3
@@ -73,5 +92,11 @@ class UserPrefsDataStore @Inject constructor(
         const val DEFAULT_REST_GOAL_SECONDS = 90
         const val MIN_REST_GOAL_SECONDS = 10
         const val MAX_REST_GOAL_SECONDS = 600
+        const val DEFAULT_STATS_RECENT_WEEKS = 4
+        const val DEFAULT_STATS_MIN_SESSIONS = 3
+        const val MIN_STATS_RECENT_WEEKS = 1
+        const val MAX_STATS_RECENT_WEEKS = 52
+        const val MIN_STATS_MIN_SESSIONS = 1
+        const val MAX_STATS_MIN_SESSIONS = 30
     }
 }

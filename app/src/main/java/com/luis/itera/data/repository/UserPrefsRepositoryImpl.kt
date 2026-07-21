@@ -19,4 +19,8 @@ class UserPrefsRepositoryImpl @Inject constructor(
     override suspend fun setAccentColor(accent: AccentColor) = dataStore.setAccentColor(accent)
     override fun getRestGoalSeconds(): Flow<Int> = dataStore.getRestGoalSeconds()
     override suspend fun setRestGoalSeconds(seconds: Int) = dataStore.setRestGoalSeconds(seconds)
+    override fun getStatsRecentWeeks(): Flow<Int> = dataStore.getStatsRecentWeeks()
+    override suspend fun setStatsRecentWeeks(weeks: Int) = dataStore.setStatsRecentWeeks(weeks)
+    override fun getStatsMinSessions(): Flow<Int> = dataStore.getStatsMinSessions()
+    override suspend fun setStatsMinSessions(sessions: Int) = dataStore.setStatsMinSessions(sessions)
 }
