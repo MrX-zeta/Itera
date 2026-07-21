@@ -329,9 +329,11 @@ private fun DismissableSessionCard(
 ) {
     var trashSeenAt by remember { mutableLongStateOf(0L) }
 
+    // Solo se borra deslizando hacia la izquierda (EndToStart), como en Hidratación: unifica
+    // el gesto en toda la app y evita el conflicto con el swipe de pestañas del pager.
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value != SwipeToDismissBoxValue.Settled &&
+            if (value == SwipeToDismissBoxValue.EndToStart &&
                 System.currentTimeMillis() - trashSeenAt >= MIN_REVEAL_MS
             ) {
                 onDismiss()
@@ -369,6 +371,7 @@ private fun DismissableSessionCard(
 
     SwipeToDismissBox(
         state = dismissState,
+        enableDismissFromStartToEnd = false,
         modifier = modifier,
         backgroundContent = {
             val revealedDp = with(density) { kotlin.math.abs(offsetPx).toDp() }
@@ -378,13 +381,10 @@ private fun DismissableSessionCard(
                     .fillMaxSize()
                     .clip(RoundedCornerShape(12.dp))
             ) {
-                val panelAlignment =
-                    if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd)
-                        Alignment.CenterStart else Alignment.CenterEnd
-
+                // Solo EndToStart es alcanzable: el panel siempre revela desde el final (derecha).
                 Box(
                     Modifier
-                        .align(panelAlignment)
+                        .align(Alignment.CenterEnd)
                         .width(revealedDp)
                         .fillMaxHeight()
                         .background(IteraColors.Error),

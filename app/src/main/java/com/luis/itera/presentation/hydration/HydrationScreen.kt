@@ -462,20 +462,26 @@ private fun DismissableIntakeRow(
         state = dismissState,
         enableDismissFromStartToEnd = false,
         backgroundContent = {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(IteraColors.Error)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Icon(
-                    ImageVector.vectorResource(R.drawable.ic_trash),
-                    contentDescription = null,
-                    tint = IteraColors.Background,
-                    modifier = Modifier.size(18.dp)
-                )
+            // Solo revela el panel rojo cuando el offset es realmente hacia la izquierda: así
+            // el pequeño "epsilon" de tolerancia táctil hacia la derecha no muestra nada (igual
+            // que en Historial), en vez de asomar una porción de rojo sin razón.
+            val offsetPx = runCatching { dismissState.requireOffset() }.getOrDefault(0f)
+            if (offsetPx < 0f) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(IteraColors.Error)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Icon(
+                        ImageVector.vectorResource(R.drawable.ic_trash),
+                        contentDescription = null,
+                        tint = IteraColors.Background,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     ) {
