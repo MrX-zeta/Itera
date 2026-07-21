@@ -1,6 +1,9 @@
 package com.luis.itera.presentation.navigation
 
 sealed class IteraDestination(val route: String) {
+    /** Contenedor de las 5 pestañas en un pager horizontal (deslizables). */
+    data object Main : IteraDestination("main")
+
     data object ActiveWorkout : IteraDestination("active_workout")
     data object History : IteraDestination("history")
     data object Hydration : IteraDestination("hydration")

@@ -1,5 +1,6 @@
 package com.luis.itera.presentation.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -10,6 +11,9 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import com.luis.itera.presentation.onboarding.OnboardingScreen
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -20,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -27,7 +32,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -45,29 +49,24 @@ import com.luis.itera.presentation.settings.SettingsScreen
 import com.luis.itera.presentation.statistics.StatisticsScreen
 import com.luis.itera.presentation.theme.IteraColors
 import com.luis.itera.presentation.theme.LocalAccent
+import kotlinx.coroutines.launch
 
-private data class NavItem(
-    val destination: IteraDestination,
-    val iconRes: Int
+// Orden de las pestañas = orden de las páginas del pager. El índice ES la página.
+private data class TabItem(val iconRes: Int, val label: String)
+
+private val TAB_ACTIVE_WORKOUT = 0
+private val TAB_ROUTINES = 1
+private val TAB_HISTORY = 2
+private val TAB_STATISTICS = 3
+private val TAB_HYDRATION = 4
+
+private val tabs = listOf(
+    TabItem(R.drawable.ic_barbell, "Entrenamiento"),
+    TabItem(R.drawable.ic_bookmark, "Rutinas"),
+    TabItem(R.drawable.ic_calendar, "Historial"),
+    TabItem(R.drawable.ic_stats, "Estadísticas"),
+    TabItem(R.drawable.ic_droplet, "Hidratación")
 )
-
-private val navItems = listOf(
-    NavItem(IteraDestination.ActiveWorkout, R.drawable.ic_barbell),
-    NavItem(IteraDestination.Routines, R.drawable.ic_bookmark),
-    NavItem(IteraDestination.History, R.drawable.ic_calendar),
-    NavItem(IteraDestination.Statistics, R.drawable.ic_stats),
-    NavItem(IteraDestination.Hydration, R.drawable.ic_droplet)
-)
-
-private fun IteraDestination.ownsRoute(route: String?): Boolean = when (this) {
-    IteraDestination.ActiveWorkout ->
-        route == IteraDestination.ActiveWorkout.route || route == IteraDestination.SessionDetail.route
-    IteraDestination.History ->
-        route == IteraDestination.History.route
-    IteraDestination.Routines ->
-        route == IteraDestination.Routines.route || route?.startsWith("routine_editor") == true
-    else -> route == this.route
-}
 
 @Composable
 fun IteraNavHost(
@@ -79,20 +78,24 @@ fun IteraNavHost(
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val pagerState = rememberPagerState(initialPage = TAB_ACTIVE_WORKOUT, pageCount = { tabs.size })
+    val scope = rememberCoroutineScope()
 
-    val showBottomBar = currentRoute != IteraDestination.Onboarding.route &&
-        currentRoute != IteraDestination.Settings.route &&
-        currentRoute?.startsWith("routine_editor") != true
+    val onMain = currentRoute == IteraDestination.Main.route
+    // La barra inferior se ve en las pestañas (Main) y en el detalle de sesión.
+    val showBottomBar = onMain || currentRoute == IteraDestination.SessionDetail.route
 
-    // Navega al destino pedido por el widget (p. ej. hidratación) una vez que la
-    // app ya pasó el onboarding.
+    // Deep link del widget (p. ej. hidratación): abre la pestaña correspondiente en el pager.
     LaunchedEffect(deepLinkRoute, onboardingCompleted) {
         if (deepLinkRoute != null && onboardingCompleted) {
-            navController.navigate(deepLinkRoute) {
-                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
+            val idx = when (deepLinkRoute) {
+                IteraDestination.Hydration.route -> TAB_HYDRATION
+                IteraDestination.History.route -> TAB_HISTORY
+                IteraDestination.Statistics.route -> TAB_STATISTICS
+                IteraDestination.Routines.route -> TAB_ROUTINES
+                else -> TAB_ACTIVE_WORKOUT
             }
+            pagerState.scrollToPage(idx)
             onDeepLinkHandled()
         }
     }
@@ -103,58 +106,48 @@ fun IteraNavHost(
             if (showBottomBar) {
                 Column {
                     HorizontalDivider(thickness = 1.dp, color = IteraColors.BorderStrong)
-                    NavigationBar(
-                        containerColor = IteraColors.Background,
-                        tonalElevation = 0.dp
-                    ) {
-                    navItems.forEach { item ->
-                        val selected = item.destination.ownsRoute(currentRoute)
-                        val iconScale by animateFloatAsState(
-                            targetValue = if (selected) 1.15f else 1f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            ),
-                            label = "tab_scale"
-                        )
-                        val iconAlpha by animateFloatAsState(
-                            targetValue = if (selected) 1f else 0.6f,
-                            label = "tab_alpha"
-                        )
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                if (currentRoute == IteraDestination.SessionDetail.route) {
-                                    navController.popBackStack(
-                                        route = item.destination.route,
-                                        inclusive = false
-                                    )
-                                }
-                                navController.navigate(item.destination.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = ImageVector.vectorResource(item.iconRes),
-                                    contentDescription = item.destination.route,
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .scale(iconScale)
-                                        .graphicsLayer { alpha = iconAlpha }
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = LocalAccent.current.color,
-                                unselectedIconColor = IteraColors.TextSecondary,
-                                indicatorColor = Color.Transparent
+                    NavigationBar(containerColor = IteraColors.Background, tonalElevation = 0.dp) {
+                        tabs.forEachIndexed { index, item ->
+                            // El pager conserva su página aunque el detalle de sesión esté encima.
+                            val selected = pagerState.currentPage == index
+                            val iconScale by animateFloatAsState(
+                                targetValue = if (selected) 1.15f else 1f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                ),
+                                label = "tab_scale"
                             )
-                        )
-                    }
+                            val iconAlpha by animateFloatAsState(
+                                targetValue = if (selected) 1f else 0.6f,
+                                label = "tab_alpha"
+                            )
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    // Si hay un detalle encima, vuelve a las pestañas y desliza.
+                                    if (!onMain) {
+                                        navController.popBackStack(IteraDestination.Main.route, inclusive = false)
+                                    }
+                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = ImageVector.vectorResource(item.iconRes),
+                                        contentDescription = item.label,
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .scale(iconScale)
+                                            .graphicsLayer { alpha = iconAlpha }
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = LocalAccent.current.color,
+                                    unselectedIconColor = IteraColors.TextSecondary,
+                                    indicatorColor = Color.Transparent
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -162,7 +155,7 @@ fun IteraNavHost(
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = if (onboardingCompleted) IteraDestination.ActiveWorkout.route else IteraDestination.Onboarding.route,
+            startDestination = if (onboardingCompleted) IteraDestination.Main.route else IteraDestination.Onboarding.route,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -174,73 +167,24 @@ fun IteraNavHost(
                 OnboardingScreen(
                     onComplete = {
                         onOnboardingDone()
-                        navController.navigate(IteraDestination.ActiveWorkout.route) {
+                        navController.navigate(IteraDestination.Main.route) {
                             popUpTo(IteraDestination.Onboarding.route) { inclusive = true }
                         }
                     }
                 )
             }
-            composable(IteraDestination.ActiveWorkout.route) {
-                ActiveWorkoutScreen(
-                    onSessionFinished = { sessionId ->
-                        navController.navigate(IteraDestination.SessionDetail.buildRoute(sessionId))
-                    },
-                    onLastSessionClick = { sessionId ->
-                        navController.navigate(IteraDestination.SessionDetail.buildRoute(sessionId))
-                    },
-                    onHydrationClick = {
-                        navController.navigate(IteraDestination.Hydration.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    onSettingsClick = {
-                        navController.navigate(IteraDestination.Settings.route)
-                    },
-                    onSeeAllRoutinesClick = {
-                        navController.navigate(IteraDestination.Routines.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                    // Volver a Rutinas (cambio de pestaña) cuando la sesión se arrancó desde ahí.
-                    onBackToRoutines = {
-                        navController.navigate(IteraDestination.Routines.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+            composable(IteraDestination.Main.route) {
+                MainTabsPager(
+                    pagerState = pagerState,
+                    goToTab = { idx -> scope.launch { pagerState.animateScrollToPage(idx) } },
+                    onSessionDetail = { id -> navController.navigate(IteraDestination.SessionDetail.buildRoute(id)) },
+                    onSettings = { navController.navigate(IteraDestination.Settings.route) },
+                    onCreateRoutine = { navController.navigate(IteraDestination.RoutineEditor.buildRoute()) },
+                    onEditRoutine = { id -> navController.navigate(IteraDestination.RoutineEditor.buildRoute(id)) }
                 )
             }
-            composable(IteraDestination.History.route) {
-                HistoryScreen(
-                    onSessionClick = { sessionId ->
-                        navController.navigate(IteraDestination.SessionDetail.buildRoute(sessionId))
-                    }
-                )
-            }
-            composable(IteraDestination.Statistics.route) { StatisticsScreen() }
-            composable(IteraDestination.Hydration.route) { HydrationScreen() }
             composable(IteraDestination.Settings.route) {
                 SettingsScreen(onBack = { navController.popBackStack() })
-            }
-            composable(IteraDestination.Routines.route) {
-                RoutinesScreen(
-                    onCreate = { navController.navigate(IteraDestination.RoutineEditor.buildRoute()) },
-                    onEdit = { id -> navController.navigate(IteraDestination.RoutineEditor.buildRoute(id)) },
-                    // Cambia a la pestaña Entrenamiento (sin duplicar la ruta de inicio → sin flash).
-                    // El ViewModel de Entrenamiento arranca la rutina; el atrás vuelve aquí.
-                    onStart = {
-                        navController.navigate(IteraDestination.ActiveWorkout.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
             }
             composable(
                 route = IteraDestination.RoutineEditor.route,
@@ -261,6 +205,50 @@ fun IteraNavHost(
             ) {
                 SessionDetailScreen(onBack = { navController.popBackStack() })
             }
+        }
+    }
+}
+
+/**
+ * Las 5 pestañas en un [HorizontalPager] deslizable. El cambio de pestaña del flujo play/atrás
+ * (que tanto costó estabilizar) se hace con [goToTab] (scroll del pager), conservando la lógica
+ * intacta: la sesión arranca vía el coordinador y el atrás/"←" vuelve a Rutinas.
+ */
+@Composable
+private fun MainTabsPager(
+    pagerState: PagerState,
+    goToTab: (Int) -> Unit,
+    onSessionDetail: (Long) -> Unit,
+    onSettings: () -> Unit,
+    onCreateRoutine: () -> Unit,
+    onEditRoutine: (Long) -> Unit
+) {
+    // Atrás desde una pestaña que no es Entrenamiento → vuelve a Entrenamiento (patrón habitual).
+    // En Entrenamiento (page 0) se deshabilita para que actúe el back propio de la sesión / sistema.
+    BackHandler(enabled = pagerState.currentPage != TAB_ACTIVE_WORKOUT) {
+        goToTab(TAB_ACTIVE_WORKOUT)
+    }
+
+    HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+        when (page) {
+            TAB_ACTIVE_WORKOUT -> ActiveWorkoutScreen(
+                onSessionFinished = onSessionDetail,
+                onLastSessionClick = onSessionDetail,
+                onHydrationClick = { goToTab(TAB_HYDRATION) },
+                onSettingsClick = onSettings,
+                onSeeAllRoutinesClick = { goToTab(TAB_ROUTINES) },
+                // El atrás de la sesión de rutina desliza de vuelta a Rutinas (misma lógica de antes).
+                onBackToRoutines = { goToTab(TAB_ROUTINES) }
+            )
+            TAB_ROUTINES -> RoutinesScreen(
+                onCreate = onCreateRoutine,
+                onEdit = onEditRoutine,
+                // Play → desliza a Entrenamiento; el ViewModel arranca la rutina (guard anti-flash intacto).
+                onStart = { goToTab(TAB_ACTIVE_WORKOUT) }
+            )
+            TAB_HISTORY -> HistoryScreen(onSessionClick = onSessionDetail)
+            TAB_STATISTICS -> StatisticsScreen()
+            TAB_HYDRATION -> HydrationScreen()
         }
     }
 }
