@@ -63,18 +63,24 @@ private const val SWEEP_CELL_MS = 460f
 private const val SWEEP_TOTAL_MS = (HEATMAP_COLUMNS - 1) * SWEEP_COLUMN_DELAY_MS + SWEEP_CELL_MS
 
 private val esLocale = Locale("es")
-private val heatmapDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", esLocale)
+val heatmapDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", esLocale)
 
-// Un paso por encima de SurfaceElevated (#1E2229): celda "sin entrenar" perceptible,
-// no un hueco casi invisible sobre el fondo.
-private val EMPTY_CELL_COLOR = Color(0xFF262A31)
+// Un paso por encima de SurfaceElevated (#1E2229): celda "vacía" perceptible, no un
+// hueco casi invisible sobre el fondo. Compartido por AMBOS heatmaps (entrenamiento e
+// hidratación): el nivel 0 siempre se lee igual, solo cambia el color de los niveles activos.
+val HEATMAP_EMPTY_CELL_COLOR = Color(0xFF262A31)
 
 // ---------------------------------------------------------------------------
 // Modelo + funciones puras
 // ---------------------------------------------------------------------------
 
-/** Constancia BINARIA: entrenó ese día o no. Nada de niveles por volumen/grupos/sesiones. */
-data class HeatmapCell(val date: LocalDate, val trained: Boolean)
+/**
+ * Celda genérica de heatmap: un HECHO por día, nunca una medida de esfuerzo/volumen.
+ * `level` es un ordinal 0..N que cada pantalla define (p.ej. entrenamiento: 0=no entrenó,
+ * 1=entrenó; hidratación: 0=sin registros, 1=parcial, 2=meta cumplida). El realce
+ * (PR / 110%+) vive aparte, en `highlightDays`, y solo añade el punto ámbar.
+ */
+data class HeatmapCell(val date: LocalDate, val level: Int)
 
 /** Lunes de inicio de la ventana rodante: 10 semanas terminando en la semana actual. */
 fun heatmapStartMonday(today: LocalDate = LocalDate.now()): LocalDate =
@@ -86,12 +92,12 @@ fun heatmapStartMonday(today: LocalDate = LocalDate.now()): LocalDate =
  * Con LazyVerticalGrid(GridCells.Fixed(COLUMNS)) en row-major, cada fila queda como un
  * día de la semana a lo largo de las 10 columnas; el índice de columna es `index % COLUMNS`.
  */
-fun buildHeatmapCells(data: Set<LocalDate>, startMonday: LocalDate): List<HeatmapCell> {
+fun buildHeatmapCells(startMonday: LocalDate, levelForDate: (LocalDate) -> Int): List<HeatmapCell> {
     val cells = ArrayList<HeatmapCell>(HEATMAP_ROWS * HEATMAP_COLUMNS)
     for (weekday in 0 until HEATMAP_ROWS) {
         for (week in 0 until HEATMAP_COLUMNS) {
             val date = startMonday.plusWeeks(week.toLong()).plusDays(weekday.toLong())
-            cells.add(HeatmapCell(date, trained = date in data))
+            cells.add(HeatmapCell(date, levelForDate(date)))
         }
     }
     return cells
@@ -106,14 +112,22 @@ fun buildDayLabels(locale: Locale = esLocale): List<String> =
             .replaceFirstChar { it.uppercase() }
     }
 
-/** Etiqueta de mes corto SOLO cuando cambia de mes; el resto en blanco. */
+/**
+ * Etiqueta de mes corto SOLO cuando cambia de mes; el resto en blanco. Si la ventana visible
+ * cruza un cambio de año (p.ej. dic -> ene), añade el año corto ("dic '25") para desambiguar;
+ * el caso normal (mismo año) queda idéntico a antes, sin año.
+ */
 fun buildMonthLabels(startMonday: LocalDate, locale: Locale = esLocale): List<String> {
+    val endDate = startMonday.plusWeeks((HEATMAP_COLUMNS - 1).toLong())
+    val crossesYear = startMonday.year != endDate.year
+
     var lastMonth = -1
     return (0 until HEATMAP_COLUMNS).map { week ->
         val d = startMonday.plusWeeks(week.toLong())
         if (d.monthValue != lastMonth) {
             lastMonth = d.monthValue
-            d.month.getDisplayName(TextStyle.SHORT, locale).removeSuffix(".")
+            val monthName = d.month.getDisplayName(TextStyle.SHORT, locale).removeSuffix(".")
+            if (crossesYear) "$monthName '${d.year % 100}" else monthName
         } else ""
     }
 }
@@ -123,19 +137,34 @@ fun buildMonthLabels(startMonday: LocalDate, locale: Locale = esLocale): List<St
 // ---------------------------------------------------------------------------
 
 /**
- * Tarjeta con el mapa de actividad de las últimas 10 semanas.
+ * Tarjeta con un mapa de actividad de las últimas 10 semanas. Genérica: cada pantalla
+ * define su propio significado de nivel/color (entrenamiento = teal, hidratación =
+ * azul-agua) pero comparten grid, animación de barrido y contorno de "hoy".
  *
- * @param data eventos completados por día (días ausentes = 0). No accede a BD ni red.
- * @param selectedDate fecha seleccionada (estado elevado); null = sin selección.
- * @param onDateSelected callback al tocar una celda; pasa null al deseleccionar.
+ * @param levelForDate nivel 0..N de un día (0 = vacío, siempre [HEATMAP_EMPTY_CELL_COLOR]).
+ * @param colorForLevel color de relleno para cada nivel devuelto por [levelForDate].
+ * @param emptyBorderColor contorno de "hoy" cuando esa celda está en nivel 0.
+ * @param filledBorderColor contorno de "hoy" cuando esa celda está en nivel > 0 (debe
+ *   contrastar con `colorForLevel`, análogo a onAccent).
+ * @param highlightDays días con el realce ámbar (punto), aparte del nivel/color.
+ * @param selectionLabel texto de la línea secundaria para la celda seleccionada.
+ * @param title encabezado pequeño de la tarjeta (p.ej. "MAPA DE ACTIVIDAD").
+ * @param legend contenido de la leyenda, propio de cada pantalla.
  */
 @Composable
 fun ActivityHeatmapCard(
-    data: Set<LocalDate>,
-    prDays: Set<LocalDate>,
+    levelForDate: (LocalDate) -> Int,
+    colorForLevel: (Int) -> Color,
+    emptyBorderColor: Color,
+    filledBorderColor: Color,
     selectedDate: LocalDate?,
     onDateSelected: (LocalDate?) -> Unit,
-    modifier: Modifier = Modifier
+    selectionLabel: (HeatmapCell, isToday: Boolean) -> String,
+    legend: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    highlightDays: Set<LocalDate> = emptySet(),
+    title: String = "MAPA DE ACTIVIDAD",
+    emptyStateLabel: String = "Aún no hay actividad"
 ) {
     Column(
         modifier
@@ -144,24 +173,43 @@ fun ActivityHeatmapCard(
             .background(IteraColors.Surface)
             .padding(16.dp)
     ) {
-        ActivityHeatmap(data = data, prDays = prDays, selectedDate = selectedDate, onDateSelected = onDateSelected)
+        ActivityHeatmap(
+            levelForDate = levelForDate,
+            colorForLevel = colorForLevel,
+            emptyBorderColor = emptyBorderColor,
+            filledBorderColor = filledBorderColor,
+            selectedDate = selectedDate,
+            onDateSelected = onDateSelected,
+            selectionLabel = selectionLabel,
+            legend = legend,
+            highlightDays = highlightDays,
+            title = title,
+            emptyStateLabel = emptyStateLabel
+        )
     }
 }
 
 @Composable
 fun ActivityHeatmap(
-    data: Set<LocalDate>,
-    prDays: Set<LocalDate>,
+    levelForDate: (LocalDate) -> Int,
+    colorForLevel: (Int) -> Color,
+    emptyBorderColor: Color,
+    filledBorderColor: Color,
     selectedDate: LocalDate?,
     onDateSelected: (LocalDate?) -> Unit,
-    modifier: Modifier = Modifier
+    selectionLabel: (HeatmapCell, isToday: Boolean) -> String,
+    legend: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    highlightDays: Set<LocalDate> = emptySet(),
+    title: String = "MAPA DE ACTIVIDAD",
+    emptyStateLabel: String = "Aún no hay actividad"
 ) {
     val today = remember { LocalDate.now() }
     val startMonday = remember(today) { heatmapStartMonday(today) }
-    val cells = remember(data, startMonday) { buildHeatmapCells(data, startMonday) }
+    val cells = remember(startMonday, levelForDate) { buildHeatmapCells(startMonday, levelForDate) }
     val dayLabels = remember { buildDayLabels() }
     val monthLabels = remember(startMonday) { buildMonthLabels(startMonday) }
-    val allEmpty = remember(cells) { cells.none { it.trained } }
+    val allEmpty = remember(cells) { cells.all { it.level == 0 } }
 
     // La FECHA seleccionada es estado elevado (ViewModel); la celda se deriva de los datos
     // actuales para que el conteo nunca quede obsoleto tras borrar/añadir sesiones.
@@ -170,7 +218,7 @@ fun ActivityHeatmap(
     Column(modifier.fillMaxWidth()) {
         // Cabecera: solo el título (la fecha vive en la línea secundaria).
         Text(
-            text = "MAPA DE ACTIVIDAD",
+            text = title,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             color = IteraColors.TextPrimary,
             modifier = Modifier.fillMaxWidth()
@@ -180,20 +228,16 @@ fun ActivityHeatmap(
         if (allEmpty) {
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Aún no hay actividad",
+                text = emptyStateLabel,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                 color = IteraColors.TextSecondaryStrong
             )
             return@Column
         }
 
-        // Línea secundaria: en blanco por defecto; fecha (+ "Entrenaste" si aplica) si hay selección.
+        // Línea secundaria: en blanco por defecto; texto de la celda seleccionada si hay una.
         Text(
-            text = selectedCell?.let {
-                // "Hoy" evita repetir la fecha; la de otros días sí se muestra completa.
-                val datePart = if (it.date == today) "Hoy" else it.date.format(heatmapDateFormatter)
-                if (it.trained) "$datePart · Entrenaste" else datePart
-            } ?: " ",
+            text = selectedCell?.let { selectionLabel(it, it.date == today) } ?: " ",
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
             color = IteraColors.TextSecondaryStrong,
             modifier = Modifier.padding(top = 4.dp)
@@ -260,7 +304,10 @@ fun ActivityHeatmap(
                                 cellSize = cell,
                                 today = today,
                                 isSelected = selectedDate == cellData.date,
-                                hasPr = cellData.date in prDays,
+                                hasHighlight = cellData.date in highlightDays,
+                                color = colorForLevel(cellData.level),
+                                emptyBorderColor = emptyBorderColor,
+                                filledBorderColor = filledBorderColor,
                                 sweep = sweep,
                                 onClick = {
                                     onDateSelected(if (selectedDate == cellData.date) null else cellData.date)
@@ -295,12 +342,13 @@ fun ActivityHeatmap(
         }
 
         Spacer(Modifier.height(10.dp))
-        HeatmapLegend()
+        legend()
     }
 }
 
+/** Leyenda del heatmap de ENTRENAMIENTO: "entrenaste" (verde base) · "récord (PR)" (verde pleno + punto ámbar). */
 @Composable
-private fun HeatmapLegend() {
+fun TrainingHeatmapLegend() {
     val accent = LocalAccent.current.color
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(13.dp).clip(RoundedCornerShape(3.dp)).background(accent.copy(alpha = 0.7f)))
@@ -328,22 +376,17 @@ private fun HeatmapCellBox(
     cellSize: Dp,
     today: LocalDate,
     isSelected: Boolean,
-    hasPr: Boolean,
+    hasHighlight: Boolean,
+    color: Color,
+    emptyBorderColor: Color,
+    filledBorderColor: Color,
     sweep: Animatable<Float, AnimationVector1D>,
     onClick: () -> Unit
 ) {
-    val accent = LocalAccent.current
-    // 3 estados, siguen siendo HECHOS binarios (no intensidad): sin entrenar (gris
-    // perceptible) / entrenado (verde base, algo más suave) / con PR (verde pleno +
-    // punto ámbar). El salto entrenado→PR es moderado: realce de récord, no mapa de calor.
-    val background = when {
-        cell.trained && hasPr -> accent.color
-        cell.trained -> accent.color.copy(alpha = 0.7f)
-        else -> EMPTY_CELL_COLOR
-    }
     val isToday = cell.date == today
-    // Si ya está en acento (entrenado), el borde con el acento se perdería, usa onAccent.
-    val todayBorderColor = if (cell.trained) accent.onAccent else accent.color
+    // Si la celda ya está rellena (nivel > 0), el borde con ese mismo color se perdería:
+    // usa el color de contraste (onAccent-like). Si está vacía, usa el color activo pleno.
+    val todayBorderColor = if (cell.level > 0) filledBorderColor else emptyBorderColor
 
     Box(
         modifier = Modifier
@@ -359,7 +402,7 @@ private fun HeatmapCellBox(
                 scaleY = 0.8f + 0.2f * eased
             }
             .clip(RoundedCornerShape(4.dp))
-            .background(background)
+            .background(color)
             .then(
                 when {
                     isSelected -> Modifier.border(1.5.dp, IteraColors.TextPrimary.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
@@ -369,8 +412,8 @@ private fun HeatmapCellBox(
             )
             .clickable(onClick = onClick)
     ) {
-        // Logro: OTRO color (ámbar), no otra intensidad. Nunca sustituye el verde de constancia.
-        if (hasPr) {
+        // Realce: OTRO color (ámbar), no otra intensidad. Nunca sustituye el color de constancia.
+        if (hasHighlight) {
             Box(
                 Modifier
                     .align(Alignment.TopEnd)
@@ -385,7 +428,7 @@ private fun HeatmapCellBox(
 
 /** true si el sistema tiene las animaciones desactivadas (accesibilidad / reduce-motion). */
 @Composable
-private fun rememberReduceMotion(): Boolean {
+fun rememberReduceMotion(): Boolean {
     val context = LocalContext.current
     return remember {
         Settings.Global.getFloat(
