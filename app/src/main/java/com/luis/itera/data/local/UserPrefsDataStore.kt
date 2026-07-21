@@ -65,10 +65,22 @@ class UserPrefsDataStore @Inject constructor(
         context.dataStore.edit { it[accentColorKey] = accent.ordinal }
     }
 
+    private val restGoalSecondsKey = intPreferencesKey("rest_goal_seconds")
+
+    fun getRestGoalSeconds(): Flow<Int> =
+        context.dataStore.data.map { it[restGoalSecondsKey] ?: DEFAULT_REST_GOAL_SECONDS }
+
+    suspend fun setRestGoalSeconds(seconds: Int) {
+        context.dataStore.edit { it[restGoalSecondsKey] = seconds.coerceIn(MIN_REST_GOAL_SECONDS, MAX_REST_GOAL_SECONDS) }
+    }
+
     private companion object {
         const val DEFAULT_WEIGHT_KG = 70f
         const val DEFAULT_WEEKLY_GOAL = 3
         const val MIN_WEIGHT_KG = 30f
         const val MAX_WEIGHT_KG = 250f
+        const val DEFAULT_REST_GOAL_SECONDS = 90
+        const val MIN_REST_GOAL_SECONDS = 10
+        const val MAX_REST_GOAL_SECONDS = 600
     }
 }

@@ -19,4 +19,6 @@ class UserPrefsRepositoryImpl @Inject constructor(
     override suspend fun setWidgetPinRequested(requested: Boolean) = dataStore.setWidgetPinRequested(requested)
     override fun getAccentColor(): Flow<AccentColor> = dataStore.getAccentColor()
     override suspend fun setAccentColor(accent: AccentColor) = dataStore.setAccentColor(accent)
+    override fun getRestGoalSeconds(): Flow<Int> = dataStore.getRestGoalSeconds()
+    override suspend fun setRestGoalSeconds(seconds: Int) = dataStore.setRestGoalSeconds(seconds)
 }

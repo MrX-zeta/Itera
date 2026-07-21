@@ -17,4 +17,7 @@ interface UserPrefsRepository {
 
     fun getAccentColor(): Flow<AccentColor>
     suspend fun setAccentColor(accent: AccentColor)
+
+    fun getRestGoalSeconds(): Flow<Int>
+    suspend fun setRestGoalSeconds(seconds: Int)
 }
