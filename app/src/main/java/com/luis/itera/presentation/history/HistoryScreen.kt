@@ -10,7 +10,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,8 +28,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -43,6 +45,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +55,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
@@ -60,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
+import com.luis.itera.domain.model.Exercise
 import com.luis.itera.domain.model.Session
 import com.luis.itera.presentation.components.ActivityHeatmapCard
 import com.luis.itera.presentation.components.fmtWeight
@@ -81,7 +86,9 @@ fun HistoryScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedDay by viewModel.selectedDay.collectAsStateWithLifecycle()
+    val lookupResult by viewModel.exerciseLookup.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showLookupDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.pendingDeleteId) {
         val pendingId = state.pendingDeleteId ?: return@LaunchedEffect
@@ -106,17 +113,30 @@ fun HistoryScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Text(
-                text = "HISTORIAL",
-                style = MaterialTheme.typography.titleMedium,
-                color = IteraColors.TextSecondary,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
+            Box(Modifier.fillMaxWidth()) {
+                Text(
+                    text = "HISTORIAL",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = IteraColors.TextSecondary,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+                Icon(
+                    ImageVector.vectorResource(R.drawable.ic_search),
+                    contentDescription = "¿Dónde me quedé?",
+                    tint = IteraColors.TextPrimary,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .clickable { showLookupDialog = true }
+                        .padding(12.dp)
+                        .size(24.dp)
+                )
+            }
             Spacer(Modifier.height(12.dp))
 
             ActivityHeatmapCard(
-                data = state.activityByDay,
+                data = state.trainedDays,
+                prDays = state.prDays,
                 selectedDate = selectedDay,
                 onDateSelected = viewModel::onDaySelected
             )
@@ -128,7 +148,7 @@ fun HistoryScreen(
             if (visibleSessions.isEmpty()) {
                 Text(
                     text = "Sin sesiones registradas",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = IteraColors.TextSecondaryStrong
                 )
             } else {
@@ -159,6 +179,119 @@ fun HistoryScreen(
             }
         }
     }
+
+    if (showLookupDialog) {
+        WhereWasILeftDialog(
+            exercises = state.exercises,
+            result = lookupResult,
+            onSelect = viewModel::onLookupExercise,
+            onSearchAgain = viewModel::onClearLookup,
+            onDismiss = {
+                showLookupDialog = false
+                viewModel.onClearLookup()
+            }
+        )
+    }
+}
+
+@Composable
+private fun WhereWasILeftDialog(
+    exercises: List<Exercise>,
+    result: ExerciseLookupResult?,
+    onSelect: (Exercise) -> Unit,
+    onSearchAgain: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = IteraColors.Surface,
+        title = { Text("¿Dónde me quedé?", color = IteraColors.TextPrimary) },
+        text = {
+            if (result != null) {
+                Column {
+                    Text(result.exercise.name, style = MaterialTheme.typography.titleMedium, color = IteraColors.TextPrimary)
+                    Spacer(Modifier.height(4.dp))
+                    if (result.sets.isEmpty()) {
+                        Text(
+                            "Aún no tiene sets registrados",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = IteraColors.TextSecondary
+                        )
+                    } else {
+                        val isCardio = result.sets.any { it.durationSeconds > 0 }
+                        Text(
+                            text = result.dateEpochDay?.let { LocalDate.ofEpochDay(it).format(cardDateFormatter) } ?: "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = IteraColors.TextSecondary
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        result.sets.forEachIndexed { index, set ->
+                            Text(
+                                text = "SET ${index + 1} · " + if (isCardio) {
+                                    "${set.durationSeconds / 60} min" + if (set.intensity > 0) " · nivel ${set.intensity}" else ""
+                                } else {
+                                    buildString {
+                                        append("${set.reps} reps")
+                                        if (set.weightAddedKg > 0f) append(" · +${fmtWeight(set.weightAddedKg)}kg")
+                                    }
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = IteraColors.TextPrimary,
+                                modifier = Modifier.padding(vertical = 3.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        "Buscar otro ejercicio",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = LocalAccent.current.color,
+                        modifier = Modifier.clickable(onClick = onSearchAgain)
+                    )
+                }
+            } else {
+                Column {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        placeholder = { Text("Buscar ejercicio", color = IteraColors.TextSecondary) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = LocalAccent.current.color,
+                            unfocusedBorderColor = IteraColors.Border,
+                            focusedTextColor = IteraColors.TextPrimary,
+                            unfocusedTextColor = IteraColors.TextPrimary
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    val matches = if (query.isBlank()) exercises else exercises.filter { it.name.contains(query, ignoreCase = true) }
+                    Column {
+                        matches.take(20).forEach { exercise ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onSelect(exercise) }
+                                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(exercise.name, style = MaterialTheme.typography.bodyMedium, color = IteraColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                Text(exercise.mainMuscleGroup, style = MaterialTheme.typography.bodySmall, color = IteraColors.TextSecondary, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            Text("CERRAR", style = MaterialTheme.typography.labelMedium, color = IteraColors.TextSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
+        }
+    )
 }
 
 @Composable
@@ -287,10 +420,10 @@ private fun SessionCard(
     Column(
         modifier
             .fillMaxWidth()
-            .background(IteraColors.Background, RoundedCornerShape(12.dp))
-            .border(1.dp, IteraColors.Border, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(IteraColors.SurfaceElevated)
             .clickable(onClick = onClick)
-            .padding(12.dp)
+            .padding(14.dp)
     ) {
         Row(
             Modifier.fillMaxWidth(),
@@ -313,48 +446,50 @@ private fun SessionCard(
                         session.durationMinutes < 1 -> "Rápida"
                         else -> "${session.durationMinutes} min"
                     },
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     color = LocalAccent.current.color
                 )
                 Text(
                     text = " · ${LocalDate.ofEpochDay(session.dateEpochDay).format(cardDateFormatter)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = IteraColors.TextSecondary
                 )
             }
+            // Logro: ámbar, no acento (verde=actividad, ámbar=logro; no se mezclan).
             if (session.sets.any { it.isPr }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         ImageVector.vectorResource(R.drawable.ic_fire),
                         contentDescription = null,
-                        tint = LocalAccent.current.color,
+                        tint = IteraColors.Achievement,
                         modifier = Modifier.size(13.dp)
                     )
                     Spacer(Modifier.width(3.dp))
                     Text(
                         "PR",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                        color = LocalAccent.current.color
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = IteraColors.Achievement
                     )
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
         displayed.forEach { (exerciseId, sets) ->
             val isCardio = sets.any { it.durationSeconds > 0 }
-            Column(Modifier.padding(vertical = 8.dp)) {
+            Column(Modifier.padding(vertical = 6.dp)) {
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = exerciseNames[exerciseId] ?: "—",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = IteraColors.TextPrimary
                     )
                     Text(
                         text = "${sets.size} ${if (sets.size == 1) "set" else "sets"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalAccent.current.color
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = IteraColors.TextSecondary
                     )
                 }
                 Text(
@@ -365,7 +500,7 @@ private fun SessionCard(
                             if (set.weightAddedKg > 0f) append(" × ${fmtWeight(set.weightAddedKg)}kg")
                         }
                     },
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = IteraColors.TextSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -375,7 +510,7 @@ private fun SessionCard(
         if (remaining > 0) {
             Text(
                 text = "+ $remaining ejercicios más",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = IteraColors.TextSecondary,
                 modifier = Modifier.padding(top = 4.dp)
             )
