@@ -9,6 +9,7 @@ import com.luis.itera.domain.repository.SaveRoutineResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,9 +21,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -88,6 +91,7 @@ import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.components.RestTimerOverlay
 import com.luis.itera.presentation.theme.IteraColors
 import com.luis.itera.presentation.theme.LocalAccent
+import com.luis.itera.presentation.theme.RoutineColor
 import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -111,10 +115,17 @@ fun ActiveWorkoutScreen(
     onHydrationClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onSeeAllRoutinesClick: () -> Unit,
+    // Si se arrancó una rutina desde la pestaña Rutinas, el atrás vuelve allí (no sale a Home).
+    onBackToRoutines: () -> Unit = {},
     viewModel: ActiveWorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val finishedSessionId by viewModel.finishedSessionId.collectAsStateWithLifecycle()
+    val returnToRoutines by viewModel.returnToRoutines.collectAsStateWithLifecycle()
+    BackHandler(enabled = returnToRoutines) {
+        viewModel.disarmReturnToRoutines()
+        onBackToRoutines()
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(finishedSessionId) {
         finishedSessionId?.let { viewModel.onFinishedSessionConsumed(); onSessionFinished(it) }
@@ -142,17 +153,21 @@ fun ActiveWorkoutScreen(
     }
     Box(Modifier.fillMaxSize()) {
         if (state.session == null) {
-            HomeContent(
-                state,
-                viewModel::onFocusToggle,
-                viewModel::onStartSession,
-                onLastSessionClick,
-                onHydrationClick,
-                onSettingsClick,
-                onSeeAllRoutinesClick,
-                viewModel::onStartRoutine,
-                viewModel::onWeeklyGoalChange
-            )
+            // Si se está arrancando una rutina (desde Rutinas), la sesión aún no existe por unas
+            // milésimas: NO mostrar Home (dejar vacío) para no ver el flash de Home antes de la sesión.
+            if (!returnToRoutines) {
+                HomeContent(
+                    state,
+                    viewModel::onFocusToggle,
+                    viewModel::onStartSession,
+                    onLastSessionClick,
+                    onHydrationClick,
+                    onSettingsClick,
+                    onSeeAllRoutinesClick,
+                    viewModel::onStartRoutine,
+                    viewModel::onWeeklyGoalChange
+                )
+            }
         } else {
             ActiveSessionContent(
                 state = state,
@@ -169,7 +184,16 @@ fun ActiveWorkoutScreen(
                 onWeightDelta = viewModel::onWeightDelta,
                 onRegisterSet = viewModel::onRegisterSet,
                 onDeleteSet = viewModel::onDeleteSet,
-                onDiscardSession = viewModel::onDiscardSession,
+                onDiscardSession = {
+                    // La flecha "←" descarta la sesión. Si se arrancó desde Rutinas, vuelve allí
+                    // (navega PRIMERO, con la sesión aún viva, para no ver Home; luego descarta).
+                    if (returnToRoutines) {
+                        onBackToRoutines()
+                        viewModel.onDiscardSession()
+                    } else {
+                        viewModel.onDiscardSession()
+                    }
+                },
                 onFinishSession = viewModel::onFinishSession,
                 onDurationDelta = viewModel::onDurationDelta,
                 onIntensityDelta = viewModel::onIntensityDelta,
@@ -448,16 +472,19 @@ fun RoutineCard(routine: Routine, onClick: () -> Unit, modifier: Modifier = Modi
             .clip(RoundedCornerShape(12.dp))
             .background(IteraColors.SurfaceElevated)
             .clickable(onClick = onClick)
+            .height(IntrinsicSize.Min)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Franja de color descriptiva de la rutina (la identifica de un vistazo).
         Box(
-            Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(IteraColors.Surface),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(ImageVector.vectorResource(R.drawable.ic_barbell), null, tint = LocalAccent.current.color, modifier = Modifier.size(18.dp))
-        }
-        Spacer(Modifier.width(10.dp))
+            Modifier
+                .width(4.dp)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(2.dp))
+                .background(RoutineColor.fromOrdinal(routine.color).color)
+        )
+        Spacer(Modifier.width(12.dp))
         Column {
             Text(routine.name, style = MaterialTheme.typography.titleMedium, color = IteraColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(2.dp))

@@ -34,20 +34,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.compose.runtime.remember
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.luis.itera.R
 import com.luis.itera.presentation.active_workout.ActiveWorkoutScreen
-import com.luis.itera.presentation.active_workout.ActiveWorkoutViewModel
 import com.luis.itera.presentation.history.HistoryScreen
 import com.luis.itera.presentation.hydration.HydrationScreen
-import com.luis.itera.presentation.routines.RoutinesListScreen
+import com.luis.itera.presentation.routines.RoutineEditorScreen
+import com.luis.itera.presentation.routines.RoutinesScreen
 import com.luis.itera.presentation.session_detail.SessionDetailScreen
 import com.luis.itera.presentation.settings.SettingsScreen
 import com.luis.itera.presentation.statistics.StatisticsScreen
 import com.luis.itera.presentation.theme.IteraColors
 import com.luis.itera.presentation.theme.LocalAccent
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private data class NavItem(
     val destination: IteraDestination,
@@ -56,6 +53,7 @@ private data class NavItem(
 
 private val navItems = listOf(
     NavItem(IteraDestination.ActiveWorkout, R.drawable.ic_barbell),
+    NavItem(IteraDestination.Routines, R.drawable.ic_bookmark),
     NavItem(IteraDestination.History, R.drawable.ic_calendar),
     NavItem(IteraDestination.Statistics, R.drawable.ic_stats),
     NavItem(IteraDestination.Hydration, R.drawable.ic_droplet)
@@ -66,6 +64,8 @@ private fun IteraDestination.ownsRoute(route: String?): Boolean = when (this) {
         route == IteraDestination.ActiveWorkout.route || route == IteraDestination.SessionDetail.route
     IteraDestination.History ->
         route == IteraDestination.History.route
+    IteraDestination.Routines ->
+        route == IteraDestination.Routines.route || route?.startsWith("routine_editor") == true
     else -> route == this.route
 }
 
@@ -82,7 +82,7 @@ fun IteraNavHost(
 
     val showBottomBar = currentRoute != IteraDestination.Onboarding.route &&
         currentRoute != IteraDestination.Settings.route &&
-        currentRoute != IteraDestination.RoutinesList.route
+        currentRoute?.startsWith("routine_editor") != true
 
     // Navega al destino pedido por el widget (p. ej. hidratación) una vez que la
     // app ya pasó el onboarding.
@@ -199,7 +199,19 @@ fun IteraNavHost(
                         navController.navigate(IteraDestination.Settings.route)
                     },
                     onSeeAllRoutinesClick = {
-                        navController.navigate(IteraDestination.RoutinesList.route)
+                        navController.navigate(IteraDestination.Routines.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    // Volver a Rutinas (cambio de pestaña) cuando la sesión se arrancó desde ahí.
+                    onBackToRoutines = {
+                        navController.navigate(IteraDestination.Routines.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }
@@ -215,20 +227,31 @@ fun IteraNavHost(
             composable(IteraDestination.Settings.route) {
                 SettingsScreen(onBack = { navController.popBackStack() })
             }
-            composable(IteraDestination.RoutinesList.route) {
-                val parentEntry = remember(it) {
-                    navController.getBackStackEntry(IteraDestination.ActiveWorkout.route)
-                }
-                val activeWorkoutViewModel: ActiveWorkoutViewModel = hiltViewModel(parentEntry)
-                val routines by activeWorkoutViewModel.uiState.collectAsStateWithLifecycle()
-                RoutinesListScreen(
-                    routines = routines.routines,
-                    onBack = { navController.popBackStack() },
-                    onStartRoutine = { routine ->
-                        activeWorkoutViewModel.onStartRoutine(routine)
-                        navController.popBackStack()
+            composable(IteraDestination.Routines.route) {
+                RoutinesScreen(
+                    onCreate = { navController.navigate(IteraDestination.RoutineEditor.buildRoute()) },
+                    onEdit = { id -> navController.navigate(IteraDestination.RoutineEditor.buildRoute(id)) },
+                    // Cambia a la pestaña Entrenamiento (sin duplicar la ruta de inicio → sin flash).
+                    // El ViewModel de Entrenamiento arranca la rutina; el atrás vuelve aquí.
+                    onStart = {
+                        navController.navigate(IteraDestination.ActiveWorkout.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
+            }
+            composable(
+                route = IteraDestination.RoutineEditor.route,
+                arguments = listOf(
+                    navArgument(IteraDestination.RoutineEditor.ARG_ROUTINE_ID) {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                )
+            ) {
+                RoutineEditorScreen(onBack = { navController.popBackStack() })
             }
             composable(
                 route = IteraDestination.SessionDetail.route,

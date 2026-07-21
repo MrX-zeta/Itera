@@ -2,6 +2,7 @@ package com.luis.itera.presentation.active_workout
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.luis.itera.domain.PendingRoutineStart
 import com.luis.itera.domain.model.DailyHydrationGoal
 import com.luis.itera.domain.model.Exercise
 import com.luis.itera.domain.model.Routine
@@ -141,6 +142,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val calculateHydrationGoal: CalculateHydrationGoalUseCase,
     private val calculateWeeklyStreak: CalculateWeeklyStreakUseCase,
     private val routineRepository: RoutineRepository,
+    private val pendingRoutineStart: PendingRoutineStart,
     private val widgetUpdater: WidgetUpdater
 ) : ViewModel() {
 
@@ -171,6 +173,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     // confirmación de peso 0 (aviso suave, no bloquea).
     private val _setBlockedMessage = MutableSharedFlow<String>()
     val setBlockedMessage: SharedFlow<String> = _setBlockedMessage.asSharedFlow()
+
 
     private val _pendingZeroWeightConfirm = MutableStateFlow(false)
     val pendingZeroWeightConfirm: StateFlow<Boolean> = _pendingZeroWeightConfirm
@@ -295,7 +298,15 @@ class ActiveWorkoutViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
+    /** ¿El atrás en Entrenamiento debe volver a Rutinas? (arrancó una rutina desde ahí). */
+    val returnToRoutines: StateFlow<Boolean> = pendingRoutineStart.returnToRoutines
+    fun disarmReturnToRoutines() = pendingRoutineStart.disarmReturn()
+
     init {
+        // Arranca la rutina cuando la pestaña Rutinas lo pide (evento reactivo, no one-shot).
+        viewModelScope.launch {
+            pendingRoutineStart.startEvents.collect { startRoutineById(it) }
+        }
         viewModelScope.launch {
             var hadSession = false
             sessionRepository.getActiveSession().collect { session ->
@@ -387,6 +398,13 @@ class ActiveWorkoutViewModel @Inject constructor(
         activeRoutineExerciseIds.value = routine.exerciseIds
         viewModelScope.launch {
             sessionRepository.startSession(LocalDate.now().toEpochDay(), routine.focus)
+        }
+    }
+
+    /** Carga la rutina por id (desde el holder de arranque) y la inicia en esta instancia. */
+    private fun startRoutineById(routineId: Long) {
+        viewModelScope.launch {
+            routineRepository.getRoutines().first().firstOrNull { it.id == routineId }?.let(::onStartRoutine)
         }
     }
 
@@ -518,6 +536,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             sessionStartMillis.value = null
             selectedExercise.value = null
             celebratedExercises.clear()
+            pendingRoutineStart.disarmReturn()
         }
     }
 
@@ -537,6 +556,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             selectedExercise.value = null
             celebratedExercises.clear()
             if (session.sets.isNotEmpty()) _finishedSessionId.value = session.id
+            pendingRoutineStart.disarmReturn()
         }
     }
 

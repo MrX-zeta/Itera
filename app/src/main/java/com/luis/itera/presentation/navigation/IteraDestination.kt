@@ -11,5 +11,14 @@ sealed class IteraDestination(val route: String) {
     }
     data object Statistics : IteraDestination("statistics")
     data object Settings : IteraDestination("settings")
-    data object RoutinesList : IteraDestination("routines_list")
+
+    /** Pestaña de gestión de rutinas (CRUD). */
+    data object Routines : IteraDestination("routines")
+
+    /** Editor de rutina: crea si no hay id, edita si lo hay. */
+    data object RoutineEditor : IteraDestination("routine_editor?routineId={routineId}") {
+        const val ARG_ROUTINE_ID = "routineId"
+        fun buildRoute(routineId: Long? = null): String =
+            if (routineId == null) "routine_editor" else "routine_editor?routineId=$routineId"
+    }
 }
