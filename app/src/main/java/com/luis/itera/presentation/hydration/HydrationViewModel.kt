@@ -43,7 +43,8 @@ data class HydrationUiState(
     val userWeightKg: Float = 0f,
     val dragDeltaMl: Int = 0,
     val intakesByDay: Map<Long, List<HydrationIntake>> = emptyMap(),
-    val pendingDeletionIds: Set<Long> = emptySet()
+    val pendingDeletionIds: Set<Long> = emptySet(),
+    val showWeightPrompt: Boolean = false
 ) {
     val displayTotalMl: Int
         get() = (totalMl + dragDeltaMl).coerceAtLeast(0)
@@ -78,7 +79,8 @@ class HydrationViewModel @Inject constructor(
         hydrationRepository.getAllIntakes(),
         userPrefsRepository.getUserWeightKg(),
         dragDeltaMl,
-        pendingDeletionIds
+        pendingDeletionIds,
+        userPrefsRepository.getWeightPromptDismissed()
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val total = args[0] as Int
@@ -87,6 +89,7 @@ class HydrationViewModel @Inject constructor(
         val weight = args[3] as Float
         val drag = args[4] as Int
         val pending = args[5] as Set<Long>
+        val weightPromptDismissed = args[6] as Boolean
 
         val filtered = allIntakes.filter { it.id !in pending }
 
@@ -101,7 +104,8 @@ class HydrationViewModel @Inject constructor(
                     .toLocalDate()
                     .toEpochDay()
             },
-            pendingDeletionIds = pending
+            pendingDeletionIds = pending,
+            showWeightPrompt = !weightPromptDismissed
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HydrationUiState())
 
@@ -139,6 +143,13 @@ class HydrationViewModel @Inject constructor(
 
     init {
         viewModelScope.launch(Dispatchers.IO) { calculateHydrationGoal(today) }
+    }
+
+    /** La X del aviso de peso: "no me interesa", se descarta para siempre. */
+    fun onDismissWeightPrompt() {
+        viewModelScope.launch(Dispatchers.IO) {
+            userPrefsRepository.setWeightPromptDismissed(true)
+        }
     }
 
     fun onAddIntake(amountMl: Int) {

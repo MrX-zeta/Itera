@@ -22,6 +22,7 @@ class UserPrefsDataStore @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val weightKey = floatPreferencesKey("user_weight_kg")
+    private val weightPromptDismissedKey = booleanPreferencesKey("weight_prompt_dismissed")
 
     fun getUserWeightKg(): Flow<Float> =
         context.dataStore.data.map { it[weightKey] ?: DEFAULT_WEIGHT_KG }
@@ -30,8 +31,21 @@ class UserPrefsDataStore @Inject constructor(
         context.dataStore.data.map { it[weeklyGoalKey] ?: DEFAULT_WEEKLY_GOAL }
 
 
+    // Editar el peso de verdad (no solo visitar Ajustes) es la señal de que el aviso de
+    // Hidratación ya cumplió su función: se marca dismissed en la MISMA transacción para que
+    // no reaparezca, sin depender de comparar contra el default (70kg es un peso real válido).
     suspend fun setUserWeightKg(weightKg: Float) {
-        context.dataStore.edit { it[weightKey] = weightKg.coerceIn(MIN_WEIGHT_KG, MAX_WEIGHT_KG) }
+        context.dataStore.edit {
+            it[weightKey] = weightKg.coerceIn(MIN_WEIGHT_KG, MAX_WEIGHT_KG)
+            it[weightPromptDismissedKey] = true
+        }
+    }
+
+    fun getWeightPromptDismissed(): Flow<Boolean> =
+        context.dataStore.data.map { it[weightPromptDismissedKey] ?: false }
+
+    suspend fun setWeightPromptDismissed(dismissed: Boolean) {
+        context.dataStore.edit { it[weightPromptDismissedKey] = dismissed }
     }
 
     suspend fun setWeeklyGoal(goal: Int) {

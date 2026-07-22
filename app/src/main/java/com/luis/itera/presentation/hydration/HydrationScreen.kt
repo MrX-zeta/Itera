@@ -90,7 +90,10 @@ private const val DRAG_STEP_ML = 50
 private enum class HydrationTab { HOY, HISTORIAL }
 
 @Composable
-fun HydrationScreen(viewModel: HydrationViewModel = hiltViewModel()) {
+fun HydrationScreen(
+    onSettingsClick: () -> Unit = {},
+    viewModel: HydrationViewModel = hiltViewModel()
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val historyDays by viewModel.historyDays.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
@@ -117,6 +120,14 @@ fun HydrationScreen(viewModel: HydrationViewModel = hiltViewModel()) {
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
+            if (state.showWeightPrompt) {
+                Spacer(Modifier.height(12.dp))
+                WeightPromptBanner(
+                    weightKg = state.userWeightKg,
+                    onAdjustClick = onSettingsClick,
+                    onDismiss = viewModel::onDismissWeightPrompt
+                )
+            }
             Spacer(Modifier.height(16.dp))
             HydrationTabToggle(tab, onTabChange = { tab = it })
             Spacer(Modifier.height(16.dp))
@@ -166,6 +177,52 @@ fun HydrationScreen(viewModel: HydrationViewModel = hiltViewModel()) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Aviso discreto y NO bloqueante: la meta de agua se calcula desde el peso, y el
+ * onboarding ya no lo pide. "Ajustar" navega a Ajustes (sin descartar el aviso: solo
+ * distraerse allí sin tocar el peso no debe hacerlo desaparecer). Únicamente la X es
+ * la señal explícita de "no me interesa"; cambiar el peso de verdad también lo cierra
+ * (ver [com.luis.itera.data.local.UserPrefsDataStore.setUserWeightKg]).
+ */
+@Composable
+private fun WeightPromptBanner(weightKg: Float, onAdjustClick: () -> Unit, onDismiss: () -> Unit) {
+    val weightLabel = if (weightKg % 1f == 0f) weightKg.toInt().toString() else "%.1f".format(weightKg)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(IteraColors.Surface)
+            .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "Tu meta está calculada para $weightLabel kg",
+            style = MaterialTheme.typography.bodySmall,
+            color = IteraColors.TextSecondary,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            "AJUSTAR",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+            color = LocalAccent.current.color,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onAdjustClick)
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+        )
+        Icon(
+            ImageVector.vectorResource(R.drawable.ic_close),
+            contentDescription = "Descartar aviso",
+            tint = IteraColors.TextTertiary,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onDismiss)
+                .padding(8.dp)
+                .size(16.dp)
+        )
     }
 }
 

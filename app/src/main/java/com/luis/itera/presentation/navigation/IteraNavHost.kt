@@ -259,7 +259,7 @@ private fun MainTabsPager(
             )
             TAB_HISTORY -> HistoryScreen(onSessionClick = onSessionDetail)
             TAB_STATISTICS -> StatisticsScreen()
-            TAB_HYDRATION -> HydrationScreen()
+            TAB_HYDRATION -> HydrationScreen(onSettingsClick = onSettings)
         }
     }
 }
