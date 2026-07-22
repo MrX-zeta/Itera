@@ -234,7 +234,11 @@ private fun GeneralTab(
     ) {
         item { ProgresoCard(general) }
         item { ConstanciaCard(general) }
-        item { EquilibrioCard(general.neglected) }
+        // Sin grupos descuidados, la card ni se emite: un bloque sin nada que avisar no
+        // debe ocupar espacio (spacedBy ya deja un solo hueco entre las cards vecinas).
+        if (general.neglected.isNotEmpty()) {
+            item { EquilibrioCard(general.neglected) }
+        }
         item { RangeChips(state.range, viewModel::onRangeSelected) }
         item {
             RepartoPorFocoCard(
@@ -291,37 +295,32 @@ private fun ConstanciaCard(general: GeneralUiState) {
     }
 }
 
-/** "Esto descuidas": grupos musculares sin entrenar hace tiempo, en ÁMBAR (señal de atención). */
+/** "Esto descuidas": grupos musculares sin entrenar hace tiempo. Neutro, no ámbar —el ámbar
+ *  es exclusivo de logros (el punto de PR en el heatmap); el encabezado ya enmarca la alerta.
+ *  Solo se llama con [neglected] no vacío: sin descuidos, la card entera no se emite (ver
+ *  [GeneralTab]) en vez de mostrar un estado "todo bien". */
 @Composable
 private fun EquilibrioCard(neglected: List<MuscleGroupNeglect>) {
     IteraCard {
         SectionTitle("ESTO DESCUIDAS")
         Spacer(Modifier.height(12.dp))
-        if (neglected.isEmpty()) {
-            Text(
-                "Buen equilibrio: todos los grupos al día",
-                style = MaterialTheme.typography.bodyMedium,
-                color = IteraColors.TextSecondary
-            )
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                neglected.forEach { item ->
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            item.group,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = IteraColors.TextPrimary
-                        )
-                        Text(
-                            "${item.daysSince} días sin entrenar",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                            color = IteraColors.Achievement
-                        )
-                    }
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            neglected.forEach { item ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        item.group,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = IteraColors.TextPrimary
+                    )
+                    Text(
+                        "${item.daysSince} días sin entrenar",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = IteraColors.TextSecondary
+                    )
                 }
             }
         }

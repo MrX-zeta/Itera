@@ -425,7 +425,7 @@ class StatisticsViewModel @Inject constructor(
             avgDaysPerWeek = avgDaysPerWeek,
             totalTrainedDays = totalTrainedDays,
             headline = headlineFor(trend, streak, hasAnyData),
-            evidence = evidenceFor(daysThis, daysLast, minutesThis, minutesLast, lastWeek.isNotEmpty(), today.dayOfWeek.value),
+            evidence = evidenceFor(trend, daysThis, daysLast, minutesThis, minutesLast, lastWeek.isNotEmpty(), today.dayOfWeek.value),
             neglected = neglected
         )
     }
@@ -444,8 +444,14 @@ class StatisticsViewModel @Inject constructor(
      * Evidencia concreta bajo el veredicto. Al principio de la semana (pocos días transcurridos)
      * NO comparamos contra una semana completa —siempre saldría "menos"—: mostramos el estado
      * actual sin comparación. Solo comparamos week-over-week cuando la semana ya avanzó.
+     *
+     * El titular sale del volumen en kg ([trend]); esta evidencia, de días/minutos — señales
+     * independientes que pueden apuntar en direcciones opuestas (más días pero menos carga
+     * levantada, o al revés). Si diverge del titular, se dice con honestidad en vez de sonar
+     * contradictoria (p.ej. "Bajó tu ritmo" + "2 días más" desmentiría al propio titular).
      */
     private fun evidenceFor(
+        trend: VolumeTrend,
         daysThis: Int,
         daysLast: Int,
         minutesThis: Int,
@@ -462,6 +468,16 @@ class StatisticsViewModel @Inject constructor(
         }
         val deltaDays = daysThis - daysLast
         val deltaMinutes = minutesThis - minutesLast
+
+        val daysSignalUp = deltaDays > 0 || (deltaDays == 0 && deltaMinutes > 0)
+        val daysSignalDown = deltaDays < 0 || (deltaDays == 0 && deltaMinutes < 0)
+        when {
+            (trend == VolumeTrend.FALLING || trend == VolumeTrend.DELOAD) && daysSignalUp ->
+                return "más días, pero con menos carga"
+            trend == VolumeTrend.RISING && daysSignalDown ->
+                return "menos días, pero más intenso"
+        }
+
         val parts = buildList {
             if (deltaDays > 0) add("${daysWord(deltaDays)} más")
             else if (deltaDays < 0) add("${daysWord(-deltaDays)} menos")
