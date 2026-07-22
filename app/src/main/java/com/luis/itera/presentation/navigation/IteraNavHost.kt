@@ -1,6 +1,7 @@
 package com.luis.itera.presentation.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -10,6 +11,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -27,10 +30,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
@@ -41,6 +46,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.luis.itera.R
 import com.luis.itera.presentation.active_workout.ActiveWorkoutScreen
+import com.luis.itera.presentation.components.rememberReduceMotion
 import com.luis.itera.presentation.history.HistoryScreen
 import com.luis.itera.presentation.hydration.HydrationScreen
 import com.luis.itera.presentation.routines.RoutineEditorScreen
@@ -60,6 +66,11 @@ private val TAB_ROUTINES = 1
 private val TAB_HISTORY = 2
 private val TAB_STATISTICS = 3
 private val TAB_HYDRATION = 4
+
+// 80dp del NavigationBar (default de Material3) + 1dp del HorizontalDivider. Hardcodeado
+// porque NavigationBarDefaults no expone ese alto; solo se usa para animar la altura
+// reservada de la barra sin tener que medirla (ver comentario en IteraNavHost).
+private val BottomBarHeight = 81.dp
 
 private val tabs = listOf(
     TabItem(R.drawable.ic_barbell, "Entrenamiento"),
@@ -86,6 +97,16 @@ fun IteraNavHost(
     // La barra inferior se ve en las pestañas (Main) y en el detalle de sesión.
     val showBottomBar = onMain || currentRoute == IteraDestination.SessionDetail.route
 
+    // Duración ÚNICA para la barra y el fade del NavHost, en ambos sentidos. Con
+    // entrada/salida asimétricas (220/160 antes), al volver de Ajustes ésta ya
+    // había desaparecido (160ms) mientras Main+barra seguían llegando a opacidad
+    // completa (220ms) — ese margen de 60ms "todavía terminando" es lo que se
+    // sentía como falta de fluidez. Con una sola duración, contenido y barra
+    // arrancan y terminan exactamente juntos en los dos sentidos.
+    val reduceMotion = rememberReduceMotion()
+    val enterMs = if (reduceMotion) 0 else 200
+    val exitMs = enterMs
+
     // Deep link del widget (p. ej. hidratación): abre la pestaña correspondiente en el pager.
     LaunchedEffect(deepLinkRoute, onboardingCompleted) {
         if (deepLinkRoute != null && onboardingCompleted) {
@@ -104,9 +125,38 @@ fun IteraNavHost(
     Scaffold(
         containerColor = IteraColors.Background,
         bottomBar = {
-            if (showBottomBar) {
-                Column {
-                    HorizontalDivider(thickness = 1.dp, color = IteraColors.BorderStrong)
+            // La barra queda SIEMPRE compuesta (nunca se dispone/reconstruye al entrar o
+            // salir de Ajustes/detalle de sesión) — solo se anima su alto, opacidad y
+            // desplazamiento. Antes, con AnimatedVisibility, ocultarla la retiraba de la
+            // composición del todo; al volver, Compose debía reconstruir NavigationBar y
+            // sus 5 iconos desde cero justo cuando debía empezar a animarse, y ese trabajo
+            // se notaba como un pequeño retraso antes de aparecer/desaparecer (el mismo tipo
+            // de "recompose en frío" que ya resolvimos en el pager con beyondViewportPageCount).
+            val progress by animateFloatAsState(
+                targetValue = if (showBottomBar) 1f else 0f,
+                animationSpec = tween(if (showBottomBar) enterMs else exitMs, easing = FastOutSlowInEasing),
+                label = "bottom_bar_visibility"
+            )
+            // El alto NO sigue a `progress` (eso forzaba un remeasure del Scaffold en CADA
+            // frame de la animación — trabajo de layout compitiendo con el fundido, y es lo
+            // que se sentía como un tirón/lentitud al salir de Ajustes). El espacio se
+            // reserva de golpe mientras dura la animación y colapsa a 0 solo al terminar
+            // (ambos saltos ocurren con la barra ya invisible, así que no se ven). El
+            // movimiento real —lo único que anima frame a frame— vive solo en graphicsLayer
+            // (alpha + traslación), que es trabajo de dibujo, no de layout.
+            val barHeightPx = with(LocalDensity.current) { BottomBarHeight.toPx() }
+            val reserveSpace = showBottomBar || progress > 0f
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .height(if (reserveSpace) BottomBarHeight else 0.dp)
+                    .clipToBounds()
+                    .graphicsLayer {
+                        alpha = progress
+                        translationY = (1f - progress) * barHeightPx
+                    }
+            ) {
+                HorizontalDivider(thickness = 1.dp, color = IteraColors.BorderStrong)
                     NavigationBar(containerColor = IteraColors.Background, tonalElevation = 0.dp) {
                         tabs.forEachIndexed { index, item ->
                             // El pager conserva su página aunque el detalle de sesión esté encima.
@@ -152,7 +202,6 @@ fun IteraNavHost(
                     }
                 }
             }
-        }
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -161,8 +210,8 @@ fun IteraNavHost(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .consumeWindowInsets(paddingValues),
-            enterTransition = { fadeIn() },
-            exitTransition = { fadeOut() }
+            enterTransition = { fadeIn(tween(enterMs, easing = FastOutSlowInEasing)) },
+            exitTransition = { fadeOut(tween(exitMs, easing = FastOutSlowInEasing)) }
         ) {
             composable(IteraDestination.Onboarding.route) {
                 OnboardingScreen(
