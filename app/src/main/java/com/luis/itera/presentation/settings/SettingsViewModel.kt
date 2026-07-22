@@ -27,6 +27,7 @@ data class SettingsUiState(
     val accentColor: AccentColor = AccentColor.Default,
     val weightKg: Float = 70f,
     val weeklyGoal: Int = 3,
+    val restGoalSeconds: Int = 90,
     val appVersion: String = ""
 )
 
@@ -46,9 +47,16 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = combine(
         userPrefsRepository.getAccentColor(),
         userPrefsRepository.getUserWeightKg(),
-        userPrefsRepository.getWeeklyGoal()
-    ) { accent, weight, goal ->
-        SettingsUiState(accentColor = accent, weightKg = weight, weeklyGoal = goal, appVersion = appVersion)
+        userPrefsRepository.getWeeklyGoal(),
+        userPrefsRepository.getRestGoalSeconds()
+    ) { accent, weight, goal, restGoal ->
+        SettingsUiState(
+            accentColor = accent,
+            weightKg = weight,
+            weeklyGoal = goal,
+            restGoalSeconds = restGoal,
+            appVersion = appVersion
+        )
     }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
@@ -78,6 +86,16 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** Meta del descanso por defecto, en pasos de 15s. El "+30 s" del modal de descanso
+     *  sigue siendo temporal para ese descanso concreto; esto solo cambia el default. */
+    fun onRestGoalDelta(deltaSeconds: Int) {
+        viewModelScope.launch {
+            val newGoal = (uiState.value.restGoalSeconds + deltaSeconds)
+                .coerceIn(MIN_REST_GOAL_SECONDS, MAX_REST_GOAL_SECONDS)
+            userPrefsRepository.setRestGoalSeconds(newGoal)
+        }
+    }
+
     fun onAddWidgetClick() {
         when (widgetPinner.requestPinWithStatus()) {
             WidgetPinResult.ALREADY_PINNED ->
@@ -91,5 +109,7 @@ class SettingsViewModel @Inject constructor(
     private companion object {
         const val MIN_WEIGHT_KG = 30f
         const val MAX_WEIGHT_KG = 250f
+        const val MIN_REST_GOAL_SECONDS = 30
+        const val MAX_REST_GOAL_SECONDS = 300
     }
 }

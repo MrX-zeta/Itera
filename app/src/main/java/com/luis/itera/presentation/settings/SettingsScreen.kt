@@ -162,6 +162,25 @@ fun SettingsScreen(
                 }
             }
 
+            SettingsSection("ENTRENAMIENTO") {
+                Text(
+                    "Descanso entre series",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = IteraColors.TextPrimary
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "La cuenta atrás por defecto; el +30 s de la sesión no lo cambia",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = IteraColors.TextSecondary
+                )
+                Spacer(Modifier.height(10.dp))
+                RestGoalStepper(
+                    seconds = state.restGoalSeconds,
+                    onDelta = viewModel::onRestGoalDelta
+                )
+            }
+
             Column {
                 SectionLabel("PERFIL")
                 Spacer(Modifier.height(10.dp))
@@ -226,6 +245,51 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+/**
+ * Stepper de tiempo para la meta de descanso: misma anatomía visual que [FastStepper]
+ * (cajas − / +, valor central) pero con pasos fijos de 15 s y formato m:ss — el modelo
+ * numérico editable de FastStepper no encaja para tiempo.
+ */
+@Composable
+private fun RestGoalStepper(seconds: Int, onDelta: (Int) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(IteraColors.Surface)
+            .padding(horizontal = 10.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(IteraColors.SurfaceElevated)
+                .clickable { onDelta(-15) },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("−", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp), color = IteraColors.TextPrimary)
+        }
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Text(
+                "%d:%02d min".format(seconds / 60, seconds % 60),
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 26.sp),
+                color = IteraColors.TextPrimary
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(IteraColors.SurfaceElevated)
+                .clickable { onDelta(15) },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("+", style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp), color = LocalAccent.current.color)
+        }
     }
 }
 
