@@ -31,7 +31,7 @@ fun loadWidgetDataFlow(context: Context): Flow<WidgetData> {
     val todayEpoch = today.toEpochDay()
     val weekStartEpoch = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).toEpochDay()
 
-    return combine(
+    val base = combine(
         stats.getAllTrainedDays(),
         prefs.getWeeklyGoal(),
         hydration.getTotalMlForDay(todayEpoch),
@@ -58,7 +58,15 @@ fun loadWidgetDataFlow(context: Context): Flow<WidgetData> {
             weeklyGoal = streak.weeklyGoal,
             streakWeeks = streak.weeks,
             hydrationPercent = hydrationPercent,
-            trainedDaysThisWeek = trainedIndices
+            trainedDaysThisWeek = trainedIndices,
+            todayIndex = (todayEpoch - weekStartEpoch).toInt().coerceIn(0, 6)
         )
+    }
+
+    // El acento entra por el MISMO canal reactivo: cambiarlo en Ajustes emite y
+    // el widget recompone recoloreado, sin reiniciar nada. combine() con lambda
+    // llega hasta 5 flujos, por eso se anida en vez de ampliar la lista.
+    return combine(base, prefs.getAccentColor()) { data, accent ->
+        data.copy(accent = accent)
     }.catch { emit(WidgetData()) }
 }
