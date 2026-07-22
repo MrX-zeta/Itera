@@ -275,12 +275,6 @@ private fun MainTabsPager(
     onCreateRoutine: () -> Unit,
     onEditRoutine: (Long) -> Unit
 ) {
-    // Atrás desde una pestaña que no es Entrenamiento → vuelve a Entrenamiento (patrón habitual).
-    // En Entrenamiento (page 0) se deshabilita para que actúe el back propio de la sesión / sistema.
-    BackHandler(enabled = pagerState.currentPage != TAB_ACTIVE_WORKOUT) {
-        goToTab(TAB_ACTIVE_WORKOUT)
-    }
-
     HorizontalPager(
         state = pagerState,
         modifier = Modifier.fillMaxSize(),
@@ -310,5 +304,23 @@ private fun MainTabsPager(
             TAB_STATISTICS -> StatisticsScreen()
             TAB_HYDRATION -> HydrationScreen(onSettingsClick = onSettings)
         }
+    }
+
+    // Atrás desde una pestaña que no es Entrenamiento → vuelve a Entrenamiento (patrón habitual).
+    // En Entrenamiento (page 0, en reposo) se deshabilita para que actúen el handler de la sesión
+    // o el back del sistema. DOS sutilezas deliberadas:
+    // 1) Va DESPUÉS del HorizontalPager: se registra al final y por eso GANA prioridad sobre los
+    //    BackHandlers de las páginas (siempre compuestas por beyondViewportPageCount) — sin esto,
+    //    un back en Historial con sesión viva la descartaría en vez de volver a Entrenamiento.
+    // 2) CARRERA: durante un slide programático (goToTab, tween 350ms) currentPage vale 0 en parte
+    //    del trayecto aunque en pantalla se vea otra pestaña; un gesto en esa ventana no encontraba
+    //    ningún callback habilitado y CERRABA la app. targetPage + isScrollInProgress cubren toda
+    //    la animación: el back en pleno slide re-apunta a Entrenamiento, inofensivo.
+    BackHandler(
+        enabled = pagerState.currentPage != TAB_ACTIVE_WORKOUT ||
+            pagerState.targetPage != TAB_ACTIVE_WORKOUT ||
+            pagerState.isScrollInProgress
+    ) {
+        goToTab(TAB_ACTIVE_WORKOUT)
     }
 }

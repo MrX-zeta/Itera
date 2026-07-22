@@ -137,10 +137,6 @@ fun ActiveWorkoutScreen(
     val finishedSessionId by viewModel.finishedSessionId.collectAsStateWithLifecycle()
     val returnToRoutines by viewModel.returnToRoutines.collectAsStateWithLifecycle()
     val screenScope = rememberCoroutineScope()
-    BackHandler(enabled = returnToRoutines) {
-        viewModel.disarmReturnToRoutines()
-        onBackToRoutines()
-    }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(finishedSessionId) {
         finishedSessionId?.let { viewModel.onFinishedSessionConsumed(); onSessionFinished(it) }
@@ -158,6 +154,47 @@ fun ActiveWorkoutScreen(
     val restGoalSeconds by viewModel.restGoalSeconds.collectAsStateWithLifecycle()
     val setCounts by viewModel.setCountsByExercise.collectAsStateWithLifecycle()
     val routineLoaded by viewModel.routineLoaded.collectAsStateWithLifecycle()
+
+    // Congelado del panel de sesión AL SALIR. No basta congelar "mientras haya sesión": el
+    // descarte emite estados intermedios con la sesión AÚN viva (selectedExercise→null,
+    // rutina limpiada → el panel muta a picker/FRECUENTES) antes de que el borrado en Room
+    // aterrice, y esa instantánea corrupta era justo el flash reportado. La instantánea se
+    // toma UNA sola vez, en el instante del descarte, y el panel queda bloqueado en ella
+    // hasta que exista una sesión nueva.
+    var exitingSession by remember { mutableStateOf(false) }
+    var frozenSessionState by remember { mutableStateOf(state) }
+    var frozenRoutineLoaded by remember { mutableStateOf(routineLoaded) }
+    LaunchedEffect(state.session?.id) {
+        if (state.session != null) exitingSession = false
+    }
+
+    // Salida de la sesión, COMPARTIDA por la flecha "←" y el gesto de retroceso (deben
+    // comportarse idéntico). El DESCARTE es SIEMPRE inmediato (nunca retrasado) — si el
+    // usuario encadena varias rutinas rápido, un descarte tardío borraría la sesión
+    // equivocada (la nueva, no la abandonada), dejando huérfanas. Solo el DESARME de
+    // returnToRoutines espera a que el pager termine de deslizar, para seguir ocultando
+    // el Home mientras tanto (sin fundido propio: instantáneo).
+    val discardAndExit = {
+        frozenSessionState = state
+        frozenRoutineLoaded = routineLoaded
+        exitingSession = true
+        viewModel.onDiscardSession()
+        if (returnToRoutines) {
+            onBackToRoutines()
+            screenScope.launch {
+                delay(400)
+                viewModel.disarmReturnToRoutines()
+            }
+        }
+    }
+    // Gesto de retroceso con sesión viva = la flecha "←": descarta y queda en Home (o vuelve
+    // a Rutinas si se arrancó desde allí). Antes solo cubría el caso armado desde Rutinas, y
+    // una sesión iniciada desde una card del Home salía de la app en vez de volver al Home.
+    // Sin sesión queda deshabilitado: en Home en reposo, el back del sistema cierra (correcto).
+    BackHandler(enabled = state.session != null) {
+        discardAndExit()
+    }
+
     val pendingZeroWeight by viewModel.pendingZeroWeightConfirm.collectAsStateWithLifecycle()
     if (pendingZeroWeight) {
         ZeroWeightDialog(
@@ -203,11 +240,11 @@ fun ActiveWorkoutScreen(
                 }
             } else {
                 ActiveSessionContent(
-                state = state,
+                state = if (exitingSession) frozenSessionState else state,
                 muscleGroups = viewModel.muscleGroups,
                 restGoalSeconds = restGoalSeconds,
                 setCounts = setCounts,
-                routineLoaded = routineLoaded,
+                routineLoaded = if (exitingSession) frozenRoutineLoaded else routineLoaded,
                 onLoadRoutine = viewModel::onLoadRoutine,
                 onClearRoutine = viewModel::onClearRoutine,
                 onCreateExercise = viewModel::onCreateExercise,
@@ -217,21 +254,7 @@ fun ActiveWorkoutScreen(
                 onWeightDelta = viewModel::onWeightDelta,
                 onRegisterSet = viewModel::onRegisterSet,
                 onDeleteSet = viewModel::onDeleteSet,
-                onDiscardSession = {
-                    // La flecha "←": el DESCARTE es SIEMPRE inmediato (nunca retrasado) — si el
-                    // usuario encadena varias rutinas rápido, un descarte tardío borraría la
-                    // sesión equivocada (la nueva, no la abandonada), dejando huérfanas. Solo el
-                    // DESARME de returnToRoutines espera a que el pager termine de deslizar, para
-                    // seguir ocultando el Home mientras tanto (sin fundido propio: instantáneo).
-                    viewModel.onDiscardSession()
-                    if (returnToRoutines) {
-                        onBackToRoutines()
-                        screenScope.launch {
-                            delay(400)
-                            viewModel.disarmReturnToRoutines()
-                        }
-                    }
-                },
+                onDiscardSession = { discardAndExit() },
                 onFinishSession = viewModel::onFinishSession,
                 onDurationDelta = viewModel::onDurationDelta,
                 onIntensityDelta = viewModel::onIntensityDelta,
