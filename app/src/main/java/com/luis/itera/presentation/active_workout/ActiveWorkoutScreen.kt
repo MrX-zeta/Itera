@@ -1,10 +1,16 @@
 package com.luis.itera.presentation.active_workout
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import com.luis.itera.domain.repository.SaveRoutineResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -41,8 +47,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,6 +69,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,10 +100,13 @@ import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.presentation.components.ConfettiOverlay
 import com.luis.itera.presentation.components.FastStepper
 import com.luis.itera.presentation.components.RestTimerOverlay
+import com.luis.itera.presentation.components.RoutineAccent
+import com.luis.itera.presentation.components.rememberReduceMotion
 import com.luis.itera.presentation.theme.IteraColors
 import com.luis.itera.presentation.theme.LocalAccent
 import com.luis.itera.presentation.theme.RoutineColor
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -122,6 +136,7 @@ fun ActiveWorkoutScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val finishedSessionId by viewModel.finishedSessionId.collectAsStateWithLifecycle()
     val returnToRoutines by viewModel.returnToRoutines.collectAsStateWithLifecycle()
+    val screenScope = rememberCoroutineScope()
     BackHandler(enabled = returnToRoutines) {
         viewModel.disarmReturnToRoutines()
         onBackToRoutines()
@@ -151,25 +166,43 @@ fun ActiveWorkoutScreen(
             onConfirm = viewModel::onConfirmZeroWeight
         )
     }
+    val reduceMotion = rememberReduceMotion()
     Box(Modifier.fillMaxSize()) {
-        if (state.session == null) {
-            // Si se está arrancando una rutina (desde Rutinas), la sesión aún no existe por unas
-            // milésimas: NO mostrar Home (dejar vacío) para no ver el flash de Home antes de la sesión.
-            if (!returnToRoutines) {
-                HomeContent(
-                    state,
-                    viewModel::onFocusToggle,
-                    viewModel::onStartSession,
-                    onLastSessionClick,
-                    onHydrationClick,
-                    onSettingsClick,
-                    onSeeAllRoutinesClick,
-                    viewModel::onStartRoutine,
-                    viewModel::onWeeklyGoalChange
-                )
+        AnimatedContent(
+            targetState = state.session != null,
+            label = "home_session",
+            transitionSpec = {
+                if (returnToRoutines) {
+                    // Volviendo a Rutinas: el pager lleva TODA la transición visual (desliza
+                    // sobre este vacío). Un fundido propio aquí crearía un dip a negro antes
+                    // del deslizamiento — un destello peor que ninguna animación.
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else if (reduceMotion) {
+                    fadeIn(tween(120)) togetherWith fadeOut(tween(120))
+                } else {
+                    fadeIn(tween(220)) togetherWith fadeOut(tween(160))
+                }
             }
-        } else {
-            ActiveSessionContent(
+        ) { hasSession ->
+            if (!hasSession) {
+                // Si se está arrancando una rutina (desde Rutinas), la sesión aún no existe por
+                // unas milésimas: NO mostrar Home (dejar vacío) para no ver el flash de Home antes.
+                if (!returnToRoutines) {
+                    HomeContent(
+                        state,
+                        viewModel::onFocusToggle,
+                        viewModel::onStartSession,
+                        onLastSessionClick,
+                        onHydrationClick,
+                        onSettingsClick,
+                        onSeeAllRoutinesClick,
+                        viewModel::onStartRoutine,
+                        viewModel::onWeeklyGoalChange,
+                        viewModel::onClearFocuses
+                    )
+                }
+            } else {
+                ActiveSessionContent(
                 state = state,
                 muscleGroups = viewModel.muscleGroups,
                 restGoalSeconds = restGoalSeconds,
@@ -185,13 +218,18 @@ fun ActiveWorkoutScreen(
                 onRegisterSet = viewModel::onRegisterSet,
                 onDeleteSet = viewModel::onDeleteSet,
                 onDiscardSession = {
-                    // La flecha "←" descarta la sesión. Si se arrancó desde Rutinas, vuelve allí
-                    // (navega PRIMERO, con la sesión aún viva, para no ver Home; luego descarta).
+                    // La flecha "←": el DESCARTE es SIEMPRE inmediato (nunca retrasado) — si el
+                    // usuario encadena varias rutinas rápido, un descarte tardío borraría la
+                    // sesión equivocada (la nueva, no la abandonada), dejando huérfanas. Solo el
+                    // DESARME de returnToRoutines espera a que el pager termine de deslizar, para
+                    // seguir ocultando el Home mientras tanto (sin fundido propio: instantáneo).
+                    viewModel.onDiscardSession()
                     if (returnToRoutines) {
                         onBackToRoutines()
-                        viewModel.onDiscardSession()
-                    } else {
-                        viewModel.onDiscardSession()
+                        screenScope.launch {
+                            delay(400)
+                            viewModel.disarmReturnToRoutines()
+                        }
                     }
                 },
                 onFinishSession = viewModel::onFinishSession,
@@ -200,6 +238,7 @@ fun ActiveWorkoutScreen(
                 onToggleTimerPause = viewModel::onToggleTimerPause,
                 onSaveRoutine = viewModel::onSaveRoutine
             )
+            }
         }
         SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
@@ -216,9 +255,11 @@ private fun HomeContent(
     onSettingsClick: () -> Unit,
     onSeeAllRoutinesClick: () -> Unit,
     onStartRoutine: (Routine) -> Unit,
-    onWeeklyGoalChange: (Int) -> Unit
+    onWeeklyGoalChange: (Int) -> Unit,
+    onClearFocuses: () -> Unit
 ) {
     var showGoalDialog by remember { mutableStateOf(false) }
+    var showFocusPicker by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().statusBarsPadding().padding(top = 8.dp, bottom = 12.dp)) {
         Column(
             Modifier
@@ -301,22 +342,6 @@ private fun HomeContent(
                 }
                 Spacer(Modifier.height(18.dp))
             }
-            Column(Modifier.padding(horizontal = 16.dp)) {
-                Text("¿QUÉ TOCA HOY?", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium), color = IteraColors.TextSecondary)
-                Spacer(Modifier.height(12.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FOCUS_ROW_TOP.forEach { focus ->
-                            FocusChip(focus, focus in state.selectedFocuses, focus in state.blockedFocuses, onFocusToggle)
-                        }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FOCUS_ROW_BOTTOM.forEach { focus ->
-                            FocusChip(focus, focus in state.selectedFocuses, focus in state.blockedFocuses, onFocusToggle)
-                        }
-                    }
-                }
-            }
             if (state.routines.isNotEmpty()) {
                 Spacer(Modifier.height(18.dp))
                 Column(Modifier.padding(horizontal = 16.dp)) {
@@ -355,8 +380,9 @@ private fun HomeContent(
         }
         Spacer(Modifier.height(12.dp))
         Button(
-            onClick = onStart, enabled = state.selectedFocuses.isNotEmpty(), modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = LocalAccent.current.color, contentColor = LocalAccent.current.onAccent, disabledContainerColor = IteraColors.Border, disabledContentColor = IteraColors.TextSecondary),
+            onClick = { showFocusPicker = true },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = LocalAccent.current.color, contentColor = LocalAccent.current.onAccent),
             shape = RoundedCornerShape(8.dp)
         ) {
             Icon(ImageVector.vectorResource(R.drawable.ic_widget_play), null, modifier = Modifier.size(18.dp))
@@ -370,6 +396,21 @@ private fun HomeContent(
             current = state.streak.weeklyGoal,
             onDismiss = { showGoalDialog = false },
             onConfirm = { onWeeklyGoalChange(it); showGoalDialog = false }
+        )
+    }
+
+    if (showFocusPicker) {
+        FocusPickerSheet(
+            selectedFocuses = state.selectedFocuses,
+            blockedFocuses = state.blockedFocuses,
+            suggestedFocus = state.suggestedFocus,
+            onFocusToggle = onFocusToggle,
+            onClearFocuses = onClearFocuses,
+            onDismiss = { showFocusPicker = false },
+            onConfirmStart = {
+                showFocusPicker = false
+                onStart()
+            }
         )
     }
 }
@@ -402,6 +443,82 @@ private fun WeeklyGoalDialog(current: Int, onDismiss: () -> Unit, onConfirm: (In
             Text("CANCELAR", style = MaterialTheme.typography.labelMedium, color = IteraColors.TextSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
         }
     )
+}
+
+/**
+ * Selector de foco relocado del Home a un modal, disparado al tocar "Iniciar entrenamiento":
+ * separa "¿entreno?" (el Home, sin fricción) de "¿qué entreno?" (aquí, solo cuando hace falta).
+ * Reusa FocusChip tal cual; el sugerido llega PRE-seleccionado, así que un usuario apurado solo
+ * necesita tocar "Iniciar" una vez, sin tocar ningún chip.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun FocusPickerSheet(
+    selectedFocuses: Set<WorkoutFocus>,
+    blockedFocuses: Set<WorkoutFocus>,
+    suggestedFocus: WorkoutFocus,
+    onFocusToggle: (WorkoutFocus) -> Unit,
+    onClearFocuses: () -> Unit,
+    onDismiss: () -> Unit,
+    onConfirmStart: () -> Unit
+) {
+    LaunchedEffect(Unit) {
+        if (selectedFocuses.isEmpty()) onFocusToggle(suggestedFocus)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = IteraColors.Surface,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = IteraColors.BorderStrong) }
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp)) {
+            Text(
+                "¿QUÉ TOCA HOY?",
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = IteraColors.TextSecondary
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Sugerencia de hoy: ${suggestedFocus.label}",
+                style = MaterialTheme.typography.bodySmall,
+                color = LocalAccent.current.color
+            )
+            Spacer(Modifier.height(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FOCUS_ROW_TOP.forEach { focus ->
+                        FocusChip(focus, focus in selectedFocuses, focus in blockedFocuses, onFocusToggle)
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FOCUS_ROW_BOTTOM.forEach { focus ->
+                        FocusChip(focus, focus in selectedFocuses, focus in blockedFocuses, onFocusToggle)
+                    }
+                }
+            }
+            Text(
+                "Libre · cualquier grupo",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = if (selectedFocuses.isEmpty()) LocalAccent.current.color else IteraColors.TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClearFocuses)
+                    .padding(vertical = 14.dp)
+            )
+            Button(
+                onClick = onConfirmStart,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = LocalAccent.current.color, contentColor = LocalAccent.current.onAccent),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(ImageVector.vectorResource(R.drawable.ic_widget_play), null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("INICIAR ENTRENAMIENTO", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+    }
 }
 
 @Composable
@@ -472,20 +589,15 @@ fun RoutineCard(routine: Routine, onClick: () -> Unit, modifier: Modifier = Modi
             .clip(RoundedCornerShape(12.dp))
             .background(IteraColors.SurfaceElevated)
             .clickable(onClick = onClick)
-            .height(IntrinsicSize.Min)
-            .padding(14.dp),
+            .height(IntrinsicSize.Min),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Franja de color descriptiva de la rutina (la identifica de un vistazo).
-        Box(
-            Modifier
-                .width(4.dp)
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(2.dp))
-                .background(RoutineColor.fromOrdinal(routine.color).color)
+        // Franja de color descriptiva de la rutina, pegada al borde real de la card.
+        RoutineAccent(
+            RoutineColor.fromOrdinal(routine.color).color,
+            Modifier.fillMaxHeight().padding(vertical = 10.dp)
         )
-        Spacer(Modifier.width(12.dp))
-        Column {
+        Column(Modifier.padding(start = 8.dp, end = 14.dp, top = 14.dp, bottom = 14.dp)) {
             Text(routine.name, style = MaterialTheme.typography.titleMedium, color = IteraColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(2.dp))
             Text("${routine.exerciseIds.size} ejercicios", style = MaterialTheme.typography.bodyMedium, color = IteraColors.TextSecondary)

@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
@@ -62,7 +63,7 @@ private val TAB_HYDRATION = 4
 
 private val tabs = listOf(
     TabItem(R.drawable.ic_barbell, "Entrenamiento"),
-    TabItem(R.drawable.ic_bookmark, "Rutinas"),
+    TabItem(R.drawable.ic_clipboard_list, "Rutinas"),
     TabItem(R.drawable.ic_calendar, "Historial"),
     TabItem(R.drawable.ic_stats, "Estadísticas"),
     TabItem(R.drawable.ic_droplet, "Hidratación")
@@ -129,7 +130,7 @@ fun IteraNavHost(
                                     if (!onMain) {
                                         navController.popBackStack(IteraDestination.Main.route, inclusive = false)
                                     }
-                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                    scope.launch { pagerState.animateScrollToPage(index, animationSpec = tween(350)) }
                                 },
                                 icon = {
                                     Icon(
@@ -176,7 +177,9 @@ fun IteraNavHost(
             composable(IteraDestination.Main.route) {
                 MainTabsPager(
                     pagerState = pagerState,
-                    goToTab = { idx -> scope.launch { pagerState.animateScrollToPage(idx) } },
+                    // Duración explícita: el spring por defecto puede completar demasiado
+                    // rápido en distancias cortas (1 página), leyéndose casi como un corte.
+                    goToTab = { idx -> scope.launch { pagerState.animateScrollToPage(idx, animationSpec = tween(350)) } },
                     onSessionDetail = { id -> navController.navigate(IteraDestination.SessionDetail.buildRoute(id)) },
                     onSettings = { navController.navigate(IteraDestination.Settings.route) },
                     onCreateRoutine = { navController.navigate(IteraDestination.RoutineEditor.buildRoute()) },
@@ -229,7 +232,15 @@ private fun MainTabsPager(
         goToTab(TAB_ACTIVE_WORKOUT)
     }
 
-    HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize(),
+        // Mantiene TODAS las pestañas compuestas aunque no sean la visible (por defecto el
+        // pager solo compone la actual). Sin esto, volver a una pestaña "fría" la recompone
+        // desde cero al vuelo — un instante de fondo vacío/negro antes de que llegue el
+        // contenido real, justo lo que se reportó al volver a Rutinas y a Entrenamiento.
+        beyondViewportPageCount = tabs.size
+    ) { page ->
         when (page) {
             TAB_ACTIVE_WORKOUT -> ActiveWorkoutScreen(
                 onSessionFinished = onSessionDetail,

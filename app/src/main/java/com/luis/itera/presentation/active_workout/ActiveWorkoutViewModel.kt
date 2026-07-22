@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.luis.itera.domain.PendingRoutineStart
 import com.luis.itera.domain.model.DailyHydrationGoal
 import com.luis.itera.domain.model.Exercise
+import com.luis.itera.domain.model.dailySuggestedFocus
 import com.luis.itera.domain.model.Routine
 import com.luis.itera.domain.model.Session
 import com.luis.itera.domain.model.SetValidation
@@ -49,7 +50,8 @@ private data class HomeData(
     val streak: WeeklyStreak = WeeklyStreak(0, 0, 3),
     val hydrationProgress: Float = 0f,
     val trainedDaysThisWeek: Set<Long> = emptySet(),
-    val routines: List<Routine> = emptyList()
+    val routines: List<Routine> = emptyList(),
+    val suggestedFocus: WorkoutFocus = WorkoutFocus.entries.first()
 )
 
 data class ActiveWorkoutUiState(
@@ -73,7 +75,8 @@ data class ActiveWorkoutUiState(
     val timerPaused: Boolean = false,
     val pausedElapsed: Long = 0L,
     val prCelebrationText: String? = null,
-    val routines: List<Routine> = emptyList()
+    val routines: List<Routine> = emptyList(),
+    val suggestedFocus: WorkoutFocus = WorkoutFocus.entries.first()
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -243,7 +246,8 @@ class ActiveWorkoutViewModel @Inject constructor(
             streak = calculateWeeklyStreak(trainedDays, weeklyGoal),
             hydrationProgress = goal?.totalGoalMl?.takeIf { it > 0 }?.let { (totalMl.toFloat() / it).coerceAtLeast(0f) } ?: 0f,
             trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet(),
-            routines = routines
+            routines = routines,
+            suggestedFocus = dailySuggestedFocus(today)
         )
     }
 
@@ -294,7 +298,8 @@ class ActiveWorkoutViewModel @Inject constructor(
             timerPaused = inputs.timerPaused,
             pausedElapsed = inputs.pausedElapsed,
             prCelebrationText = inputs.prCelebrationText,
-            routines = home.routines
+            routines = home.routines,
+            suggestedFocus = home.suggestedFocus
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
@@ -332,6 +337,9 @@ class ActiveWorkoutViewModel @Inject constructor(
             else -> current + focus
         }
     }
+
+    /** "Libre · cualquier grupo" en el selector rápido: entrena sin categorizar. */
+    fun onClearFocuses() { selectedFocuses.value = emptySet() }
 
     fun onSearchQueryChange(query: String) { searchQuery.value = query }
 
@@ -536,7 +544,9 @@ class ActiveWorkoutViewModel @Inject constructor(
             sessionStartMillis.value = null
             selectedExercise.value = null
             celebratedExercises.clear()
-            pendingRoutineStart.disarmReturn()
+            // OJO: NO desarma pendingRoutineStart aquí. Si la sesión se arrancó desde Rutinas,
+            // la pantalla temporiza el desarme (deja ver el fundido Sesión→vacío antes de
+            // deslizar de vuelta); desarmar ya mismo mostraría el Home de Entrenamiento de golpe.
         }
     }
 
