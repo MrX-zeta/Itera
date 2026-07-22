@@ -150,7 +150,7 @@ private fun RoutineManageCard(routine: com.luis.itera.domain.model.Routine, onEd
         ) {
             RoutineAccent(
                 RoutineColor.fromOrdinal(routine.color).color,
-                Modifier.fillMaxHeight().padding(vertical = 12.dp)
+                Modifier.fillMaxHeight().padding(vertical = 5.dp)
             )
             Column(Modifier.padding(start = 8.dp, top = 14.dp, bottom = 14.dp)) {
                 Text(

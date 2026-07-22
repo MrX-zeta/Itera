@@ -595,7 +595,7 @@ fun RoutineCard(routine: Routine, onClick: () -> Unit, modifier: Modifier = Modi
         // Franja de color descriptiva de la rutina, pegada al borde real de la card.
         RoutineAccent(
             RoutineColor.fromOrdinal(routine.color).color,
-            Modifier.fillMaxHeight().padding(vertical = 10.dp)
+            Modifier.fillMaxHeight().padding(vertical = 5.dp)
         )
         Column(Modifier.padding(start = 8.dp, end = 14.dp, top = 14.dp, bottom = 14.dp)) {
             Text(routine.name, style = MaterialTheme.typography.titleMedium, color = IteraColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
