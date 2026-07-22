@@ -24,7 +24,8 @@ class RoutineRepositoryImpl @Inject constructor(
                     id = rwe.routine.id,
                     name = rwe.routine.name,
                     focus = rwe.routine.focus,
-                    exerciseIds = rwe.exercises.sortedBy { it.displayOrder }.map { it.exerciseId }
+                    exerciseIds = rwe.exercises.sortedBy { it.displayOrder }.map { it.exerciseId },
+                    color = rwe.routine.color
                 )
             }
         }
@@ -47,4 +48,24 @@ class RoutineRepositoryImpl @Inject constructor(
     private val _routineFeedback = MutableSharedFlow<String>()
     val routineFeedback: SharedFlow<String> = _routineFeedback.asSharedFlow()
     override suspend fun deleteRoutine(routineId: Long) = routineDao.deleteRoutine(routineId)
+
+    override suspend fun createRoutine(name: String, color: Int, exerciseIds: List<Long>): Long {
+        val routineId = routineDao.insertRoutine(RoutineEntity(name = name, focus = null, color = color))
+        routineDao.insertRoutineExercises(
+            exerciseIds.mapIndexed { i, exId ->
+                RoutineExerciseEntity(routineId = routineId, exerciseId = exId, displayOrder = i)
+            }
+        )
+        return routineId
+    }
+
+    override suspend fun updateRoutine(id: Long, name: String, color: Int, exerciseIds: List<Long>) {
+        routineDao.updateRoutine(RoutineEntity(id = id, name = name, focus = null, color = color))
+        routineDao.clearRoutineExercises(id)
+        routineDao.insertRoutineExercises(
+            exerciseIds.mapIndexed { i, exId ->
+                RoutineExerciseEntity(routineId = id, exerciseId = exId, displayOrder = i)
+            }
+        )
+    }
 }

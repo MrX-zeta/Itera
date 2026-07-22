@@ -3,10 +3,13 @@ package com.luis.itera.presentation.hydration
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.itera.domain.model.DailyHydrationGoal
+import com.luis.itera.domain.model.HydrationGoalFormula
 import com.luis.itera.domain.model.HydrationIntake
 import com.luis.itera.domain.repository.HydrationRepository
+import com.luis.itera.domain.repository.StatisticsRepository
 import com.luis.itera.domain.repository.UserPrefsRepository
 import com.luis.itera.domain.usecase.CalculateHydrationGoalUseCase
+import com.luis.itera.presentation.components.heatmapStartMonday
 import com.luis.itera.presentation.widget.WidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -23,13 +26,25 @@ import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 
+/** Estadística de un día para el histórico de hidratación (heatmap + lista). */
+data class HydrationDayStat(
+    val dateEpochDay: Long,
+    val totalMl: Int,
+    val intakeCount: Int,
+    val goalMl: Int
+) {
+    val percent: Int
+        get() = if (goalMl > 0) ((totalMl.toFloat() / goalMl) * 100).toInt() else 0
+}
+
 data class HydrationUiState(
     val totalMl: Int = 0,
     val goal: DailyHydrationGoal? = null,
     val userWeightKg: Float = 0f,
     val dragDeltaMl: Int = 0,
     val intakesByDay: Map<Long, List<HydrationIntake>> = emptyMap(),
-    val pendingDeletionIds: Set<Long> = emptySet()
+    val pendingDeletionIds: Set<Long> = emptySet(),
+    val showWeightPrompt: Boolean = false
 ) {
     val displayTotalMl: Int
         get() = (totalMl + dragDeltaMl).coerceAtLeast(0)
@@ -46,11 +61,13 @@ data class HydrationUiState(
 class HydrationViewModel @Inject constructor(
     private val hydrationRepository: HydrationRepository,
     private val userPrefsRepository: UserPrefsRepository,
+    private val statisticsRepository: StatisticsRepository,
     private val calculateHydrationGoal: CalculateHydrationGoalUseCase,
     private val widgetUpdater: WidgetUpdater
 ) : ViewModel() {
 
     private val today = LocalDate.now().toEpochDay()
+    private val historyStart = heatmapStartMonday(LocalDate.now()).toEpochDay()
     private val dragDeltaMl = MutableStateFlow(0)
     private val pendingDeletionIds = MutableStateFlow<Set<Long>>(emptySet())
     private val stagedIntakes = MutableStateFlow<Map<Long, HydrationIntake>>(emptyMap())
@@ -62,7 +79,8 @@ class HydrationViewModel @Inject constructor(
         hydrationRepository.getAllIntakes(),
         userPrefsRepository.getUserWeightKg(),
         dragDeltaMl,
-        pendingDeletionIds
+        pendingDeletionIds,
+        userPrefsRepository.getWeightPromptDismissed()
     ) { args ->
         @Suppress("UNCHECKED_CAST")
         val total = args[0] as Int
@@ -71,6 +89,7 @@ class HydrationViewModel @Inject constructor(
         val weight = args[3] as Float
         val drag = args[4] as Int
         val pending = args[5] as Set<Long>
+        val weightPromptDismissed = args[6] as Boolean
 
         val filtered = allIntakes.filter { it.id !in pending }
 
@@ -85,12 +104,52 @@ class HydrationViewModel @Inject constructor(
                     .toLocalDate()
                     .toEpochDay()
             },
-            pendingDeletionIds = pending
+            pendingDeletionIds = pending,
+            showWeightPrompt = !weightPromptDismissed
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HydrationUiState())
 
+    /**
+     * Un [HydrationDayStat] por día en la ventana del heatmap (misma ventana rodante que
+     * el de entrenamiento). La meta de cada día es la guardada en BD, o si no hay fila,
+     * se calcula al vuelo (sin persistir) con la MISMA señal que usa el widget:
+     * HydrationGoalFormula + "día activo" = está en getAllTrainedDays().
+     */
+    val historyDays: StateFlow<List<HydrationDayStat>> = combine(
+        hydrationRepository.getAllIntakes(),
+        hydrationRepository.getDailyGoalsBetween(historyStart, today),
+        statisticsRepository.getAllTrainedDays(),
+        userPrefsRepository.getUserWeightKg()
+    ) { allIntakes, storedGoals, trainedDaysList, weightKg ->
+        val trainedDays = trainedDaysList.toSet()
+        val intakesByDay = allIntakes.groupBy {
+            Instant.ofEpochMilli(it.dateTimeEpochMillis)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+                .toEpochDay()
+        }
+        (historyStart..today).map { day ->
+            val dayIntakes = intakesByDay[day].orEmpty()
+            val goalMl = storedGoals[day]?.totalGoalMl
+                ?: HydrationGoalFormula.totalGoalMl(weightKg, isActiveDay = day in trainedDays)
+            HydrationDayStat(
+                dateEpochDay = day,
+                totalMl = dayIntakes.sumOf { it.amountMl },
+                intakeCount = dayIntakes.size,
+                goalMl = goalMl
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     init {
         viewModelScope.launch(Dispatchers.IO) { calculateHydrationGoal(today) }
+    }
+
+    /** La X del aviso de peso: "no me interesa", se descarta para siempre. */
+    fun onDismissWeightPrompt() {
+        viewModelScope.launch(Dispatchers.IO) {
+            userPrefsRepository.setWeightPromptDismissed(true)
+        }
     }
 
     fun onAddIntake(amountMl: Int) {
@@ -161,12 +220,4 @@ class HydrationViewModel @Inject constructor(
         }
     }
 
-    fun onWeightDelta(delta: Float) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val newWeight = (uiState.value.userWeightKg + delta).coerceIn(30f, 250f)
-            userPrefsRepository.setUserWeightKg(newWeight)
-            calculateHydrationGoal(today)
-            widgetUpdater.refresh()
-        }
-    }
 }

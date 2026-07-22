@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.itera.domain.model.ExerciseSeriesPoint
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -42,6 +43,7 @@ fun StatLineChart(
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 12.sp, color = IteraColors.TextSecondary.copy(alpha = 0.7f))
     val dateStyle = TextStyle(fontSize = 9.sp, color = IteraColors.TextSecondary.copy(alpha = 0.6f))
+    val accent = LocalAccent.current.color
 
     Canvas(modifier.fillMaxWidth().height(92.dp)) {
         if (points.size < 2) return@Canvas
@@ -59,7 +61,7 @@ fun StatLineChart(
         val dash = PathEffect.dashPathEffect(floatArrayOf(4f, 8f))
 
         val prY = topPad + h * (1f - (dataMax - minV) / range)
-        drawLine(IteraColors.Accent.copy(alpha = 0.2f), Offset(0f, prY), Offset(size.width, prY), 0.5.dp.toPx(), pathEffect = dash)
+        drawLine(accent.copy(alpha = 0.2f), Offset(0f, prY), Offset(size.width, prY), 0.5.dp.toPx(), pathEffect = dash)
 
         val path = Path()
         val coords = points.mapIndexed { i, pt ->
@@ -71,7 +73,7 @@ fun StatLineChart(
         }
 
         clipRect(right = size.width * progress.value) {
-            drawPath(path, IteraColors.Accent, style = Stroke(width = 2.dp.toPx()))
+            drawPath(path, accent, style = Stroke(width = 2.dp.toPx()))
         }
 
         val maxIndex = points.indices.maxBy { points[it].value }
@@ -80,7 +82,7 @@ fun StatLineChart(
         coords.forEachIndexed { i, (x, y, value) ->
             if (x > size.width * progress.value) return@forEachIndexed
 
-            drawCircle(IteraColors.Accent, 3.dp.toPx(), Offset(x, y))
+            drawCircle(accent, 3.dp.toPx(), Offset(x, y))
 
             if (i == maxIndex || i == minIndex) {
                 val label = if (value % 1f == 0f) value.toInt().toString() else "%.1f".format(value)

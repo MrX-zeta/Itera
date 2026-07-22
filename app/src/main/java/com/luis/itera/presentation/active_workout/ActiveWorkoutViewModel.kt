@@ -2,11 +2,15 @@ package com.luis.itera.presentation.active_workout
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.luis.itera.domain.PendingRoutineStart
 import com.luis.itera.domain.model.DailyHydrationGoal
 import com.luis.itera.domain.model.Exercise
+import com.luis.itera.domain.model.dailySuggestedFocus
 import com.luis.itera.domain.model.Routine
 import com.luis.itera.domain.model.Session
+import com.luis.itera.domain.model.SetValidation
 import com.luis.itera.domain.model.WeeklyStreak
+import com.luis.itera.domain.model.validateSet
 import com.luis.itera.domain.model.WorkoutFocus
 import com.luis.itera.domain.model.WorkoutSet
 import com.luis.itera.domain.repository.ExerciseRepository
@@ -46,7 +50,8 @@ private data class HomeData(
     val streak: WeeklyStreak = WeeklyStreak(0, 0, 3),
     val hydrationProgress: Float = 0f,
     val trainedDaysThisWeek: Set<Long> = emptySet(),
-    val routines: List<Routine> = emptyList()
+    val routines: List<Routine> = emptyList(),
+    val suggestedFocus: WorkoutFocus = WorkoutFocus.entries.first()
 )
 
 data class ActiveWorkoutUiState(
@@ -70,7 +75,8 @@ data class ActiveWorkoutUiState(
     val timerPaused: Boolean = false,
     val pausedElapsed: Long = 0L,
     val prCelebrationText: String? = null,
-    val routines: List<Routine> = emptyList()
+    val routines: List<Routine> = emptyList(),
+    val suggestedFocus: WorkoutFocus = WorkoutFocus.entries.first()
 ) {
     val sessionFocuses: Set<WorkoutFocus>
         get() = WorkoutFocus.fromStored(session?.focus)
@@ -139,6 +145,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val calculateHydrationGoal: CalculateHydrationGoalUseCase,
     private val calculateWeeklyStreak: CalculateWeeklyStreakUseCase,
     private val routineRepository: RoutineRepository,
+    private val pendingRoutineStart: PendingRoutineStart,
     private val widgetUpdater: WidgetUpdater
 ) : ViewModel() {
 
@@ -164,6 +171,30 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     private val _routineFeedback = MutableSharedFlow<String>()
     val routineFeedback: SharedFlow<String> = _routineFeedback.asSharedFlow()
+
+    // Integridad de sets: mensaje transitorio de bloqueo (reps 0) y diálogo de
+    // confirmación de peso 0 (aviso suave, no bloquea).
+    private val _setBlockedMessage = MutableSharedFlow<String>()
+    val setBlockedMessage: SharedFlow<String> = _setBlockedMessage.asSharedFlow()
+
+
+    private val _pendingZeroWeightConfirm = MutableStateFlow(false)
+    val pendingZeroWeightConfirm: StateFlow<Boolean> = _pendingZeroWeightConfirm
+
+    // Meta de descanso (segundos) leída de prefs; default 90. Se editará en Ajustes.
+    val restGoalSeconds: StateFlow<Int> =
+        userPrefsRepository.getRestGoalSeconds()
+            .stateIn(viewModelScope, SharingStarted.Eagerly, 90)
+
+    // Nº de sets históricos por ejercicio, para la sección "Frecuentes" del selector.
+    val setCountsByExercise: StateFlow<Map<Long, Int>> =
+        sessionRepository.getSetCountsByExercise()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    // Hay una rutina cargada en la sesión (el selector muestra solo sus ejercicios).
+    val routineLoaded: StateFlow<Boolean> =
+        activeRoutineExerciseIds.map { it.isNotEmpty() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val muscleGroups = listOf(
         "Pecho", "Espalda", "Hombros", "Bíceps", "Tríceps",
@@ -215,7 +246,8 @@ class ActiveWorkoutViewModel @Inject constructor(
             streak = calculateWeeklyStreak(trainedDays, weeklyGoal),
             hydrationProgress = goal?.totalGoalMl?.takeIf { it > 0 }?.let { (totalMl.toFloat() / it).coerceAtLeast(0f) } ?: 0f,
             trainedDaysThisWeek = trainedDays.filter { it >= weekStart }.toSet(),
-            routines = routines
+            routines = routines,
+            suggestedFocus = dailySuggestedFocus(today)
         )
     }
 
@@ -266,11 +298,20 @@ class ActiveWorkoutViewModel @Inject constructor(
             timerPaused = inputs.timerPaused,
             pausedElapsed = inputs.pausedElapsed,
             prCelebrationText = inputs.prCelebrationText,
-            routines = home.routines
+            routines = home.routines,
+            suggestedFocus = home.suggestedFocus
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActiveWorkoutUiState())
 
+    /** ¿El atrás en Entrenamiento debe volver a Rutinas? (arrancó una rutina desde ahí). */
+    val returnToRoutines: StateFlow<Boolean> = pendingRoutineStart.returnToRoutines
+    fun disarmReturnToRoutines() = pendingRoutineStart.disarmReturn()
+
     init {
+        // Arranca la rutina cuando la pestaña Rutinas lo pide (evento reactivo, no one-shot).
+        viewModelScope.launch {
+            pendingRoutineStart.startEvents.collect { startRoutineById(it) }
+        }
         viewModelScope.launch {
             var hadSession = false
             sessionRepository.getActiveSession().collect { session ->
@@ -296,6 +337,9 @@ class ActiveWorkoutViewModel @Inject constructor(
             else -> current + focus
         }
     }
+
+    /** "Libre · cualquier grupo" en el selector rápido: entrena sin categorizar. */
+    fun onClearFocuses() { selectedFocuses.value = emptySet() }
 
     fun onSearchQueryChange(query: String) { searchQuery.value = query }
 
@@ -365,6 +409,23 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
+    /** Carga la rutina por id (desde el holder de arranque) y la inicia en esta instancia. */
+    private fun startRoutineById(routineId: Long) {
+        viewModelScope.launch {
+            routineRepository.getRoutines().first().firstOrNull { it.id == routineId }?.let(::onStartRoutine)
+        }
+    }
+
+    /** Carga una rutina en la sesión YA activa: el selector pasa a mostrar sus ejercicios. */
+    fun onLoadRoutine(routine: Routine) {
+        activeRoutineExerciseIds.value = routine.exerciseIds
+    }
+
+    /** Suelta la rutina cargada: el selector vuelve a sesión libre (frecuentes por foco). */
+    fun onClearRoutine() {
+        activeRoutineExerciseIds.value = emptyList()
+    }
+
     fun onSaveRoutine(name: String) {
         val session = uiState.value.session ?: return
         val exerciseIds = session.sets.map { it.exerciseId }.distinct()
@@ -381,9 +442,45 @@ class ActiveWorkoutViewModel @Inject constructor(
         viewModelScope.launch { routineRepository.deleteRoutine(routineId) }
     }
 
-    fun onStartTimer() { sessionStartMillis.value = System.currentTimeMillis() }
+    // Arranca manualmente el descanso. Antes escribía en sessionStartMillis (duración de
+    // sesión), no en setTimerStartMillis, así que el botón no movía el temporizador visible.
+    fun onStartTimer() {
+        setTimerStartMillis.value = System.currentTimeMillis()
+        timerPaused.value = false
+        pausedElapsed.value = 0L
+    }
 
     fun onRegisterSet() {
+        val exercise = selectedExercise.value ?: return
+        val isCardio = exercise.mainMuscleGroup.equals("Cardio", ignoreCase = true)
+        // Integridad de sets: cardio usa minutos/nivel, no valida reps/peso.
+        if (!isCardio) {
+            when (validateSet(exercise, reps.value, weightKg.value)) {
+                SetValidation.BlockedZeroReps -> {
+                    _setBlockedMessage.tryEmit("Añade al menos 1 repetición para registrar")
+                    return
+                }
+                SetValidation.ConfirmZeroWeight -> {
+                    _pendingZeroWeightConfirm.value = true
+                    return
+                }
+                SetValidation.Valid -> Unit
+            }
+        }
+        registerSet()
+    }
+
+    /** Confirma registrar el set a 0 kg tras el aviso suave de peso. */
+    fun onConfirmZeroWeight() {
+        _pendingZeroWeightConfirm.value = false
+        registerSet()
+    }
+
+    fun onDismissZeroWeight() {
+        _pendingZeroWeightConfirm.value = false
+    }
+
+    private fun registerSet() {
         val now = System.currentTimeMillis()
         if (now - lastRegisteredSetAt.value < REGISTER_DEBOUNCE_MS) return
         val session = uiState.value.session ?: return
@@ -447,6 +544,9 @@ class ActiveWorkoutViewModel @Inject constructor(
             sessionStartMillis.value = null
             selectedExercise.value = null
             celebratedExercises.clear()
+            // OJO: NO desarma pendingRoutineStart aquí. Si la sesión se arrancó desde Rutinas,
+            // la pantalla temporiza el desarme (deja ver el fundido Sesión→vacío antes de
+            // deslizar de vuelta); desarmar ya mismo mostraría el Home de Entrenamiento de golpe.
         }
     }
 
@@ -466,6 +566,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             selectedExercise.value = null
             celebratedExercises.clear()
             if (session.sets.isNotEmpty()) _finishedSessionId.value = session.id
+            pendingRoutineStart.disarmReturn()
         }
     }
 

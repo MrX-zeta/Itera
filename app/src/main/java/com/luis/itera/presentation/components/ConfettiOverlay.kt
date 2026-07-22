@@ -13,7 +13,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
-import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
@@ -34,12 +34,13 @@ private data class Particle(
 fun ConfettiOverlay(trigger: Boolean) {
     if (!trigger) return
 
+    val accent = LocalAccent.current.color
     val progress = remember { Animatable(0f) }
-    val particles = remember {
+    val particles = remember(accent) {
         val colors = listOf(
-            IteraColors.Accent,
-            IteraColors.Accent.copy(alpha = 0.7f),
-            IteraColors.Accent.copy(alpha = 0.4f),
+            accent,
+            accent.copy(alpha = 0.7f),
+            accent.copy(alpha = 0.4f),
             Color(0xFF0D9B7A),
             Color(0xFF0A7D63),
             Color.White.copy(alpha = 0.6f)

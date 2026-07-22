@@ -20,6 +20,9 @@ interface StatisticsRepository {
 
     fun getLastExercisedId(): Flow<Long?>
 
-    /** Grupos musculares distintos entrenados por día: epochDay -> nº de grupos. */
-    fun getDailyMuscleGroupCount(): Flow<Map<Long, Int>>
+    /** Días (epochDay) con al menos un set marcado como PR histórico. */
+    fun getDaysWithPr(): Flow<List<Long>>
+
+    /** Última fecha (epochDay) entrenada por grupo muscular. Grupos nunca entrenados no aparecen. */
+    fun getLastTrainedDayByMuscleGroup(): Flow<Map<String, Long>>
 }

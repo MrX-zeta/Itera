@@ -26,6 +26,9 @@ interface HydrationDao {
     @Query("SELECT * FROM daily_hydration_goals WHERE dateEpochDay = :dateEpochDay")
     fun getDailyGoal(dateEpochDay: Long): Flow<DailyHydrationGoalEntity?>
 
+    @Query("SELECT * FROM daily_hydration_goals WHERE dateEpochDay BETWEEN :fromEpochDay AND :toEpochDay")
+    fun getDailyGoalsBetween(fromEpochDay: Long, toEpochDay: Long): Flow<List<DailyHydrationGoalEntity>>
+
     @Query("SELECT * FROM hydration_intakes ORDER BY dateTimeEpochMillis DESC")
     fun getAllIntakes(): Flow<List<HydrationIntakeEntity>>
 

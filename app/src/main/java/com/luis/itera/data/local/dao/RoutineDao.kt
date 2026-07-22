@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import com.luis.itera.data.local.entity.RoutineEntity
 import com.luis.itera.data.local.entity.RoutineExerciseEntity
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +22,12 @@ interface RoutineDao {
 
     @Insert
     suspend fun insertRoutineExercises(items: List<RoutineExerciseEntity>)
+
+    @Update
+    suspend fun updateRoutine(routine: RoutineEntity)
+
+    @Query("DELETE FROM routine_exercises WHERE routineId = :routineId")
+    suspend fun clearRoutineExercises(routineId: Long)
 
     @Transaction
     @Query("SELECT * FROM routines ORDER BY id DESC")

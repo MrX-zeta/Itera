@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.itera.domain.model.ExerciseSeriesPoint
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -48,6 +49,7 @@ fun StatBarChart(
     val textMeasurer = rememberTextMeasurer()
     val xStyle = TextStyle(fontSize = 9.sp, color = IteraColors.TextSecondary.copy(alpha = 0.6f))
     val yStyle = TextStyle(fontSize = 9.sp, color = IteraColors.TextSecondary.copy(alpha = 0.45f))
+    val accent = LocalAccent.current.color
 
     Canvas(modifier.fillMaxWidth().height(100.dp)) {
         val xZone = 16.dp.toPx()
@@ -83,9 +85,9 @@ fun StatBarChart(
             val left = cx - barW / 2f
 
             if (pt.value >= maxV * 0.8f) {
-                drawRect(IteraColors.Accent.copy(alpha = 0.25f), Offset(left, baseline - bH), Size(barW, bH))
+                drawRect(accent.copy(alpha = 0.25f), Offset(left, baseline - bH), Size(barW, bH))
             }
-            drawRect(IteraColors.Accent, Offset(left, baseline - bH), Size(barW, bH), style = Stroke(1.dp.toPx()))
+            drawRect(accent, Offset(left, baseline - bH), Size(barW, bH), style = Stroke(1.dp.toPx()))
 
             val dl = LocalDate.ofEpochDay(pt.dateEpochDay).format(barDateFormatter)
             val m = textMeasurer.measure(dl, xStyle)

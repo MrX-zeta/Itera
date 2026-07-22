@@ -7,6 +7,11 @@ import androidx.room.Query
 import com.luis.itera.data.local.entity.SetEntity
 import kotlinx.coroutines.flow.Flow
 
+data class ExerciseSetCountRow(
+    val exerciseId: Long,
+    val setCount: Int
+)
+
 @Dao
 interface SetDao {
     @Insert
@@ -49,4 +54,12 @@ INNER JOIN sessions ses ON ses.id = s.sessionId
 WHERE s.exerciseId = :exerciseId AND ses.isFinished = 1 AND s.weightAddedKg = 0
 """)
     suspend fun getMaxRepsBodyweightFinished(exerciseId: Long): Int?
+
+    @Query("""
+SELECT s.exerciseId AS exerciseId, COUNT(*) AS setCount FROM sets s
+INNER JOIN sessions ses ON ses.id = s.sessionId
+WHERE ses.isFinished = 1
+GROUP BY s.exerciseId
+""")
+    fun getSetCountsByExercise(): Flow<List<ExerciseSetCountRow>>
 }

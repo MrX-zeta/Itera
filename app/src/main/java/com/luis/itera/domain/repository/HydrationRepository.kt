@@ -10,6 +10,9 @@ interface HydrationRepository {
     fun getAllIntakes(): Flow<List<HydrationIntake>>
     suspend fun deleteIntake(intake: HydrationIntake)
     fun getDailyGoal(dateEpochDay: Long): Flow<DailyHydrationGoal?>
+
+    /** Metas guardadas en el rango, indexadas por dateEpochDay. Días sin fila NO aparecen. */
+    fun getDailyGoalsBetween(fromEpochDay: Long, toEpochDay: Long): Flow<Map<Long, DailyHydrationGoal>>
     suspend fun addIntake(amountMl: Int)
     suspend fun upsertDailyGoal(goal: DailyHydrationGoal)
 

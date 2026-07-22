@@ -5,7 +5,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,16 +25,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         deepLinkRoute.value = intent?.getStringExtra(EXTRA_DESTINATION)
         setContent {
-            IteraTheme {
-                val viewModel: MainViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val viewModel: MainViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val accent by viewModel.accentColor.collectAsStateWithLifecycle()
+            IteraTheme(accent = accent) {
                 val onboardingState by viewModel.onboardingCompleted.collectAsStateWithLifecycle()
 
                 onboardingState?.let { completed ->
-                    if (completed) {
-                        LaunchedEffect(Unit) {
-                            viewModel.maybeAutoPinWidget()
-                        }
-                    }
                     IteraNavHost(
                         onboardingCompleted = completed,
                         onOnboardingDone = {},

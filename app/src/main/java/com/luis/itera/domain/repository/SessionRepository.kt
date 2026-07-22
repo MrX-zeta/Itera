@@ -30,4 +30,10 @@ interface SessionRepository {
     suspend fun getMaxRepsBodyweight(exerciseId: Long): Int?
 
     fun getLastFinishedSession(): Flow<Session?>
+
+    /** Sesiones terminadas (con sus sets) desde [fromEpochDay], para señales por modalidad. */
+    fun getFinishedSessionsSince(fromEpochDay: Long): Flow<List<Session>>
+
+    /** Nº de sets históricos (sesiones terminadas) por ejercicio, para "Frecuentes". */
+    fun getSetCountsByExercise(): Flow<Map<Long, Int>>
 }

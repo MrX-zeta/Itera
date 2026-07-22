@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.luis.itera.presentation.theme.AccentColor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -21,6 +22,7 @@ class UserPrefsDataStore @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val weightKey = floatPreferencesKey("user_weight_kg")
+    private val weightPromptDismissedKey = booleanPreferencesKey("weight_prompt_dismissed")
 
     fun getUserWeightKg(): Flow<Float> =
         context.dataStore.data.map { it[weightKey] ?: DEFAULT_WEIGHT_KG }
@@ -29,8 +31,21 @@ class UserPrefsDataStore @Inject constructor(
         context.dataStore.data.map { it[weeklyGoalKey] ?: DEFAULT_WEEKLY_GOAL }
 
 
+    // Editar el peso de verdad (no solo visitar Ajustes) es la señal de que el aviso de
+    // Hidratación ya cumplió su función: se marca dismissed en la MISMA transacción para que
+    // no reaparezca, sin depender de comparar contra el default (70kg es un peso real válido).
     suspend fun setUserWeightKg(weightKg: Float) {
-        context.dataStore.edit { it[weightKey] = weightKg.coerceIn(MIN_WEIGHT_KG, MAX_WEIGHT_KG) }
+        context.dataStore.edit {
+            it[weightKey] = weightKg.coerceIn(MIN_WEIGHT_KG, MAX_WEIGHT_KG)
+            it[weightPromptDismissedKey] = true
+        }
+    }
+
+    fun getWeightPromptDismissed(): Flow<Boolean> =
+        context.dataStore.data.map { it[weightPromptDismissedKey] ?: false }
+
+    suspend fun setWeightPromptDismissed(dismissed: Boolean) {
+        context.dataStore.edit { it[weightPromptDismissedKey] = dismissed }
     }
 
     suspend fun setWeeklyGoal(goal: Int) {
@@ -46,13 +61,41 @@ class UserPrefsDataStore @Inject constructor(
         context.dataStore.edit { it[onboardingKey] = completed }
     }
 
-    private val widgetPinRequestedKey = booleanPreferencesKey("widget_pin_requested")
+    private val accentColorKey = intPreferencesKey("accent_color")
 
-    fun getWidgetPinRequested(): Flow<Boolean> =
-        context.dataStore.data.map { it[widgetPinRequestedKey] ?: false }
+    fun getAccentColor(): Flow<AccentColor> =
+        context.dataStore.data.map { AccentColor.fromOrdinal(it[accentColorKey] ?: AccentColor.Default.ordinal) }
 
-    suspend fun setWidgetPinRequested(requested: Boolean) {
-        context.dataStore.edit { it[widgetPinRequestedKey] = requested }
+    suspend fun setAccentColor(accent: AccentColor) {
+        context.dataStore.edit { it[accentColorKey] = accent.ordinal }
+    }
+
+    private val restGoalSecondsKey = intPreferencesKey("rest_goal_seconds")
+
+    fun getRestGoalSeconds(): Flow<Int> =
+        context.dataStore.data.map { it[restGoalSecondsKey] ?: DEFAULT_REST_GOAL_SECONDS }
+
+    suspend fun setRestGoalSeconds(seconds: Int) {
+        context.dataStore.edit { it[restGoalSecondsKey] = seconds.coerceIn(MIN_REST_GOAL_SECONDS, MAX_REST_GOAL_SECONDS) }
+    }
+
+    // Umbrales de las pestañas dinámicas de Estadísticas. Solo LECTURA por ahora (su UI en
+    // Ajustes se conecta luego); con fallback a los defaults 4 semanas / 3 sesiones.
+    private val statsRecentWeeksKey = intPreferencesKey("stats_recent_weeks")
+    private val statsMinSessionsKey = intPreferencesKey("stats_min_sessions")
+
+    fun getStatsRecentWeeks(): Flow<Int> =
+        context.dataStore.data.map { it[statsRecentWeeksKey] ?: DEFAULT_STATS_RECENT_WEEKS }
+
+    fun getStatsMinSessions(): Flow<Int> =
+        context.dataStore.data.map { it[statsMinSessionsKey] ?: DEFAULT_STATS_MIN_SESSIONS }
+
+    suspend fun setStatsRecentWeeks(weeks: Int) {
+        context.dataStore.edit { it[statsRecentWeeksKey] = weeks.coerceIn(MIN_STATS_RECENT_WEEKS, MAX_STATS_RECENT_WEEKS) }
+    }
+
+    suspend fun setStatsMinSessions(sessions: Int) {
+        context.dataStore.edit { it[statsMinSessionsKey] = sessions.coerceIn(MIN_STATS_MIN_SESSIONS, MAX_STATS_MIN_SESSIONS) }
     }
 
     private companion object {
@@ -60,5 +103,14 @@ class UserPrefsDataStore @Inject constructor(
         const val DEFAULT_WEEKLY_GOAL = 3
         const val MIN_WEIGHT_KG = 30f
         const val MAX_WEIGHT_KG = 250f
+        const val DEFAULT_REST_GOAL_SECONDS = 90
+        const val MIN_REST_GOAL_SECONDS = 10
+        const val MAX_REST_GOAL_SECONDS = 600
+        const val DEFAULT_STATS_RECENT_WEEKS = 4
+        const val DEFAULT_STATS_MIN_SESSIONS = 3
+        const val MIN_STATS_RECENT_WEEKS = 1
+        const val MAX_STATS_RECENT_WEEKS = 52
+        const val MIN_STATS_MIN_SESSIONS = 1
+        const val MAX_STATS_MIN_SESSIONS = 30
     }
 }

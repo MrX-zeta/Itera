@@ -21,8 +21,10 @@ data class WeeklyVolumeRow(
     val totalVolume: Float
 )
 
-data class DailyGroupCountRow(val day: Long, val groupCount: Int)
-
+data class MuscleGroupLastTrainedRow(
+    val mainMuscleGroup: String,
+    val lastEpochDay: Long
+)
 
 @Dao
 interface StatisticsDao {
@@ -137,12 +139,19 @@ interface StatisticsDao {
     fun getLastExercisedId(): Flow<Long?>
 
     @Query("""
-        SELECT ses.dateEpochDay AS day, COUNT(DISTINCT e.mainMuscleGroup) AS groupCount
-        FROM sets s
-        JOIN sessions ses ON s.sessionId = ses.id
-        JOIN exercises e ON s.exerciseId = e.id
-        WHERE ses.isFinished = 1
-        GROUP BY ses.dateEpochDay
+        SELECT DISTINCT ses.dateEpochDay FROM sets s
+        INNER JOIN sessions ses ON ses.id = s.sessionId
+        WHERE s.isPr = 1 AND ses.isFinished = 1
     """)
-    fun getDailyMuscleGroupCount(): Flow<List<DailyGroupCountRow>>
+    fun getDaysWithPr(): Flow<List<Long>>
+
+    @Query("""
+        SELECT e.mainMuscleGroup AS mainMuscleGroup, MAX(ses.dateEpochDay) AS lastEpochDay
+        FROM sets s
+        INNER JOIN sessions ses ON ses.id = s.sessionId
+        INNER JOIN exercises e ON e.id = s.exerciseId
+        WHERE ses.isFinished = 1
+        GROUP BY e.mainMuscleGroup
+    """)
+    fun getLastTrainedDayByMuscleGroup(): Flow<List<MuscleGroupLastTrainedRow>>
 }

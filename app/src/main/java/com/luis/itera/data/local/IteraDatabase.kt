@@ -26,7 +26,7 @@ import com.luis.itera.data.local.entity.SetEntity
         RoutineEntity::class,
         RoutineExerciseEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class IteraDatabase : RoomDatabase() {

@@ -24,6 +24,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.itera.presentation.theme.IteraColors
+import com.luis.itera.presentation.theme.LocalAccent
 
 data class DensityPoint(
     val label: String,
@@ -56,6 +57,7 @@ fun WorkoutDensityChart(
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 12.sp, color = IteraColors.TextSecondary)
     val valueStyle = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = IteraColors.TextPrimary)
+    val accent = LocalAccent.current.color
     val chartHeight = (points.size * 42).coerceIn(84, 220)
 
     Canvas(modifier.fillMaxWidth().height(chartHeight.dp)) {
@@ -85,7 +87,7 @@ fun WorkoutDensityChart(
             )
             if (barW > 0) {
                 drawRoundRect(
-                    color = IteraColors.Accent,
+                    color = accent,
                     topLeft = Offset(labelW + gap, cy - barH / 2f),
                     size = Size(barW, barH),
                     cornerRadius = r
