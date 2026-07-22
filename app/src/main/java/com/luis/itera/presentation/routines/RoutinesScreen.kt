@@ -17,9 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -41,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.itera.R
 import com.luis.itera.presentation.theme.IteraColors
 import com.luis.itera.presentation.theme.LocalAccent
+import com.luis.itera.presentation.components.RoutineAccent
 import com.luis.itera.presentation.theme.RoutineColor
 
 @Composable
@@ -111,9 +111,7 @@ fun RoutinesScreen(
                 }
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
@@ -147,19 +145,14 @@ private fun RoutineManageCard(routine: com.luis.itera.domain.model.Routine, onEd
             Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .clickable(onClick = onEdit)
-                .padding(14.dp),
+                .clickable(onClick = onEdit),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                Modifier
-                    .width(4.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(RoutineColor.fromOrdinal(routine.color).color)
+            RoutineAccent(
+                RoutineColor.fromOrdinal(routine.color).color,
+                Modifier.fillMaxHeight().padding(vertical = 12.dp)
             )
-            Spacer(Modifier.width(12.dp))
-            Column {
+            Column(Modifier.padding(start = 8.dp, top = 14.dp, bottom = 14.dp)) {
                 Text(
                     routine.name,
                     style = MaterialTheme.typography.titleMedium,
