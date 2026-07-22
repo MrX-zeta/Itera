@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -53,9 +54,28 @@ class HistoryViewModel @Inject constructor(
     private val pendingDeleteId = MutableStateFlow<Long?>(null)
     private var deleteJob: Job? = null
 
-    private val sessions = _selectedDay.flatMapLatest { day ->
-        sessionRepository.getSessionsByDate((day ?: LocalDate.now()).toEpochDay())
-    }
+    /**
+     * Sesiones listadas bajo el mapa. Con un día seleccionado, las de ese día. Sin selección,
+     * el default es ÚTIL, no un vacío: hoy si tiene alguna sesión (incluida una EN CURSO);
+     * si no, el último día entrenado ("¿dónde me quedé?"). Solo queda vacío si de verdad
+     * no hay ninguna sesión en el histórico o si se selecciona un día sin actividad.
+     */
+    private val sessions = combine(
+        _selectedDay,
+        statisticsRepository.getAllTrainedDays()
+    ) { day, trainedDays -> day to trainedDays }
+        .flatMapLatest { (day, trainedDays) ->
+            if (day != null) {
+                sessionRepository.getSessionsByDate(day.toEpochDay())
+            } else {
+                val todayEpoch = LocalDate.now().toEpochDay()
+                sessionRepository.getSessionsByDate(todayEpoch).flatMapLatest { todaySessions ->
+                    val lastTrained = trainedDays.firstOrNull() // orden DESC: el más reciente
+                    if (todaySessions.isNotEmpty() || lastTrained == null) flowOf(todaySessions)
+                    else sessionRepository.getSessionsByDate(lastTrained)
+                }
+            }
+        }
 
     val uiState: StateFlow<HistoryUiState> = combine(
         statisticsRepository.getAllTrainedDays(),

@@ -206,10 +206,14 @@ fun ActivityHeatmap(
 ) {
     val today = remember { LocalDate.now() }
     val startMonday = remember(today) { heatmapStartMonday(today) }
-    val cells = remember(startMonday, levelForDate) { buildHeatmapCells(startMonday, levelForDate) }
+    // SIN remember a propósito: memorizar con la lambda como clave es frágil — si la lambda
+    // captura un State por delegado, su identidad es estable y el remember nunca invalida,
+    // congelando las celdas en el primer valor (vacío) aunque los datos lleguen después
+    // (bug real de Historial). Reconstruir 70 celdas por recomposición es despreciable.
+    val cells = buildHeatmapCells(startMonday, levelForDate)
     val dayLabels = remember { buildDayLabels() }
     val monthLabels = remember(startMonday) { buildMonthLabels(startMonday) }
-    val allEmpty = remember(cells) { cells.all { it.level == 0 } }
+    val allEmpty = cells.all { it.level == 0 }
 
     // La FECHA seleccionada es estado elevado (ViewModel); la celda se deriva de los datos
     // actuales para que el conteo nunca quede obsoleto tras borrar/añadir sesiones.
