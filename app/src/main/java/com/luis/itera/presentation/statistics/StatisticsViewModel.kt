@@ -67,6 +67,9 @@ enum class VolumeTrend(val label: String?, val iconRes: Int?) {
 /** Un grupo muscular que hace tiempo que no se entrena, para el bloque Equilibrio. */
 data class MuscleGroupNeglect(val group: String, val daysSince: Int)
 
+/** Fragmento de la línea de evidencia; [positive] = cifra de MEJORA, se pinta en acento. */
+data class EvidenceSegment(val text: String, val positive: Boolean = false)
+
 /** Estado de la vista GENERAL (fija): "¿progresé?", constancia y equilibrio. */
 data class GeneralUiState(
     val hasAnyData: Boolean = false,
@@ -74,7 +77,7 @@ data class GeneralUiState(
     val avgDaysPerWeek: Float = 0f,
     val totalTrainedDays: Int = 0,
     val headline: String = "",
-    val evidence: String? = null,
+    val evidence: List<EvidenceSegment>? = null,
     val neglected: List<MuscleGroupNeglect> = emptyList()
 )
 
@@ -458,13 +461,14 @@ class StatisticsViewModel @Inject constructor(
         minutesLast: Int,
         hadLastWeek: Boolean,
         daysElapsedThisWeek: Int
-    ): String? {
+    ): List<EvidenceSegment>? {
         if (daysElapsedThisWeek < 4) {
-            return if (daysThis == 0) "aún sin entrenar esta semana"
-            else "llevas ${daysWord(daysThis)} esta semana"
+            return if (daysThis == 0) listOf(EvidenceSegment("aún sin entrenar esta semana"))
+            else listOf(EvidenceSegment("llevas ${daysWord(daysThis)} esta semana"))
         }
         if (!hadLastWeek) {
-            return if (daysThis == 0) null else "esta semana: ${daysWord(daysThis)} · $minutesThis min"
+            return if (daysThis == 0) null
+            else listOf(EvidenceSegment("esta semana: ${daysWord(daysThis)} · $minutesThis min"))
         }
         val deltaDays = daysThis - daysLast
         val deltaMinutes = minutesThis - minutesLast
@@ -473,19 +477,34 @@ class StatisticsViewModel @Inject constructor(
         val daysSignalDown = deltaDays < 0 || (deltaDays == 0 && deltaMinutes < 0)
         when {
             (trend == VolumeTrend.FALLING || trend == VolumeTrend.DELOAD) && daysSignalUp ->
-                return "más días, pero con menos carga"
+                return listOf(
+                    EvidenceSegment("más días", positive = true),
+                    EvidenceSegment(", pero con menos carga")
+                )
             trend == VolumeTrend.RISING && daysSignalDown ->
-                return "menos días, pero más intenso"
+                return listOf(
+                    EvidenceSegment("menos días, pero "),
+                    EvidenceSegment("más intenso", positive = true)
+                )
         }
 
+        // Cada delta se evalúa por separado: solo el POSITIVO se marca (acento en la UI);
+        // el negativo queda en secundario, sin ningún otro color.
         val parts = buildList {
-            if (deltaDays > 0) add("${daysWord(deltaDays)} más")
-            else if (deltaDays < 0) add("${daysWord(-deltaDays)} menos")
-            if (deltaMinutes > 0) add("+$deltaMinutes min")
-            else if (deltaMinutes < 0) add("$deltaMinutes min")
+            if (deltaDays > 0) add(EvidenceSegment("${daysWord(deltaDays)} más", positive = true))
+            else if (deltaDays < 0) add(EvidenceSegment("${daysWord(-deltaDays)} menos"))
+            if (deltaMinutes > 0) add(EvidenceSegment("+$deltaMinutes min", positive = true))
+            else if (deltaMinutes < 0) add(EvidenceSegment("$deltaMinutes min"))
         }
-        return if (parts.isEmpty()) "mismo ritmo que la semana pasada"
-        else "esta semana: ${parts.joinToString(" y ")} vs la anterior"
+        if (parts.isEmpty()) return listOf(EvidenceSegment("mismo ritmo que la semana pasada"))
+        return buildList {
+            add(EvidenceSegment("esta semana: "))
+            parts.forEachIndexed { i, part ->
+                if (i > 0) add(EvidenceSegment(" y "))
+                add(part)
+            }
+            add(EvidenceSegment(" vs la anterior"))
+        }
     }
 
     private fun daysWord(n: Int): String = if (n == 1) "1 día" else "$n días"

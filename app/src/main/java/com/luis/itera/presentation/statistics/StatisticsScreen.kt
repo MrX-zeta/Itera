@@ -55,9 +55,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -251,7 +254,9 @@ private fun GeneralTab(
     }
 }
 
-/** "¿Progresé?": veredicto humano + evidencia concreta derivada de tendencia/constancia. */
+/** "¿Progresé?": veredicto humano + evidencia concreta derivada de tendencia/constancia.
+ *  Titular SIEMPRE en primario (positivo o negativo: las palabras llevan el significado);
+ *  en la evidencia, solo las cifras de MEJORA van en acento — nunca las negativas. */
 @Composable
 private fun ProgresoCard(general: GeneralUiState) {
     IteraCard {
@@ -262,9 +267,22 @@ private fun ProgresoCard(general: GeneralUiState) {
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
             color = IteraColors.TextPrimary
         )
-        general.evidence?.let {
+        general.evidence?.let { segments ->
             Spacer(Modifier.height(6.dp))
-            Text(it, style = MaterialTheme.typography.bodyMedium, color = IteraColors.TextSecondary)
+            val accent = LocalAccent.current.color
+            Text(
+                buildAnnotatedString {
+                    segments.forEach { segment ->
+                        if (segment.positive) {
+                            withStyle(SpanStyle(color = accent)) { append(segment.text) }
+                        } else {
+                            append(segment.text)
+                        }
+                    }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = IteraColors.TextSecondary
+            )
         }
     }
 }
@@ -385,11 +403,16 @@ private fun FuerzaEstimadaCard(exerciseName: String?, estimate: StrengthEstimate
                 Text(
                     if (pct >= 0) "+$pct%" else "$pct%",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = LocalAccent.current.color
+                    // Acento SOLO si mejora: un -8% en acento celebraría un retroceso.
+                    color = if (pct > 0) LocalAccent.current.color else IteraColors.TextSecondary
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    if (pct >= 0) "más fuerte que antes" else "por debajo de tu mejor momento",
+                    when {
+                        pct > 0 -> "más fuerte que antes"
+                        pct < 0 -> "por debajo de tu mejor momento"
+                        else -> "igual que tu mejor momento"
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = IteraColors.TextSecondary,
                     modifier = Modifier.weight(1f)
@@ -476,17 +499,18 @@ private fun progressionSummary(
     val first = series.first().value
     val last = series.last().value
     return when (unit) {
-        "reps" -> ProgressSummary("${first.toInt()} → ${last.toInt()} reps", positive = last >= first)
+        // positive = ESTRICTAMENTE mejor (no ">="): un empate no es una mejora que celebrar en acento.
+        "reps" -> ProgressSummary("${first.toInt()} → ${last.toInt()} reps", positive = last > first)
         "min" -> {
             val delta = (last - first).toInt()
-            ProgressSummary(if (delta >= 0) "+$delta min" else "$delta min", positive = delta >= 0)
+            ProgressSummary(if (delta >= 0) "+$delta min" else "$delta min", positive = delta > 0)
         }
         else -> {
             if (first <= 0f) return null
             val pct = ((last - first) / first * 100).toInt()
             val weeks = ((series.last().dateEpochDay - series.first().dateEpochDay) / 7).toInt().coerceAtLeast(1)
             val sign = if (pct >= 0) "+$pct%" else "$pct%"
-            ProgressSummary("$sign en $weeks sem", positive = pct >= 0)
+            ProgressSummary("$sign en $weeks sem", positive = pct > 0)
         }
     }
 }
@@ -557,7 +581,8 @@ private fun IntensidadCard(avg: Float, avgLast: Float) {
                     color = IteraColors.TextPrimary
                 )
                 if (avgLast > 0f) {
-                    val up = avg >= avgLast
+                    // Estrictamente mejor (no ">="): la misma intensidad no es una subida que celebrar.
+                    val up = avg > avgLast
                     Spacer(Modifier.width(10.dp))
                     Icon(
                         ImageVector.vectorResource(if (up) R.drawable.ic_trend_up else R.drawable.ic_trend_down),
